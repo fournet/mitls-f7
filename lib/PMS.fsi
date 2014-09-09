@@ -56,4 +56,4 @@ val coerceDH: dhparams -> DHGroup.elt -> DHGroup.elt -> DHGroup.elt -> dhpms
 
 type pms = 
   | RSAPMS of RSAKey.pk * ProtocolVersion * rsapms
-  | DHPMS of dhparams * elt * elt * dhpms
+  | DHPMS of bytes * bytes * elt * elt * dhpms

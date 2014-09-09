@@ -683,7 +683,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(dhp,sy,cy,dhpms) in
+         let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,sy,cy,dhpms) in
          let pmsid = pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
@@ -730,7 +730,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(dhp,sy,cy,dhpms) in
+         let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,sy,cy,dhpms) in
          let pmsid = pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
@@ -765,7 +765,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
          let log = log @| clientKEXBytes in
 
          (*KB DH-MS-KEM *)
-         let pms = PMS.DHPMS(dhp,sy,cy,dhpms) in
+         let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,sy,cy,dhpms) in
          let pmsid = pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
@@ -1586,7 +1586,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let dhpms = DH.serverExp dhp gx y x in
 
             (*KB DH-MS-KEM *)
-                    let pms = PMS.DHPMS(dhp,gx,y,dhpms) in
+                    let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,gx,y,dhpms) in
                     let si_old = si in
                     let si = {si_old with pmsId = pmsId(pms)} in
 #if verify
@@ -1630,7 +1630,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let dhpms = DH.serverExp dhp gx y x in
 
             (*KB DH-MS-KEM *)
-                    let pms = PMS.DHPMS(dhp,gx,y,dhpms) in //MK is the order of y, gx right?
+                    let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,gx,y,dhpms) in //MK is the order of y, gx right?
                     let (si,ms) = extract si pms log in
                     (* TODO: here we should shred pms *)
                     (* move to new state *)

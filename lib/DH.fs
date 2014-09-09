@@ -10,7 +10,7 @@ type secret = Key of bytes
 
 #if ideal
 // Local predicate definitions
-type predHE = HonestExponential of dhparams * elt
+type predHE = HonestExponential of bytes * bytes * elt
 #endif
 
 #if ideal
@@ -45,8 +45,8 @@ let genKey dhp: elt * secret =
     let (x,e) = CoreDH.gen_key dhp in
     #if ideal
     #if verify
-    Pi.assume(Elt(dhp,e));
-    Pi.assume(HonestExponential(dhp,e));
+    Pi.assume(Elt(dhp.dhp,dhp.dhg,e));
+    Pi.assume(HonestExponential(dhp.dhp,dhp.dhg,e));
     #else
     honest_log := (dhp,e)::!honest_log;
     #endif
@@ -73,7 +73,7 @@ let clientGenExp dhp gs =
                  log := (dhp,gs,gc,pms)::!log;
                  (gc,pms)
     else 
-      (Pi.assume(DHGroup.Elt(dhp,pms));
+      (Pi.assume(DHGroup.Elt(dhp.dhp,dhp.dhg,pms));
       let dpms = PMS.coerceDH dhp gs gc pms in
       (gc,dpms))
     //#end-ideal 
@@ -96,7 +96,7 @@ let serverExp dhp gs gc sk =
                  log := (dhp,gs,gc,pms)::!log;
                  pms
     else
-      (Pi.assume(DHGroup.Elt(dhp,pms)); //use checkElement instead
+      (Pi.assume(DHGroup.Elt(dhp.dhp,dhp.dhg,pms));
       let dpms = PMS.coerceDH dhp gs gc pms in
       dpms)
     //#end-ideal

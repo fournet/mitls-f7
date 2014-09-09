@@ -119,7 +119,7 @@ val pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) }
 predicate HonestPMS of pmsId 
 definition not HonestPMS(NoPmsId)
 definition !pk,cv,rsapms.    HonestPMS(PmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> PMS.HonestRSAPMS(pk,cv,rsapms)  
-definition !dhp,gx,gy,dhpms. HonestPMS(PmsId(PMS.DHPMS(dhp,gx,gy,dhpms))) <=> PMS.HonestDHPMS(dhp,gx,gy,dhpms) 
+definition !p,g,gx,gy,dhpms. HonestPMS(PmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> PMS.HonestDHPMS(p,g,gx,gy,dhpms) 
 val noPmsId: i:pmsId { not HonestPMS(i) } 
 val honestPMS: (pi:pmsId) -> b:bool {b=true => HonestPMS(pi)} 
 // MK <= currently can't typecheck other direction.
@@ -129,7 +129,7 @@ val honestPMS: (pi:pmsId) -> b:bool {b=true => HonestPMS(pi)}
 
 // Here we consider the strength of the parameters in pmsId
 predicate StrongKEX  of pmsId 
-private definition !dhp,gx,gy,dhpms. StrongKEX(SomePmsId(PMS.DHPMS(dhp,gx,gy,dhpms))) <=> DHGroup.PP(dhp)
+private definition !p,g,gx,gy,dhpms. StrongKEX(SomePmsId(PMS.DHPMS(p,g,gx,gy,dhpms))) <=> DHGroup.PP(p,g)
 private definition !pk,cv,rsapms.    StrongKEX(SomePmsId(PMS.RSAPMS(pk,cv,rsapms)))   <=> RSAKey.Strong(cv)
 
 // -------------------------------------------------------------------

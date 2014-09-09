@@ -24,7 +24,7 @@ val extract_extended:
     (;si) PRF.masterSecret
 
 private val accessRSAPMS: pk:RSAKey.pk -> cv:ProtocolVersion -> (;pk,cv) rsapms -> rsarepr
-private val accessDHPMS: dhp:dhparams -> gx:(;dhp)DHGroup.elt -> gy:(;dhp)DHGroup.elt -> pms: (;dhp,gx,gy)dhpms -> bytes
+private val accessDHPMS: p:bytes -> g:bytes -> gx:(;p,g)DHGroup.elt -> gy:(;p,g)DHGroup.elt -> pms: (;p,g,gx,gy)dhpms -> bytes
 private val accessPMS: pms -> bytes
 
 // log storing idealized master secrets

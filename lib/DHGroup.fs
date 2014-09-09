@@ -10,8 +10,8 @@ open TLSError
 type elt = bytes
 
 #if ideal
-type preds = Elt of dhparams * elt
-type predPP = PP of dhparams
+type preds = Elt of bytes * bytes * elt
+type predPP = PP of bytes * bytes
 
 let goodPP_log = ref([]: list<dhparams>)
 #if verify
@@ -22,7 +22,7 @@ let goodPP dhp =  List.memr !goodPP_log dhp
 
 let pp (dhp:dhparams) : dhparams =
 #if verify
-    Pi.assume(PP(dhp));
+    Pi.assume(PP(dhp.dhp,dhp.dhg));
 #else
     goodPP_log := (dhp ::!goodPP_log);
 #endif
@@ -34,7 +34,7 @@ let pp (dhp:dhparams) : dhparams =
 let genElement dhp: elt =
     let (_, e) = CoreDH.gen_key dhp in
 #if verify
-    Pi.assume (Elt(dhp,e));
+    Pi.assume (Elt(dhp.dhp,dhp.dhg,e));
 #endif
     e
 
@@ -57,7 +57,7 @@ let checkElement dhp (b:bytes): option<elt> =
     if CoreDH.check_element dhp b then
         (
 #if verify
-        Pi.assume(Elt(dhp,b));
+        Pi.assume(Elt(dhp.dhp,dhp.dhg,b));
 #endif
         Some(b))
     else

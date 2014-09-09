@@ -62,7 +62,7 @@ type dhpms =
   | ConcreteDHPMS of dhrepr
 
 #if ideal
-let honestDHPMS (dhp:dhparams) (gx:DHGroup.elt) (gy:DHGroup.elt) pms = 
+let honestDHPMS (p:bytes) (g:bytes) (gx:DHGroup.elt) (gy:DHGroup.elt) pms = 
   match pms with 
   | IdealDHPMS(s)    -> true
   | ConcreteDHPMS(s) -> false 
@@ -80,4 +80,4 @@ let coerceDH (dhp:dhparams) (gx:DHGroup.elt) (gy:DHGroup.elt) b = ConcreteDHPMS(
 
 type pms = 
   | RSAPMS of RSAKey.pk * ProtocolVersion * rsapms
-  | DHPMS of dhparams * elt * elt * dhpms
+  | DHPMS of bytes * bytes * elt * elt * dhpms
