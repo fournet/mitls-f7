@@ -46,7 +46,8 @@ type FlexClientKeyExchange =
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk nsc.si.serverID in
         let st,fcke = FlexClientKeyExchange.receiveRSA(st,nsc.si.serverID,pv,checkPV,sk) in
-        let nsc = FlexSecrets.fillSecrets(st,Server,nsc,fcke.kex) in
+        let nsc = {nsc with kex = fcke.kex} in
+        let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         st,nsc,fcke
 
     (* Receive ClientKeyExchange for RSA ciphersuites taking Certificate list and a protocol version *)
@@ -55,7 +56,7 @@ type FlexClientKeyExchange =
         let sk = defaultKey sk certl in
         let pk = 
             match Cert.get_public_encryption_key certl.Head with
-            | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(pk) -> pk
         in
         let si = {FlexConstants.nullSessionInfo with serverID = certl; protocol_version = pv} in
@@ -63,7 +64,7 @@ type FlexClientKeyExchange =
         match hstype with
         | HT_client_key_exchange  ->
             (match parseClientKeyExchange_RSA si payload with
-            | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (encPMS) ->
                     let pmsa = RSA.decrypt sk si si.protocol_version checkPV encPMS in
                     let pmsb = PMS.leakRSA pk si.protocol_version pmsa in
@@ -82,12 +83,16 @@ type FlexClientKeyExchange =
     static member sendRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion, ?fp:fragmentationPolicy): state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let st,fcke =
-            if nsc.pms = FlexConstants.nullNextSecurityContext.pms then
-                FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,fp=fp)
-            else
-                FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,nsc.pms,fp)
+            match nsc.kex with
+            | RSA(pms) ->
+                if pms = empty_bytes then
+                    FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,fp=fp)
+                else
+                    FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,pms,fp)
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "RSA kex expected")
         in
-        let nsc = FlexSecrets.fillSecrets(st,Client,nsc,fcke.kex) in
+        let nsc = {nsc with kex = fcke.kex} in
+        let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fcke
 
     (* Send ClientKeyExchange for RSA ciphersuites *)
@@ -97,7 +102,7 @@ type FlexClientKeyExchange =
             failwith (perror __SOURCE_FILE__ __LINE__  "Server certificate should always be present with a RSA signing cipher suite.")
         else
             match Cert.get_chain_public_encryption_key certl with
-            | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(pk) ->
                 let si = {FlexConstants.nullSessionInfo with
                             protocol_version = pv;

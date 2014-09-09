@@ -8,6 +8,7 @@ open Error
 open TLSError
 open TLSInfo
 open TLSConstants
+open CoreKeys
 
 open FlexTypes
 
@@ -29,17 +30,13 @@ type FlexConstants =
 
     (* Algorithms for DHx ciphersuites *)
     static member calgs_DHx = []
-
-
-
-
+    
     (* Redefine TLSConstants name parsing to handle SCSV ciphersuites *)
     static member names_of_cipherSuites css =
         match css with
         | [] -> correct []
         | h::t ->
-            let hl = h::[] in
-            if contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV hl then
+            if contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV [h] then
                 match FlexConstants.names_of_cipherSuites t with
                 | Error(x,y) -> Error(x,y)
                 | Correct(rem) -> correct(rem)
@@ -51,11 +48,21 @@ type FlexConstants =
                     | Error(x,y) -> Error(x,y)
                     | Correct(rem) -> correct (n::rem)
 
-    (* Define a default DH key exchange parameters structure where x,gx are the local values and gy is the remote public value *)
-    static member nullKexDH = { gp = (let dhparams = CoreDH.load_default_params() in (dhparams.g,dhparams.p));
-                      x = empty_bytes; gx = empty_bytes; gy = empty_bytes;
-                    }
+    static member minDHSize = 512
+    static member dhdb = DHDB.create "dhparams-db.bin"
 
+    (* Null value for CoreKeys.dhparams parameters *)
+    static member nullDHParams =
+        let _,dhp = CoreDH.load_default_params "default-dh.pem" FlexConstants.dhdb 512 in
+        dhp
+
+    (* Define a default DH key exchange parameters structure where x,gx are the local values and gy is the remote public value *)
+    static member nullKexDH =
+     { pg = (FlexConstants.nullDHParams.dhp,FlexConstants.nullDHParams.dhg);
+       x  = empty_bytes;
+       gx = empty_bytes;
+       gy = empty_bytes;}
+    
     (* Define a null FHelloRequest record *)
     static member nullFHelloRequest : FHelloRequest = {   payload = empty_bytes;
                                             }

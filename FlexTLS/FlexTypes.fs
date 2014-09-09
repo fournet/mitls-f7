@@ -35,13 +35,13 @@ type state = {
 
 (* DH key exchange parameters where x,gx are the local values and gy is the remote public value. Note that gx is in fact g^x mod p *)
 type kexDH = { 
-    gp:  bytes * bytes;
+    pg: bytes * bytes;
     x:  bytes;
     gx: bytes;
     gy: bytes
 }
 
-(* Key exchange records *)
+(* Key exchange methods, and associated data *)
 type kex =
     | RSA of bytes
     | DH of kexDH

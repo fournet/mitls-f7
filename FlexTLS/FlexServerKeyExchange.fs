@@ -5,6 +5,7 @@ module FlexServerKeyExchange
 open Bytes
 open Error
 open TLSInfo
+open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
@@ -18,40 +19,41 @@ open FlexSecrets
 type FlexServerKeyExchange =
     class
 
-    (* Receive DH ServerKeyExchange and check signature *)
-    static member receiveDHxANDcheckSignature (st:state, si:SessionInfo, sigAlg:Sig.alg, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchange =
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let st,nsc,fske = FlexServerKeyExchange.receiveDHx(st,si,nsc) in
-        match Cert.get_chain_public_signing_key si.serverID sigAlg with
-                | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__  x)
-                | Correct(vkey) ->
-                    let kexDH = 
-                        match nsc.kex with
-                        | DH(kexDH) -> kexDH
-                        | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHx")
-                    in
-                    let g,p = kexDH.gp in
-                    let gx = kexDH.gx in 
-                    let dheB = HandshakeMessages.dheParamBytes p g gx in
-                    let expected = si.init_crand @| si.init_srand @| dheB in
-                    if Sig.verify sigAlg vkey expected fske.signature then
-                        st,nsc,fske
-                    else
-                        failwith (perror __SOURCE_FILE__ __LINE__  "message signature does not match the public key")
+    static member receiveDHE (st:state, nsc:nextSecurityContext, ?check_sig:bool): state * nextSecurityContext * FServerKeyExchange =
+        let check_sig = defaultArg check_sig false in
+        let st,fske = FlexServerKeyExchange.receiveDHE(st,nsc.si.protocol_version,nsc.si.cipher_suite) in
+        let nsc = {nsc with kex = fske.kex} in
+        if check_sig then
+            let kexDH =
+                match nsc.kex with
+                | DH(x) -> x
+                | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Internal error: receiveDHE should return a DH kex")
+            in
+            let p,g = kexDH.pg in
+            let gy = kexDH.gy in
+            let dheB = HandshakeMessages.dheParamBytes p g gy in
+            let expected = nsc.crand @| nsc.srand @| dheB in
+            match Cert.get_chain_public_signing_key nsc.si.serverID fske.sigAlg with
+            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__  x)
+            | Correct(vkey) ->
+                if Sig.verify fske.sigAlg vkey expected fske.signature then
+                    st,nsc,fske
+                else
+                    failwith (perror __SOURCE_FILE__ __LINE__ "Signature check failed")
+        else
+            st,nsc,fske
 
     (* Receive DH ServerKeyExchange *)
-    static member receiveDHx (st:state, si:SessionInfo, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchange =
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+    static member receiveDHE (st:state, pv:ProtocolVersion, cs:cipherSuite) : state * FServerKeyExchange =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_key_exchange  ->
-            (match HandshakeMessages.parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
-            | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct (p,g,gy,alg,signature) ->
-                let kexdh = {gp = (g,p); x = empty_bytes; gx = empty_bytes; gy = gy} in
-                let nsc = { nsc with kex = DH(kexdh) } in
+            (match HandshakeMessages.parseServerKeyExchange_DHE FlexConstants.dhdb FlexConstants.minDHSize pv cs payload with
+            | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct (_,dhp,gy,alg,signature) ->
+                let kexdh = {pg = (dhp.dhp,dhp.dhg); x = empty_bytes; gx = empty_bytes; gy = gy} in
                 let fske : FServerKeyExchange = { kex = DH(kexdh); payload = to_log; sigAlg = alg; signature = signature } in
-                st,nsc,fske 
+                st,fske 
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
 
