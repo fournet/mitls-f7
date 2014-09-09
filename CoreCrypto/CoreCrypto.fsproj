@@ -23,6 +23,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Debug\CoreCrypto.XML</DocumentationFile>
+    <NoWarn>62</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -32,6 +33,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <WarningLevel>3</WarningLevel>
     <DocumentationFile>bin\Release\CoreCrypto.XML</DocumentationFile>
+    <NoWarn>62</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Crypto">
@@ -64,12 +66,19 @@
     <Compile Include="CoreHMac.fs" />
     <Compile Include="CoreSig.fsi" />
     <Compile Include="CoreSig.fs" />
+    <Compile Include="DHDB.fsi" />
+    <Compile Include="DHDB.fs" />
     <Compile Include="CoreDH.fsi" />
     <Compile Include="CoreDH.fs" />
     <Compile Include="DER.fsi" />
     <Compile Include="DER.fs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DB\DB.fsproj">
+      <Name>DB</Name>
+      <Project>{cad78b05-0adc-433b-954b-1f31fc6477f6}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\OpenSSL\OpenSSL.csproj">
       <Name>OpenSSL</Name>
       <Project>{db787d27-c33e-4d14-bf2c-b92cbdbf0c54}</Project>

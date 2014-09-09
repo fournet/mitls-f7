@@ -7,6 +7,7 @@ open TLSConstants
 open TLSInfo
 open DHGroup // The trusted setup for Diffie-Hellman computations
 open PMS
+open CoreKeys
 
 (* extractMS is internal and extracts entropy from both rsapms and dhpms bytes 
 
@@ -46,7 +47,7 @@ let private accessRSAPMS (pk:RSAKey.pk) (cv:ProtocolVersion) pms =
   #endif
   | ConcreteRSAPMS(b) -> b 
 
-let private accessDHPMS (p:DHGroup.p) (g:DHGroup.g) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
+let private accessDHPMS (p:bytes) (g:bytes) (gx:DHGroup.elt) (gy:DHGroup.elt) (pms:dhpms) = 
   match pms with 
   #if ideal
   | IdealDHPMS(b) -> b.seed

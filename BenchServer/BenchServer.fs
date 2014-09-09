@@ -69,6 +69,10 @@ let tlsconfig options isserver = {
 
     TLSInfo.sessionDBFileName = (if isserver then "sessionDBFile.bin" else "sessionDBFile-client.bin")
     TLSInfo.sessionDBExpiry   = Date.newTimeSpan 1 0 0 0 (* one day *)
+
+    TLSInfo.dhDBFileName = "dhparams-db.bin"
+    TLSInfo.dhDefaultGroupFileName = "default-dh.pem"
+    TLSInfo.dhPMinLength = TLSInfo.defaultConfig.dhPMinLength
 }
 
 (* ------------------------------------------------------------------------ *)
