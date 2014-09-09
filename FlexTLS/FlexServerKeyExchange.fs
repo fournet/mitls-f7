@@ -20,7 +20,7 @@ type FlexServerKeyExchange =
 
     (* Receive DH ServerKeyExchange and check signature *)
     static member receiveDHxANDcheckSignature (st:state, si:SessionInfo, sigAlg:Sig.alg, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchange =
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let st,nsc,fske = FlexServerKeyExchange.receiveDHx(st,si,nsc) in
         match Cert.get_chain_public_signing_key si.serverID sigAlg with
                 | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__  x)
@@ -41,7 +41,7 @@ type FlexServerKeyExchange =
 
     (* Receive DH ServerKeyExchange *)
     static member receiveDHx (st:state, si:SessionInfo, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchange =
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_key_exchange  ->
@@ -59,8 +59,8 @@ type FlexServerKeyExchange =
     (* Send DH ServerKeyExchange overloaded with nextSecurityContext instead of kexdh *)
     (* Not sure this one is interesting ... *)
     static member sendDHx (st:state, si:SessionInfo, sigAlg:Sig.alg, sigKey:Sig.skey, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let kexdh = 
             match nsc.kex with 
             | DH(kexdh) -> kexdh
@@ -77,7 +77,7 @@ type FlexServerKeyExchange =
         let kexdh = defaultArg kexdh defkexdh in
 
         let ns = st.ns in
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
 
         let g,p = kexdh.gp in
         let x,gx = kexdh.x, kexdh.gx in
@@ -87,8 +87,8 @@ type FlexServerKeyExchange =
 
         let payload = HandshakeMessages.serverKeyExchangeBytes_DHE dheB sigAlg sign si.protocol_version in
         let st = FlexHandshake.send(st,payload,fp) in
-        let nsc = { nullNextSecurityContext with kex = DH(kexdh) } in
-        let fske = { nullFServerKeyExchangeDHx with sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
+        let nsc = { FlexConstants.nullNextSecurityContext with kex = DH(kexdh) } in
+        let fske = { FlexConstants.nullFServerKeyExchangeDHx with sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
         st,nsc,fske
     
     end

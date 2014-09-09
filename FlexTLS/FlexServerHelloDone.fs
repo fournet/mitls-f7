@@ -34,7 +34,7 @@ type FlexServerHelloDone =
 
     (* Send ServerHelloDone message to the network stream *)
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HandshakeMessages.serverHelloDoneBytes,fp) in
         let fshd: FServerHelloDone = {payload = HandshakeMessages.serverHelloDoneBytes} in
         st,fshd

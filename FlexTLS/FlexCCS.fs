@@ -33,7 +33,7 @@ type FlexCCS =
 
     (* Send function for handshake ChangeCipherSpecs message *)
     static member send (st:state, ?fccs:FChangeCipherSpecs) : state * FChangeCipherSpecs =
-        let fccs = defaultArg fccs nullFChangeCipherSpecs in
+        let fccs = defaultArg fccs FlexConstants.nullFChangeCipherSpecs in
         let record_write,_ = FlexRecord.send(
                 st.ns, st.write.epoch, st.write.record,
                 Change_cipher_spec, fccs.payload,

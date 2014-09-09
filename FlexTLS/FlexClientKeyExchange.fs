@@ -25,7 +25,7 @@ let defaultKey osk certl =
             | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Please provide a certificate")
             | Some(ch) -> ch
         in
-        match Cert.for_key_encryption calgs_RSA hint with
+        match Cert.for_key_encryption FlexConstants.calgs_RSA hint with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Please provide a certificate for which the private key is available")
         | Some(c,sk) -> sk
 
@@ -46,7 +46,7 @@ type FlexClientKeyExchange =
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk nsc.si.serverID in
         let st,fcke = FlexClientKeyExchange.receiveRSA(st,nsc.si.serverID,pv,checkPV,sk) in
-        let nsc = FlexSecrets.fillSecrets(st,Client,nsc,fcke.kex) in
+        let nsc = FlexSecrets.fillSecrets(st,Server,nsc,fcke.kex) in
         st,nsc,fcke
 
     (* Receive ClientKeyExchange for RSA ciphersuites taking Certificate list and a protocol version *)
@@ -58,7 +58,7 @@ type FlexClientKeyExchange =
             | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(pk) -> pk
         in
-        let si = {nullSessionInfo with serverID = certl; protocol_version = pv} in
+        let si = {FlexConstants.nullSessionInfo with serverID = certl; protocol_version = pv} in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_key_exchange  ->
@@ -75,14 +75,14 @@ type FlexClientKeyExchange =
        
     (* Send ClientKeyExchange for RSA ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with the FClientHello message *)
     static member sendRSA (st:state, nsc:nextSecurityContext, fch:FClientHello, ?fp:fragmentationPolicy): state * nextSecurityContext * FClientKeyExchange =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         FlexClientKeyExchange.sendRSA(st,nsc,fch.pv,fp)
 
     (* Send ClientKeyExchange for RSA ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with the protocol version *)
     static member sendRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion, ?fp:fragmentationPolicy): state * nextSecurityContext * FClientKeyExchange =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let st,fcke =
-            if nsc.pms = nullNextSecurityContext.pms then
+            if nsc.pms = FlexConstants.nullNextSecurityContext.pms then
                 FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,fp=fp)
             else
                 FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,nsc.pms,fp)
@@ -121,8 +121,8 @@ type FlexClientKeyExchange =
 
     (* Receive ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with the FServerKeyExchangeDHx  message *)
     static member receiveDHx (st:state, certl:list<Cert.cert>, ?fske:FServerKeyExchange, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
-        let nsc = defaultArg nsc nullNextSecurityContext in
-        let fske = defaultArg fske nullFServerKeyExchangeDHx in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let fske = defaultArg fske FlexConstants.nullFServerKeyExchangeDHx in
         let kexdh = 
             match fske.kex with
             | DH(kexdh) -> kexdh
@@ -132,8 +132,8 @@ type FlexClientKeyExchange =
 
     (* Receive ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with a user provided kexDH record *)
     static member receiveDHx (st:state, certl:list<Cert.cert>, ?kexdh:kexDH, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
-        let nsc = defaultArg nsc nullNextSecurityContext in
-        let kexdh = defaultArg kexdh nullKexDH in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let kexdh = defaultArg kexdh FlexConstants.nullKexDH in
         
         let st,fcke = FlexClientKeyExchange.receiveDHE(st,certl,kexdh) in
         let nsc = FlexSecrets.fillSecrets(st,Server,nsc,fcke.kex) in
@@ -141,7 +141,7 @@ type FlexClientKeyExchange =
 
     (* Receive ClientKeyExchange for DHE ciphersuites *)
     static member receiveDHE (st:state, certl:list<Cert.cert>, ?kexdh:kexDH) : state * FClientKeyExchange =
-        let kexdh = defaultArg kexdh nullKexDH in
+        let kexdh = defaultArg kexdh FlexConstants.nullKexDH in
         
         let (g,p),gx = kexdh.gp,kexdh.gx in
         let x = FlexSecrets.dh_to_adh p g gx kexdh.x in
@@ -161,9 +161,9 @@ type FlexClientKeyExchange =
 
     (* Send ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext from a FServerKeyExchange message *)
     static member sendDHE (st:state, certl:list<Cert.cert>, ?fske:FServerKeyExchange, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let nsc = defaultArg nsc nullNextSecurityContext in
-        let fske = defaultArg fske nullFServerKeyExchangeDHx in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let fske = defaultArg fske FlexConstants.nullFServerKeyExchangeDHx in
 
         let kexdh = 
             match fske.kex with
@@ -174,8 +174,8 @@ type FlexClientKeyExchange =
 
     (* Send ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext from a KEX record *)
     static member sendDHE (st:state, certl:list<Cert.cert>, kexdh:kexDH, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
 
         let st,fcke = FlexClientKeyExchange.sendDHE(st,certl,kexdh,fp) in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc,fcke.kex) in
@@ -183,7 +183,7 @@ type FlexClientKeyExchange =
 
     (* Send ClientKeyExchange for DHE ciphersuites *)
     static member sendDHE (st:state, certl:list<Cert.cert>, kexdh:kexDH, ?fp:fragmentationPolicy) : state * FClientKeyExchange =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         
         let g,p = kexdh.gp in
         let dhp : CoreKeys.dhparams = {g = g; p = p; q=None} in

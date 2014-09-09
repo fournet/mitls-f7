@@ -20,7 +20,7 @@ type FlexCertificateRequest =
     
     (* Receive a CertificateRequest message from the network stream *)
     static member receive (st:state, ?nsc:nextSecurityContext) : state * nextSecurityContext * FCertificateRequest =
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
         let pv = si.protocol_version in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
@@ -48,9 +48,9 @@ type FlexCertificateRequest =
            (e.g. we cannot select certification authority names)
            We could either improve miTLS, or write our code in this module.
            Using limited miTLS capabilities for now. *)
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let fcr = defaultArg fcr nullFCertificateRequest in
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let fcr = defaultArg fcr FlexConstants.nullFCertificateRequest in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         // FIXME: next function should take fcr fields as input. To be fixed in miTLS or by re-implementing here
         let payload = HandshakeMessages.certificateRequestBytes true nsc.si.cipher_suite nsc.si.protocol_version in
         let st = FlexHandshake.send (st,payload,fp) in

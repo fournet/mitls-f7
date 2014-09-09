@@ -49,7 +49,7 @@ type RSA_KEX =
         // Typical RSA key exchange messages
 
         // Ensure we use RSA
-        let ch = {nullFClientHello with
+        let ch = {FlexConstants.nullFClientHello with
             suites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
         let st,nsc,ch   = FlexClientHello.send(st,ch) in
         let st,nsc,sh   = FlexServerHello.receive(st,nsc) in
@@ -106,7 +106,7 @@ type RSA_KEX =
         else
 
         // Ensure we send our preferred ciphersuite
-        let sh = {nullFServerHello with suite = TLS_RSA_WITH_AES_128_CBC_SHA} in
+        let sh = {FlexConstants.nullFServerHello with suite = TLS_RSA_WITH_AES_128_CBC_SHA} in
         let st,nsc,sh   = FlexServerHello.send(st,nsc,sh) in
         let st,nsc,cert = FlexCertificate.send(st,Server,chain,nsc) in
         let st,shd      = FlexServerHelloDone.send(st) in
@@ -136,7 +136,7 @@ type RSA_KEX =
 
     (* Run a full Handshake RSA with both server and client authentication *)
     static member full_handshake_RSA_with_client_auth (role:Role) (st:state) (chain:Cert.chain) (salg:Sig.alg) (skey:Sig.skey) : state * FHSMessages =
-    let sms = nullFHSMessages in
+    let sms = FlexConstants.nullFHSMessages in
 
     match role with
     | Client -> 

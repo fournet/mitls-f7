@@ -26,14 +26,14 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     (* pv = Is there some pv ? If no, check config maxVer *)
     // FIXME : There is a corner case when the user sets fch pv to default because it should have priority over cfg.maxVer
     let pv =
-        match fch.pv = nullFClientHello.pv with
+        match fch.pv = FlexConstants.nullFClientHello.pv with
         | false -> fch.pv
         | true -> cfg.maxVer
     in
 
     (* rand = Is there random bytes ? If no, create some *)
     let rand =
-        match fch.rand = nullFClientHello.rand with
+        match fch.rand = FlexConstants.nullFClientHello.rand with
         | false -> fch.rand
         | true -> Nonce.mkHelloRandom()
     in
@@ -44,9 +44,9 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     (* suites = Is there some ? If no, check config *)
     // FIXME : There is a corner case when the user sets fch suites to default because it should have priority over cfg.ciphersuites
     let suites =
-        match fch.suites = nullFClientHello.suites with
+        match fch.suites = FlexConstants.nullFClientHello.suites with
         | false -> fch.suites
-        | true -> (match TLSConstants.names_of_cipherSuites cfg.ciphersuites with
+        | true -> (match FlexConstants.names_of_cipherSuites cfg.ciphersuites with
             | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(csl) -> csl)
     in
@@ -54,7 +54,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     (* comps = Is there some ? If no, check config *)
     // FIXME : There is a corner case when the user sets fch comps to default because it should have priority over cfg.compressions
     let comps =
-        match fch.comps = nullFClientHello.comps with
+        match fch.comps = FlexConstants.nullFClientHello.comps with
         | false -> fch.comps
         | true -> cfg.compressions
     in
@@ -69,7 +69,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
 
     (* ext = Is there some ? If no, generate using config *)
     let ext =
-        match fch.ext = nullFClientHello.ext with
+        match fch.ext = FlexConstants.nullFClientHello.ext with
         | false -> fch.ext
         | true -> 
             let ci = initConnection Client rand in
@@ -112,18 +112,18 @@ type FlexClientHello =
             (match parseClientHello payload with
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
-                let si  = { nullSessionInfo with 
+                let si  = { FlexConstants.nullSessionInfo with 
                             init_crand = cr 
                             } 
                 in
-                let nsc = { nullNextSecurityContext with
+                let nsc = { FlexConstants.nullNextSecurityContext with
                                 si = si;
                                 crand = cr } in
-                let suites = match TLSConstants.names_of_cipherSuites clientCipherSuites with
+                let suites = match FlexConstants.names_of_cipherSuites clientCipherSuites with
                     | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                     | Correct(suites) -> suites
                 in
-                let fch = { nullFClientHello with
+                let fch = { FlexConstants.nullFClientHello with
                             pv = pv;
                             rand = cr;
                             sid = sid;
@@ -142,8 +142,8 @@ type FlexClientHello =
     (* Send a ClientHello message to the network stream *)
     static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
         let ns = st.ns in
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let fch = defaultArg fch nullFClientHello in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let fch = defaultArg fch FlexConstants.nullFClientHello in
         let cfg = defaultArg cfg defaultConfig in
         
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
@@ -152,8 +152,8 @@ type FlexClientHello =
         let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
         let st = FlexHandshake.send(st,payload,fp) in
         // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
-        let si  = { nullSessionInfo with init_crand = fch.rand } in
-        let nsc = { nullNextSecurityContext with
+        let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
+        let nsc = { FlexConstants.nullNextSecurityContext with
                         si = si;
                         crand = fch.rand } in
         let fch = { fch with payload = payload } in

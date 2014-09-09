@@ -25,7 +25,7 @@ open FlexHandshake
 let fillFServerHelloANDSi (fsh:FServerHello) (si:SessionInfo) : FServerHello * SessionInfo =
     (* rand = Is there random bytes ? If no, create some *)
     let rand =
-        match fsh.rand = nullFServerHello.rand with
+        match fsh.rand = FlexConstants.nullFServerHello.rand with
         | false -> fsh.rand
         | true -> Nonce.mkHelloRandom()
     in
@@ -65,7 +65,7 @@ type FlexServerHello =
 
     (* Receive a ServerHello message from the network stream *)
     static member receive (st:state, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -104,9 +104,9 @@ type FlexServerHello =
     (* Send a ServerHello message to the network stream *)
     static member send (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
         let ns = st.ns in
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let fsh = defaultArg fsh nullFServerHello in
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
 
         let fsh,si = fillFServerHelloANDSi fsh si in

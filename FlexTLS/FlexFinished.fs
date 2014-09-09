@@ -32,12 +32,12 @@ type FlexFinished =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
 
     static member send (st:state, ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         FlexFinished.send(st,ff.verify_data,fp=fp)
 
     (* Send Finished message to the network stream *)
     static member send (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext, ?fp:fragmentationPolicy) : state * FFinished =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let verify_data =
             match logRoleNSC with
             | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.ms role log

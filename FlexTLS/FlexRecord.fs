@@ -72,7 +72,7 @@ type FlexRecord =
 
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
     static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?epoch_init_pv:ProtocolVersion, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let pv = 
             if TLSInfo.isInitEpoch e then
                 match epoch_init_pv with
@@ -99,7 +99,7 @@ type FlexRecord =
 
     (* Send genric method based on content type and state *)
     static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let payload = pickCTBuffer st.write ct in
         let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.record,ct,payload,st.write.epoch_init_pv,fp) in
         let st = FlexState.updateOutgoingBuffer st ct rem in

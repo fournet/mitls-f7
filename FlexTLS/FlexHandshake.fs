@@ -55,7 +55,7 @@ type FlexHandshake =
 
     (* Send handshake message *)
     static member send (st:state, payload:bytes, ?fp:fragmentationPolicy) : state =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let buf = st.write.hs_buffer @| payload in
         let st = FlexState.updateOutgoingHSBuffer st buf in
         FlexRecord.send(st,Handshake,fp)

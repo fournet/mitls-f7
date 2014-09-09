@@ -20,7 +20,7 @@ type FlexCertificate =
 
     (* Receive a Certificate message from the network stream *)
     static member receive (st:state, role:Role, ?nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -49,9 +49,9 @@ type FlexCertificate =
     (* Send a Certificate message to the network stream using User provided chain of certificates *)
     static member send (st:state, role:Role, ?nsc:nextSecurityContext, ?fcrt:FCertificate, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
         let ns = st.ns in
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let fcrt = defaultArg fcrt nullFCertificate in
-        let nsc = defaultArg nsc nullNextSecurityContext in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let fcrt = defaultArg fcrt FlexConstants.nullFCertificate in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
 
         let chain = fcrt.chain in
         let si = nsc.si in
@@ -76,9 +76,9 @@ type FlexCertificate =
 
     (* Send a Certificate message with a Cert.chain provided by the user *)
     static member send (st:state, role:Role, chain:Cert.chain, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
-        let nsc = defaultArg nsc nullNextSecurityContext in
-        let fp = defaultArg fp defaultFragmentationPolicy in
-        let fcrt = {nullFCertificate with chain = chain} in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let fcrt = {FlexConstants.nullFCertificate with chain = chain} in
         FlexCertificate.send(st,role,fcrt=fcrt,nsc=nsc,fp=fp)
 
     end
