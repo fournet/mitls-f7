@@ -32,7 +32,6 @@ open CoreKeys
  *)
 
 let private extractMS si pmsBytes : PRF.masterSecret =
-    let cs = si.cipher_suite in
     let data = csrands si in
     let ca = kefAlg si in
     let res = TLSPRF.extract ca pmsBytes data 48 in
