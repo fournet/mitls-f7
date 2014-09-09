@@ -92,14 +92,14 @@ type FlexClientKeyExchange =
 
     (* Send ClientKeyExchange for RSA ciphersuites *)
     static member sendRSA (st:state, certl:list<Cert.cert>, pv:ProtocolVersion, ?pms:bytes, ?fp:fragmentationPolicy) : state * FClientKeyExchange =
-        let fp = defaultArg fp defaultFragmentationPolicy in
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         if certl.IsEmpty then
             failwith (perror __SOURCE_FILE__ __LINE__  "Server certificate should always be present with a RSA signing cipher suite.")
         else
             match Cert.get_chain_public_encryption_key certl with
             | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(pk) ->
-                let si = {nullSessionInfo with
+                let si = {FlexConstants.nullSessionInfo with
                             protocol_version = pv;
                             serverID = certl} in
                 let pms,pmsb =
