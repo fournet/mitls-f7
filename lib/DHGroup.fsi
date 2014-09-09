@@ -10,7 +10,7 @@ type elt = bytes
 
 #if ideal
 val goodPP: dhparams -> bool
-type preds = Elt of dhparams * elt
+type preds = Elt of bytes * bytes * elt
 #endif
 
 val genElement  : dhparams -> elt

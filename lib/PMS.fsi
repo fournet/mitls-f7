@@ -38,7 +38,7 @@ val coerceRSA: RSAKey.pk -> ProtocolVersion -> rsarepr -> rsapms
 val leakRSA: RSAKey.pk -> ProtocolVersion -> rsapms -> rsarepr
 
 #if ideal
-val honestDHPMS: dhparams -> elt -> elt -> dhpms -> bool 
+val honestDHPMS: bytes -> bytes -> elt -> elt -> dhpms -> bool 
 #endif
 
 val sampleDH: dhparams -> DHGroup.elt -> DHGroup.elt -> dhpms
