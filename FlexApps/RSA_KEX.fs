@@ -53,18 +53,18 @@ type RSA_KEX =
         let st           = FlexState.installWriteKeys st nsc in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
             
-        let st,fC        = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
+        let st,ffC        = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
         let st,_     = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let log          = log @| fC.payload in
+        let log          = log @| ffC.payload in
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server log in
-        let st,fS        = FlexFinished.receive(st) in
+        let st,ffS        = FlexFinished.receive(st) in
             
         // Check match of reveived log with the correct one
-        if not (verify_data = fS.verify_data)
+        if not (verify_data = ffS.verify_data)
         then
             failwith (perror __SOURCE_FILE__ __LINE__ "Server verify_data doesn't match")
         else
@@ -89,30 +89,30 @@ type RSA_KEX =
         let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn,port) in
 
         // Start typical RSA key exchange
-        let st,nsc,ch   = FlexClientHello.receive(st) in
+        let st,nsc,fch   = FlexClientHello.receive(st) in
 
         // Sanity check: our preferred ciphersuite is there
-        if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) ch.suites) then
+        if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.suites) then
             failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
         else
 
         // Ensure we send our preferred ciphersuite
-        let sh = {FlexConstants.nullFServerHello with suite = TLS_RSA_WITH_AES_128_CBC_SHA} in
-        let st,nsc,sh   = FlexServerHello.send(st,nsc,sh) in
-        let st,nsc,cert = FlexCertificate.send(st,Server,chain,nsc) in
-        let st,shd      = FlexServerHelloDone.send(st) in
-        let st,nsc,cke  = FlexClientKeyExchange.receiveRSA(st,nsc,ch,sk=sk) in
-        let st,_        = FlexCCS.receive(st) in
+        let fsh = {FlexConstants.nullFServerHello with suite = TLS_RSA_WITH_AES_128_CBC_SHA} in
+        let st,nsc,fsh   = FlexServerHello.send(st,nsc,fsh) in
+        let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+        let st,fshd      = FlexServerHelloDone.send(st) in
+        let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=sk) in
+        let st,_         = FlexCCS.receive(st) in
 
-        let log = ch.payload @| sh.payload @| cert.payload @| shd.payload @| cke.payload in
+        let log = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
         let verify_data = FlexSecrets.makeVerifyData nsc.si nsc.ms Client log in
 
         // Start decrypting
         let st          = FlexState.installReadKeys st nsc in
-        let st,fC       = FlexFinished.receive(st) in
+        let st,ffC       = FlexFinished.receive(st) in
 
         // Check verify_data
-        if not (verify_data = fC.verify_data) then
+        if not (verify_data = ffC.verify_data) then
             failwith (perror __SOURCE_FILE__ __LINE__ "Client verify_data doesn't match")
         else
 
@@ -120,7 +120,7 @@ type RSA_KEX =
             
         // Start encrypting
         let st     = FlexState.installWriteKeys st nsc in
-        let log    = log @| fC.payload in
+        let log    = log @| ffC.payload in
         let _      = FlexFinished.send(st,logRoleNSC=(log,Server,nsc)) in
         ()
 
@@ -160,14 +160,14 @@ type RSA_KEX =
         let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si.protocol_version,salg,skey) in
             
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-        let st,fccsC     = FlexCCS.send(st) in
+        let st,_         = FlexCCS.send(st) in
             
         // Start encrypting
         let st           = FlexState.installWriteKeys st nsc in
             
         let log          = log @| fcver.payload @| fcke.payload in
         let st,ffC       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
-        let st,fccsS     = FlexCCS.receive(st) in
+        let st,_         = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
@@ -220,15 +220,15 @@ type RSA_KEX =
         let st,fcver     = FlexCertificateVerify.receive(st,nsc.si.protocol_version,fcreq.sigAlgs) in
         if not (log = fcver.payload) then failwith "Log message received doesn't match" else
 
-        let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv) in
-        let st,fccsC     = FlexCCS.receive(st) in
+        let st,nsc,fcke = FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv) in
+        let st,_        = FlexCCS.receive(st) in
 
         // Start decrypting
-        let st,ffC       = FlexFinished.receive(st) in
-        let st,fccsS     = FlexCCS.send(st) in
+        let st,ffC      = FlexFinished.receive(st) in
+        let st,_        = FlexCCS.send(st) in
 
         // Start encrypting
-        let log          = log @| fcver.payload @| fcke.payload @| fccsC.payload @| ffC.payload in
+        let log          = log @| fcver.payload @| fcke.payload @| ffC.payload in
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server log in
 
         // Check match of reveived log with the correct one
