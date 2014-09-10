@@ -1,11 +1,9 @@
-- Client-side authentication:
-  -X Implement specific messages (CertificateVerify)
-  - RSA-based scenario
+- Library
+  - Tests on RSA with client_auth
+  - Tests on DHE
 
-- Server-side RSA scenario
-
-- DH support
-  - Then, Client/Server DH scenarios
+- Scenarios
+  - DHE with and without client authentication
 
 - Resumption
   - Nothing special to do at the FlexTLS library level?

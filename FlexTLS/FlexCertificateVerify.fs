@@ -47,7 +47,7 @@ type FlexCertificateVerify =
                         if ms = empty_bytes then 
                             failwith (perror __SOURCE_FILE__ __LINE__ "Master Secret cannot be empty")
                         else
-                            FlexSecrets.ms_to_ams ms si
+                            PRF.coerce (msi si) ms
                     in
                     let (sigAlg,_) = alg in
                     let alg = (sigAlg,NULL) in

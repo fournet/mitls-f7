@@ -12,6 +12,18 @@ open FlexConstants
 
 
 
+(* Coherce a DH parameter from bytes to DH.secret abstract type *)
+let dh_coerce (x:bytes) : DH.secret =
+    DH.coerce FlexConstants.nullDHParams empty_bytes x
+
+
+(* Leak a DH parameter from abstract type *)
+let dh_leak (x:DH.secret) : bytes =
+    DH.leak FlexConstants.nullDHParams empty_bytes x
+    
+
+
+
 type FlexSecrets =
     class
 

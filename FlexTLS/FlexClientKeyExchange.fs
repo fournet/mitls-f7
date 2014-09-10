@@ -123,80 +123,75 @@ type FlexClientKeyExchange =
 
 
     (*----------------------------------------------------------------------------------------------------------------------------------------------*)
-
+    
+    // BB : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH
     (* Receive ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with the FServerKeyExchangeDHx  message *)
-    static member receiveDHx (st:state, certl:list<Cert.cert>, ?fske:FServerKeyExchange, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
+    static member receiveDHE (st:state, fske:FServerKeyExchange, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let fske = defaultArg fske FlexConstants.nullFServerKeyExchangeDHx in
-        let kexdh = 
-            match fske.kex with
-            | DH(kexdh) -> kexdh
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHx")
-        in
-        FlexClientKeyExchange.receiveDHx(st,certl,kexdh,nsc)
+        let nsc = {nsc with kex = fske.kex} in
+        FlexClientKeyExchange.receiveDHE(st,nsc)
 
     (* Receive ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with a user provided kexDH record *)
-    static member receiveDHx (st:state, certl:list<Cert.cert>, ?kexdh:kexDH, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let kexdh = defaultArg kexdh FlexConstants.nullKexDH in
-        
-        let st,fcke = FlexClientKeyExchange.receiveDHE(st,certl,kexdh) in
-        let nsc = FlexSecrets.fillSecrets(st,Server,nsc,fcke.kex) in
+    static member receiveDHE (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
+        let kexdh =
+            match nsc.kex with
+            | DH(kexdh) -> kexdh
+            | _         -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHE")
+        in
+        let st,fcke = FlexClientKeyExchange.receiveDHE(st,kexdh) in
+        let nsc = {nsc with kex = fcke.kex} in
+        let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         st,nsc,fcke
 
     (* Receive ClientKeyExchange for DHE ciphersuites *)
-    static member receiveDHE (st:state, certl:list<Cert.cert>, ?kexdh:kexDH) : state * FClientKeyExchange =
-        let kexdh = defaultArg kexdh FlexConstants.nullKexDH in
-        
-        let (g,p),gx = kexdh.gp,kexdh.gx in
-        let x = FlexSecrets.dh_to_adh p g gx kexdh.x in
-        
+    static member receiveDHE (st:state, kexdh:kexDH) : state * FClientKeyExchange =
+        let (p,g),gx = kexdh.pg,kexdh.gx in
+        let dhp = {FlexConstants.nullDHParams with dhp = p; dhg = g} in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_key_exchange  ->
-            (match parseClientKEXExplicit_DH p g payload with
-            | Error(ad,x) -> failwith x
+            (match HandshakeMessages.parseClientKEXExplicit_DH dhp payload with
+            | Error(ad,err) -> failwith err
             | Correct(gy) ->
                 let kexdh = { kexdh with gy = gy } in
-                let fcke = { kex = DH(kexdh); payload = payload } in
+                let fcke = { kex = DH(kexdh); payload = to_log } in
                 st,fcke
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
         
 
+    // BB : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH
     (* Send ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext from a FServerKeyExchange message *)
-    static member sendDHE (st:state, certl:list<Cert.cert>, ?fske:FServerKeyExchange, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
+    static member sendDHE (st:state, fske:FServerKeyExchange, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let fske = defaultArg fske FlexConstants.nullFServerKeyExchangeDHx in
-
-        let kexdh = 
-            match fske.kex with
-            | DH(kexdh) -> kexdh
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHx")
-        in
-        FlexClientKeyExchange.sendDHE(st,certl,kexdh,nsc,fp)
+        let nsc = {nsc with kex = fske.kex} in
+        FlexClientKeyExchange.sendDHE(st,nsc,fp)
 
     (* Send ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext from a KEX record *)
-    static member sendDHE (st:state, certl:list<Cert.cert>, kexdh:kexDH, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
+    static member sendDHE (st:state, nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-
-        let st,fcke = FlexClientKeyExchange.sendDHE(st,certl,kexdh,fp) in
-        let nsc = FlexSecrets.fillSecrets(st,Client,nsc,fcke.kex) in
+        let kexdh =
+            match nsc.kex with
+            | DH(kexdh) -> kexdh
+            | _         -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHE")
+        in
+        let st,fcke = FlexClientKeyExchange.sendDHE(st,kexdh,fp) in
+        let nsc = { nsc with kex = fcke.kex } in
+        let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fcke
 
     (* Send ClientKeyExchange for DHE ciphersuites *)
-    static member sendDHE (st:state, certl:list<Cert.cert>, kexdh:kexDH, ?fp:fragmentationPolicy) : state * FClientKeyExchange =
+    static member sendDHE (st:state, kexdh:kexDH, ?fp:fragmentationPolicy) : state * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         
-        let g,p = kexdh.gp in
-        let dhp : CoreKeys.dhparams = {g = g; p = p; q=None} in
-        let (x,_),(gx,_) = CoreDH.gen_key dhp in
+        let p,g = kexdh.pg in
+        let dhp = { FlexConstants.nullDHParams with dhp = p; dhg = g } in
+        let x,gx = CoreDH.gen_key_pg p g in
 
         let payload = clientKEXExplicitBytes_DH gx in
         let st = FlexHandshake.send(st,payload,fp) in
-        let kexdh = {kexdh with x = x; gx = gx } in
+        let kexdh = { kexdh with x = x; gx = gx } in
         let fcke = { kex = DH(kexdh); payload = payload } in
         st,fcke
 

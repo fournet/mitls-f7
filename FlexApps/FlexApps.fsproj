@@ -82,6 +82,11 @@
     <Reference Include="System.Numerics" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CoreCrypto\CoreCrypto.fsproj">
+      <Name>CoreCrypto</Name>
+      <Project>{6d4e3f46-dbf9-473b-93ba-58614114aa57}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\FlexTLS\FlexTLS.fsproj">
       <Name>FlexTLS</Name>
       <Project>{c4e94ba9-db5a-46c3-a0c1-c729b9f513c5}</Project>
