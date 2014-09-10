@@ -48,12 +48,12 @@ type FlexConstants =
                     | Error(x,y) -> Error(x,y)
                     | Correct(rem) -> correct (n::rem)
 
-    static member minDHSize = 512
+    static member minDHSize = TLSInfo.defaultConfig.dhPQMinLength
     static member dhdb = DHDB.create "dhparams-db.bin"
 
     (* Null value for CoreKeys.dhparams parameters *)
     static member nullDHParams =
-        let _,dhp = CoreDH.load_default_params "default-dh.pem" FlexConstants.dhdb 512 in
+        let _,dhp = CoreDH.load_default_params "default-dh.pem" FlexConstants.dhdb FlexConstants.minDHSize in
         dhp
 
     (* Define a default DH key exchange parameters structure where x,gx are the local values and gy is the remote public value *)
