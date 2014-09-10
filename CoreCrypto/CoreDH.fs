@@ -30,7 +30,8 @@ let check_params dhdb minSize (pbytes:bytes) (gbytes:bytes) =
             // check if p is a safe prime, i.e. p = 2*q + 1 with prime q
             let q = pm1.Divide(BigInteger.Two)
             if p.IsProbablePrime(80) && q.IsProbablePrime(80) then
-                if p.BitLength < minSize then
+                let (minPl,minQl) = minSize in
+                if p.BitLength < minPl || q.BitLength < minQl then
                     Error(perror __SOURCE_FILE__ __LINE__ "Subgroup too small")
                 else
                     let qbytes = abytes (q.ToByteArrayUnsigned())
@@ -41,7 +42,13 @@ let check_params dhdb minSize (pbytes:bytes) (gbytes:bytes) =
         else
             Error (perror __SOURCE_FILE__ __LINE__ "Group with small order")
     | Some(qbytes,safe_prime) -> // known group
-        correct (dhdb,{dhp = pbytes; dhg = gbytes ; dhq = qbytes ; safe_prime = safe_prime})
+        let p = new BigInteger(1, cbytes pbytes) in
+        let q = new BigInteger(1, cbytes qbytes) in
+        let (minPl,minQl) = minSize in
+        if p.BitLength < minPl || q.BitLength < minQl then
+            Error(perror __SOURCE_FILE__ __LINE__ "Subgroup too small")
+        else
+            correct (dhdb,{dhp = pbytes; dhg = gbytes ; dhq = qbytes ; safe_prime = safe_prime})
  
 let check_element dhp (ebytes:bytes) =
     let p   = new BigInteger(1, cbytes dhp.dhp)

@@ -14,7 +14,7 @@ type preds = Elt of bytes * bytes * elt
 #endif
 
 val genElement  : dhparams -> elt
-val checkParams : DHDB.dhdb -> nat -> bytes -> bytes -> Result<(DHDB.dhdb * dhparams)>
+val checkParams : DHDB.dhdb -> nat * nat -> bytes -> bytes -> Result<(DHDB.dhdb * dhparams)>
 val checkElement: dhparams -> bytes -> option<elt>
 
-val defaultDHparams: string -> DHDB.dhdb -> nat -> (DHDB.dhdb * dhparams)
+val defaultDHparams: string -> DHDB.dhdb -> nat * nat -> (DHDB.dhdb * dhparams)

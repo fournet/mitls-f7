@@ -74,7 +74,7 @@ let tlsconfig options isserver = {
 
     TLSInfo.dhDBFileName = "dhparams-db.bin"
     TLSInfo.dhDefaultGroupFileName = "default-dh.pem"
-    TLSInfo.dhPMinLength = TLSInfo.defaultConfig.dhPMinLength
+    TLSInfo.dhPQMinLength = TLSInfo.defaultConfig.dhPQMinLength
 }
 
 (* ------------------------------------------------------------------------ *)

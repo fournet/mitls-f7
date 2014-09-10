@@ -1003,8 +1003,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             (match cState with
             | ServerKeyExchangeDHE(si,log) ->
                 let ops = state.poptions in
-                let dhpl = ops.dhPMinLength in
-                (match parseServerKeyExchange_DHE state.dhdb dhpl si.protocol_version si.cipher_suite payload with
+                let dhstrength = ops.dhPQMinLength in
+                (match parseServerKeyExchange_DHE state.dhdb dhstrength si.protocol_version si.cipher_suite payload with
                 | Error z ->
                     let (x,y) = z in
                     InError(x,y,state)
@@ -1034,8 +1034,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     
             | ServerKeyExchangeDH_anon(si,log) ->
                 let ops = state.poptions in
-                let dhpl = ops.dhPMinLength in
-                (match parseServerKeyExchange_DH_anon state.dhdb dhpl payload with
+                let dhstrength = ops.dhPQMinLength in
+                (match parseServerKeyExchange_DH_anon state.dhdb dhstrength payload with
                 | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct(v) ->
                     let (dhdb,dhp,y) = v in
@@ -1280,8 +1280,8 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         (*KB DH-PMS-KEM (server 1) *)
         let dhparams_filename = state.poptions.dhDefaultGroupFileName in
         let ops = state.poptions in
-        let dhpl = ops.dhPMinLength in
-        let (dhdb,dhp,gx,x) = DH.serverGen dhparams_filename state.dhdb dhpl  in
+        let dhstrength = ops.dhPQMinLength in
+        let (dhdb,dhp,gx,x) = DH.serverGen dhparams_filename state.dhdb dhstrength  in
         //~ pms-KEM: (dhp,gx),((dhp,gx),x) = keygen_DHE()
         let state = {state with dhdb = dhdb} in
 
@@ -1331,8 +1331,8 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:
     (*KB DH-PMS-KEM (server 1) *)
     let default_params_filename = state.poptions.dhDefaultGroupFileName in
     let ops = state.poptions in
-    let dhpl = ops.dhPMinLength in
-    let (dhdb,dhp,y,x) = DH.serverGen default_params_filename state.dhdb dhpl in
+    let dhstrength = ops.dhPQMinLength in
+    let (dhdb,dhp,y,x) = DH.serverGen default_params_filename state.dhdb dhstrength in
     let state = {state with dhdb = dhdb} in
 
     let serverKEXB = serverKeyExchangeBytes_DH_anon dhp.dhp dhp.dhg y in
