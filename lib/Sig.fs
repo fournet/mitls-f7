@@ -16,13 +16,15 @@ type sigv = bytes
 type pkey = { pkey : sigpkey * hashAlg }
 type skey = { skey : sigskey * hashAlg; pub : pkey }
 
-let sigalg_of_skeyparams = function
-    | CoreSig.SK_RSA _ -> SA_RSA
-    | CoreSig.SK_DSA _ -> SA_DSA
+let sigalg_of_skeyparams sk =
+    match sk with
+    | SK_RSA (_,_) -> SA_RSA
+    | SK_DSA (_,_) -> SA_DSA
 
-let sigalg_of_pkeyparams = function
-    | CoreSig.PK_RSA _ -> SA_RSA
-    | CoreSig.PK_DSA _ -> SA_DSA
+let sigalg_of_pkeyparams pk =
+    match pk with
+    | PK_RSA (_,_) -> SA_RSA
+    | PK_DSA (_,_) -> SA_DSA
 
 #if ideal
 // We maintain two logs:
@@ -51,8 +53,8 @@ let rec has_pk (a:alg) (pk:pkey) (l:list<(alg * skey * pkey)>) =
       | _ -> Error.unexpected "[has_pk] unreachable pattern match"
 
 let pk_of (a:alg) (sk:skey) =  sk.pub
-let consHonestLog a sk pk log =  (a, sk, pk)::log
-let consLog a pk t log =  (a, pk, t)::log
+let consHonestLog (a:alg) (sk:skey) (pk:pkey) log =  (a, sk, pk)::log
+let consLog (a:alg) (pk:pkey) (t:text) log =  (a, pk, t)::log
 
 let honest (a:alg) (pk:pkey) : bool = 
 #if verify
