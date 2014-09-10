@@ -13,8 +13,17 @@ open FlexConstants
 open FlexHandshake
 open FlexSecrets
 
-
-
+let filldh kexdh =
+    let (p,g) = kexdh.pg in
+    let x, gx =
+        match kexdh.x,kexdh.gx with
+        | x, gx when x = empty_bytes && gx = empty_bytes ->
+            CoreDH.gen_key_pg p g
+        | x, gx when gx = empty_bytes ->
+            x, CoreDH.agreement p x g
+        | x, gx -> x,gx
+    in
+    {kexdh with x = x; gx = gx}
 
 type FlexServerKeyExchange =
     class
@@ -58,39 +67,43 @@ type FlexServerKeyExchange =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
 
 
-    (* Send DH ServerKeyExchange overloaded with nextSecurityContext instead of kexdh *)
-    (* Not sure this one is interesting ... *)
-    static member sendDHx (st:state, si:SessionInfo, sigAlg:Sig.alg, sigKey:Sig.skey, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
+    (* Send DHE ServerKeyExchange *)
+    static member sendDHE (st:state, nsc:nextSecurityContext, ?sigAlgAndKey:(Sig.alg * Sig.skey), ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let kexdh = 
-            match nsc.kex with 
-            | DH(kexdh) -> kexdh
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHx")
+        let sAlg,sKey =
+            match sigAlgAndKey with
+            | Some(sak) -> sak
+            | None ->
+                match Cert.get_hint nsc.si.serverID with
+                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Wrong server certificate provided")
+                | Some(hint) ->
+                    let sigAlgs = TLSExtensions.default_sigHashAlg nsc.si.protocol_version nsc.si.cipher_suite in
+                    match Cert.for_signing sigAlgs hint sigAlgs with
+                    | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Cannot find private key for certificate")
+                    | Some(_,sAlg,sKey) -> sAlg,sKey
         in
-        FlexServerKeyExchange.sendDHx(st, si, sigAlg, sigKey, kexdh, fp)
+        let kexdh = match nsc.kex with
+            | DH(kexdh) -> kexdh
+            | _ -> FlexConstants.nullKexDH
+        in
+        let st,fske = FlexServerKeyExchange.sendDHE(st,kexdh,nsc.crand,nsc.srand,nsc.si.protocol_version,sAlg,sKey,fp) in
+        let nsc = {nsc with kex = fske.kex} in
+        st,nsc,fske
 
-    (* Send DH ServerKeyExchange *)
-    static member sendDHx (st:state, si:SessionInfo, sigAlg:Sig.alg, sigKey:Sig.skey, ?kexdh:kexDH, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
-        let (p,g,gx,x) = DH.serverGen() in
-        let xB = FlexSecrets.adh_to_dh p g gx x in
-        let defkexdh = {gp = (g,p); x = empty_bytes; gy = empty_bytes; gx = gx} in
-
-        let kexdh = defaultArg kexdh defkexdh in
-
-        let ns = st.ns in
+    (* Send DHE ServerKeyExchange *)
+    static member sendDHE (st:state, kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey, ?fp:fragmentationPolicy) : state * FServerKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let kexdh = filldh kexdh in
 
-        let g,p = kexdh.gp in
-        let x,gx = kexdh.x, kexdh.gx in
+        let p,g = kexdh.pg in
+        let gx  = kexdh.gx in
         let dheB = HandshakeMessages.dheParamBytes p g gx in
-        let msgb = si.init_crand @| si.init_srand @| dheB in
+        let msgb = crand @| srand @| dheB in
         let sign = Sig.sign sigAlg sigKey msgb in
 
-        let payload = HandshakeMessages.serverKeyExchangeBytes_DHE dheB sigAlg sign si.protocol_version in
+        let payload = HandshakeMessages.serverKeyExchangeBytes_DHE dheB sigAlg sign pv in
         let st = FlexHandshake.send(st,payload,fp) in
-        let nsc = { FlexConstants.nullNextSecurityContext with kex = DH(kexdh) } in
-        let fske = { FlexConstants.nullFServerKeyExchangeDHx with sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
-        st,nsc,fske
+        let fske = { sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
+        st,fske
     
     end
