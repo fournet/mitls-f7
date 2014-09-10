@@ -172,10 +172,6 @@ let rec cfind (e:id) (ad:LHAEPlain.adata) (c:cipher) (xs: list<entry>) : (range 
         if e = e' && c = c' && ad = ad' then
             (rg,text)
         else cfind e ad c res
-        //let clength = length c in
-        //let rg = cipherRangeClass e clength in
-    // AP: unreachable | _::res -> cfind e c res
-  //(ad,rg,text)
 
 let addtolog (e:entry) (l: ref<list<entry>>) =
     e::!l
@@ -193,11 +189,6 @@ let ENC (ki:id) s ad rg data =
     in
     if authId (ki) then
       let (s,c) = ENC_int ki s tlen d in
-      let l = length c in
-//      let c =
-//        let exp = TLSInfo.max_TLSCipher_fragment_length in
-//        if l <= exp then c
-//        else Error.unexpected "ENC returned a ciphertext of unexpected size"
       Pi.assume (ENCrypted(ki,ad,c,data));
       log := addtolog (ki, ad, rg, c, data) log;
       (s,c)
@@ -217,9 +208,14 @@ let DEC_int (ki:id) (s:decryptor) cipher =
     //#begin-ivStaleDec
     | BlockCipher(s), MtE(CBC_Stale(alg),_) ->
         (match s.iv with
-        | NoIV -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
+        | NoIV -> unexpected "[DEC_int] Wrong combination of cipher algorithm and state"
         | SomeIV(iv) ->
             let data = cbcdec alg s.key.k iv cipher in
+            let dlen = length data in
+            let clen = length cipher in
+            if dlen <> clen then
+                unexpected "[DEC_int] Core crypto returned wrong plaintext length"
+            else
             let lb = lastblock alg cipher in
             let siv = someIV ki lb in
             let s = updateIV ki s siv in
@@ -227,16 +223,26 @@ let DEC_int (ki:id) (s:decryptor) cipher =
     //#end-ivStaleDec
     | BlockCipher(s), MtE(CBC_Fresh(alg),_) ->
         (match s.iv with
-        | SomeIV(_) -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
+        | SomeIV(_) -> unexpected "[DEC_int] Wrong combination of cipher algorithm and state"
         | NoIV ->
             let ivL = blockSize alg in
             let (iv,encrypted) = split cipher ivL in
             let data = cbcdec alg s.key.k iv encrypted in
+            let dlen = length data in
+            let elen = length encrypted in
+            if dlen <> elen then
+                unexpected "[DEC_int] Core crypto returned wrong plaintext length"
+            else
             (BlockCipher(s), data))
     | StreamCipher(s), MtE(Stream_RC4_128,_) ->
         let data = (CoreCiphers.rc4process s.sstate (cipher)) in
+        let dlen = length data in
+        let clen = length cipher in
+        if dlen <> clen then
+            unexpected "[DEC_int] Core crypto returned wrong plaintext length"
+        else
         (StreamCipher(s),data)
-    | _,_ -> unexpected "[DEC] Wrong combination of cipher algorithm and state"
+    | _,_ -> unexpected "[DEC_int] Wrong combination of cipher algorithm and state"
 
 let DEC ki s ad cipher =
   #if ideal
