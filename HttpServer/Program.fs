@@ -46,7 +46,7 @@ let tlsoptions sessionDBDir dhDBDir serverName clientName = {
 
     TLSInfo.dhDBFileName = Path.Combine(dhDBDir, "dhparams-db.bin")
     TLSInfo.dhDefaultGroupFileName = Path.Combine(dhDBDir, "default-dh.pem")
-    TLSInfo.dhPMinLength = TLSInfo.defaultConfig.dhPMinLength
+    TLSInfo.dhPQMinLength = TLSInfo.defaultConfig.dhPQMinLength
 }
 
 type options = {

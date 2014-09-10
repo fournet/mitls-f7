@@ -50,7 +50,7 @@ let config (servname : string) = {
     (* DH parameters *)
     TLSInfo.dhDBFileName = "dhparams-db.bin"
     dhDefaultGroupFileName = "defaultDH.pem"
-    dhPMinLength = TLSInfo.defaultConfig.dhPMinLength
+    dhPQMinLength = TLSInfo.defaultConfig.dhPQMinLength
 }
 
 // ------------------------------------------------------------------------
