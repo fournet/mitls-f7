@@ -28,6 +28,14 @@ let plain (i:id) (ad:adata) (rg:range) b =
     let p = StatefulPlain.plain i h ad rg b in
     {contents =  p}
 
+#if ideal
+let plain_auth (i:id) (ad:adata) (rg:range) b =
+    let ad = parseAD i ad in
+    let h = StatefulPlain.emptyHistory i in
+    let p = StatefulPlain.plain i h ad rg b in
+    {contents =  p}
+#endif
+
 let reprFragment (i:id) (ad:adata) (rg:range) p =
     let ad = parseAD i ad in
     StatefulPlain.reprFragment i ad rg p.contents
@@ -57,10 +65,4 @@ let widen i ad r f =
     let ad' = parseAD i ad in
     let f' = StatefulPlain.widen i ad' r f.contents in
     {contents = f'}
-
-let plain_auth (i:id) (ad:adata) (rg:range) b =
-    let ad = parseAD i ad in
-    let h = StatefulPlain.emptyHistory i in
-    let p = StatefulPlain.plain i h ad rg b in
-    {contents =  p}
 #endif
