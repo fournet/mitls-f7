@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module RSA_KEX
+module Handshake_full_RSA
 
 open Tcp
 open Bytes
@@ -27,7 +27,7 @@ open FlexSecrets
 
 
 
-type RSA_KEX =
+type Handshake_full_RSA =
     class
 
     (* Run a full Handshake RSA with server side authentication only *)
@@ -75,7 +75,7 @@ type RSA_KEX =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
-        | Some(chain,sk) -> RSA_KEX.server(listening_address,chain,sk,port)
+        | Some(chain,sk) -> Handshake_full_RSA.server(listening_address,chain,sk,port)
 
     static member server (listening_address:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
@@ -135,7 +135,7 @@ type RSA_KEX =
             | None -> failwith "Failed to retreive certificate data"
             | Some(c,a,s) -> c,a,s
         in
-        RSA_KEX.client_with_auth (server_name,chain,salg,skey,port)
+        Handshake_full_RSA.client_with_auth (server_name,chain,salg,skey,port)
 
     static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
@@ -186,7 +186,7 @@ type RSA_KEX =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
-        | Some(chain,sk) -> RSA_KEX.server_with_client_auth(listening_address,chain,sk,port)
+        | Some(chain,sk) -> Handshake_full_RSA.server_with_client_auth(listening_address,chain,sk,port)
 
     static member server_with_client_auth (listening_address:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in

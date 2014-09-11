@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module AlertAttack
+module Attack_Alert
 
 open FlexTypes
 open FlexConnection
@@ -27,7 +27,7 @@ let httpRequest host =
     sprintf "GET / HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\n\r\n" host
 
 
-let alertAttack peer =
+let run peer =
     // Connect to the server
     let st,_ = FlexConnection.clientOpenTcpConnection(peer,peer) in
 

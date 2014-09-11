@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module DHE_KEX
+module Handshake_full_DHE
 
 open Tcp
 open Bytes
@@ -28,7 +28,7 @@ open FlexSecrets
 
 
 
-type DHE_KEX =
+type Handshake_full_DHE =
     class
 
     (* Run a full Handshake DHE with server side authentication only *)
@@ -78,7 +78,7 @@ type DHE_KEX =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_signing FlexConstants.sigAlgs_ALL cn FlexConstants.sigAlgs_RSA with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
-        | Some(chain,_,_) -> DHE_KEX.server(listening_address,chain,port)
+        | Some(chain,_,_) -> Handshake_full_DHE.server(listening_address,chain,port)
 
     static member server (listening_address:string, chain:Cert.chain, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
