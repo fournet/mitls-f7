@@ -62,6 +62,10 @@ val macPlain: e:id -> r:range ->
   ad:(;e)LHAEPlain.adata -> 
   f:(;e,ad,r)LHAEPlain.plain -> b:bytes{ SafeId(e) \/ B(b) = MACPlain(e,r,B(ad),f) }
 
+private ask !i,r,ad,b,p.
+	B(ad) @| VLBytes(2,B(b)) = B(ad) @| VLBytes(2,LHAEPlain.Payload(i,B(ad),r,p)) =>
+	B(b) = LHAEPlain.Payload(i,B(ad),r,p)
+
 predicate val Decoded: 'e * 'a * 'b -> bool
 
 val mac: e:id -> k:(;e) MAC.key ->
@@ -177,6 +181,15 @@ val repr:  e:id{not SafeId(e)} ->
 private definition !e,pl. MAC.Msg(e,pl) <=>
      (SafeId(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) 
                           /\ B(pl) = MACPlain(e,r,B(ad),f)))
+
+
+private ask !i,t. not SafeId(i) /\ MAC.Msg(i,t) =>
+	(?ad,r,p. B(t) = B(ad) @| VLBytes(2,LHAEPlain.Payload(i,B(ad),r,p)) )
+
+// FIXME: fails because we cannot bind ad (and r)/
+// FIXME: In practice, invoking LHAEPlain.plain_auth fails once that function will have stronger pre-conditions
+private ask !i,ad,b,t. not SafeId(i) /\ MAC.Msg(i,t) /\ B(t) = B(ad) @| VLBytes(2,B(b)) =>
+	(?r,p. B(t) = B(ad) @| VLBytes(2,LHAEPlain.Payload(i,B(ad),r,p)) )
 
 //CF Comments:
 //CF 

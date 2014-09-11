@@ -53,7 +53,8 @@ let verify_MACOnly (e:id) k ad rg b tag =
             // we know there exists a fragment 'f' such that
             // B(b) = MACPlain(e,rg,B(ad),f)
             // all we have to do is pull this f out of the hat.
-            failwith "TODO"
+            let p = LHAEPlain.plain_auth e ad rg b in
+            correct p
         else
 #endif
             let p = LHAEPlain.plain e ad rg b in

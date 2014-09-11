@@ -42,6 +42,10 @@ val repr:  i:id{not SafeId(i)} -> ad:(;i)adata -> r:range -> p:(;i,ad,r) plain -
 private val reprFragment:  
            i:id{not SafeId(i)} -> ad:(;i)adata -> r:range -> f:(;i,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,f)}
 
+(* FIXME: Super-tedious, because we'd need to add a plain_auth through all the plain stack! *)
+val plain_auth: i:id{AuthId(i)} -> ad:(;i)adata -> r:range ->
+	b:(;r)rbytes{?ad',r',p. B(b) = Payload(i,B(ad'),r',p) (* FIXME: /\ ad=ad' /\ r=r' *)} -> p:(;i,ad,r)plain{B(b) = Payload(i,B(ad),r,p)}
+
 val widen: i:id -> ad:(;i)adata -> r:range -> 
   f:(;i,ad,r)plain -> 
   f':(;i,ad,RangeClass(i,r))plain{
