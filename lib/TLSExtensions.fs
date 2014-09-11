@@ -421,12 +421,14 @@ let rec parseSigHashAlgList b : (Result<list<Sig.alg>>)=
     elif length b = 1 then Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else
         let (thisB,remB) = Bytes.split b 2 in
-        match parseSigHashAlg thisB with
+        match parseSigHashAlgList remB with
         | Error(x,y) -> Error(x,y)
-        | Correct(this) ->
-            match parseSigHashAlgList remB with
-            | Error(x,y) -> Error(x,y)
-            | Correct(rem) -> correct(this :: rem)
+        | Correct(rem) ->
+            match parseSigHashAlg thisB with
+            | Error(x,y) -> // skip this one
+                correct(rem)
+            | Correct(this) ->
+                correct(this :: rem)
 
 let default_sigHashAlg_fromSig pv sigAlg=
     match sigAlg with
