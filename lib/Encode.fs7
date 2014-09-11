@@ -55,6 +55,9 @@ val payload: e:id -> r:range -> ad:(;e)LHAEPlain.adata ->
 
 function val MACPlain : 'a * 'b * 'c * 'd -> 'e
 private definition !e,r,ad,f. MACPlain(e,r,ad,f) = ad @| VLBytes(2,LHAEPlain.Payload(e,ad,r,f))
+val macPlain_bytes: e:id -> r:range ->
+  ad:(;e)LHAEPlain.adata -> b:(;r)rbytes ->
+  b':bytes{B(b') = B(ad) @| VLBytes(2,B(b))}
 val macPlain: e:id -> r:range -> 
   ad:(;e)LHAEPlain.adata -> 
   f:(;e,ad,r)LHAEPlain.plain -> b:bytes{ SafeId(e) \/ B(b) = MACPlain(e,r,B(ad),f) }
@@ -65,6 +68,12 @@ val mac: e:id -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata -> rg:range ->
   p:(;e,ad,rg)LHAEPlain.plain ->
   (;e,ad,rg) plain
+
+val verify_MACOnly: e:id{not SafeId(e)} -> k:(;e) MAC.key ->
+  ad:(;e)LHAEPlain.adata ->
+  rg:range ->
+  b:(;rg)rbytes -> t:(;e)MAC.tag ->
+  (;e,ad,rg)LHAEPlain.plain Result
 
 val verify: e:id -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata -> 
@@ -112,8 +121,15 @@ val encodeNoPad: e:id{not SafeId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
 	tlen:nat{tlen <= max_TLSCipher_fragment_length} -> rg:range{tlen = TargetLength(e,rg)} ->
 	ad:(;e) LHAEPlain.adata -> (;e,ad,rg) LHAEPlain.plain -> (;e) MAC.tag ->
 	(;PlainLength(e,tlen))lbytes
-val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg  = MACOnly(mac) \/
-	  e.aeAlg  = MtE(Stream_RC4_128,mac))} ->
+
+val decodeNoPad_bytes: e:id{?mac. e.aeAlg  = MACOnly(mac) \/
+	  e.aeAlg  = MtE(Stream_RC4_128,mac)} ->
+	ad:(;e) LHAEPlain.adata -> rg:range ->
+	tlen:nat{tlen >= MacKeySize(MacAlg(e)) /\
+	rg = CipherRangeClass(e,tlen)} -> (;PlainLength(e,tlen))lbytes ->
+	(;rg)rbytes * (;e)MAC.tag
+	
+val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg = MtE(Stream_RC4_128,mac))} ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacKeySize(MacAlg(e)) /\
 	rg = CipherRangeClass(e,tlen)} -> (;PlainLength(e,tlen))lbytes ->

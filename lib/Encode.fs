@@ -28,10 +28,12 @@ let payload (e:id) (rg:range) ad f =
   #endif
     LHAEPlain.repr e ad rg f
 
+let macPlain_bytes (e:id) (rg:range) ad b =
+    ad @| vlbytes 2 b
 
 let macPlain (e:id) (rg:range) ad f =
     let b = payload e rg ad f in
-    ad @| vlbytes 2 b
+    macPlain_bytes e rg ad b
 
 let mac e k ad rg plain =
     let plain = LHAEPlain.makeExtPad e ad rg plain in
@@ -41,6 +43,24 @@ let mac e k ad rg plain =
      tag = tag;
      ok = true
     }
+
+let verify_MACOnly (e:id) k ad rg b tag =
+    let text = macPlain_bytes e rg ad b in
+    if MAC.Verify e k text tag then
+#if ideal
+        if authId e then
+            // From MAC.Msg() /\ not SafeId(e),
+            // we know there exists a fragment 'f' such that
+            // B(b) = MACPlain(e,rg,B(ad),f)
+            // all we have to do is pull this f out of the hat.
+            failwith "TODO"
+        else
+#endif
+            let p = LHAEPlain.plain e ad rg b in
+            correct p
+    else
+        let reason = perror __SOURCE_FILE__ __LINE__ "" in
+        Error(AD_bad_record_mac,reason)
 
 let verify (e:id) k ad rg plain : Result<LHAEPlain.plain> =
     let f = plain.plain in
@@ -109,7 +129,7 @@ let encode (e:id) (tlen:nat) (rg:range) (ad:LHAEPlain.adata) data tag =
     else
         unexpected "[encode] Internal error."
 
-let decodeNoPad (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
+let decodeNoPad_bytes (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
     let plainLen = length pl in
     if plainLen <> (tlen - ivSize e) then
         Error.unreachable "[decodeNoPad] wrong target length given as input argument."
@@ -117,7 +137,10 @@ let decodeNoPad (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
     let macAlg = macAlg_of_id e in
     let maclen = macSize macAlg in
     let payloadLen = plainLen - maclen in
-    let (frag,tag) = Bytes.split pl payloadLen in
+    Bytes.split pl payloadLen
+
+let decodeNoPad (e:id) (ad:LHAEPlain.adata) (rg:range) tlen pl =
+    let frag,tag = decodeNoPad_bytes e ad rg tlen pl in
     let aeadF = LHAEPlain.plain e ad rg frag in
     {plain = aeadF;
      tag = tag;
@@ -197,8 +220,7 @@ let plain (e:id) ad tlen b =
   let authEnc = e.aeAlg in
   let rg = cipherRangeClass e tlen in
   match authEnc with
-    | MtE(Stream_RC4_128,_) 
-    | MACOnly _ ->
+    | MtE(Stream_RC4_128,_) ->
         decodeNoPad e ad rg tlen b 
     | MtE(CBC_Stale(_),_) 
     | MtE(CBC_Fresh(_),_) ->

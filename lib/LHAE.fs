@@ -155,9 +155,8 @@ let decrypt' e key data cipher =
             let reason = perror __SOURCE_FILE__ __LINE__ "" in Error(AD_bad_record_mac, reason)
         else
             let rg = cipherRangeClass e cl in
-            //AP todo "freshly broken?";
-            let plain = Encode.plain e data cl cipher in
-            (match Encode.verify e ka data rg plain with
+            let (plain,tag) = Encode.decodeNoPad_bytes e data rg cl cipher in
+            (match Encode.verify_MACOnly e ka data rg plain tag with
             | Error(z) -> Error(z)
             | Correct(aeplain) -> correct (key,rg,aeplain))
     | (AEAD(encAlg,_), GCM(gcmState)) ->
