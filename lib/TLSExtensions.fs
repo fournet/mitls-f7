@@ -416,7 +416,7 @@ let rec sigHashAlgListBytes algL =
         let oneItem = sigHashAlgBytes h in
         oneItem @| sigHashAlgListBytes t
 
-let rec parseSigHashAlgList_int b : (Result<list<Sig.alg>>)=
+let rec parseSigHashAlgList b : (Result<list<Sig.alg>>)=
     if length b = 0 then correct([])
     elif length b = 1 then Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else
@@ -424,14 +424,9 @@ let rec parseSigHashAlgList_int b : (Result<list<Sig.alg>>)=
         match parseSigHashAlg thisB with
         | Error(x,y) -> Error(x,y)
         | Correct(this) ->
-            match parseSigHashAlgList_int remB with
+            match parseSigHashAlgList remB with
             | Error(x,y) -> Error(x,y)
             | Correct(rem) -> correct(this :: rem)
-
-let parseSigHashAlgList b =
-    match vlparse 2 b with
-    | Error(x,y) -> Error(x,y)
-    | Correct(b) -> parseSigHashAlgList_int b
 
 let default_sigHashAlg_fromSig pv sigAlg=
     match sigAlg with
