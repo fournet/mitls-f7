@@ -8,15 +8,6 @@
 - Resumption
   - Nothing special to do at the FlexTLS library level?
 
-- Infer secret values when not set
-  - Each function that requires a secret value to operate should try to generate it on the fly if the secret is not set.
-    E.g.: makeVerifyData should use pms_to_ms if ms is not set
-          ms_to_keys should use pms_to_ms if ms is not set
-          installing record keys should use ms_to_keys if keys are not set
-    If we design this properly, an automatic cascade should happen when several secrets are not set. However,
-    I'm afraid this may require each function to take a lot of extra parameters, just for the case in which secrets
-    are not set. So here we have to check the trade-off between nice interface and clever functionality.
-
 - Attack scenarios
   - 3Shake
   - Alert
