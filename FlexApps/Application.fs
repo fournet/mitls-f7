@@ -16,13 +16,17 @@ let main argv =
     //printf "RSA client finished\n";
 
     (* Standard RSA full handshake with client authentication as Client *)
-    RSA_KEX.RSA_KEX.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",4433);
-    printf "RSA client finished\n";
+    //RSA_KEX.RSA_KEX.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",4433);
+    //printf "RSA client finished\n";
     
     (* Standard RSA full handshake as Server *)
     //printf "Running RSA server. Please connect to port 4433\n";
     //RSA_KEX.RSA_KEX.server("0.0.0.0","rsa.cert-01.mitls.org",4433);
     //printf "RSA server finished\n";
+
+    (* Standard DHE full handshake as Client *)
+    DHE_KEX.DHE_KEX.client("www.inria.fr");
+    printf "DHE client finished\n";
 
     ignore (System.Console.ReadLine());
     0

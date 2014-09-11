@@ -73,7 +73,7 @@ type RSA_KEX =
     static member server (listening_address:string, ?cn:string, ?port:int) : unit =
         let cn = defaultArg cn listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        match Cert.for_key_encryption FlexConstants.calgs_RSA cn with
+        match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,sk) -> RSA_KEX.server(listening_address,chain,sk,port)
 
@@ -131,7 +131,7 @@ type RSA_KEX =
     static member client_with_auth (server_name:string, hint:string, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let chain,salg,skey =
-            match Cert.for_signing FlexConstants.calgs_RSA hint FlexConstants.calgs_RSA with
+            match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
             | None -> failwith "Failed to retreive certificate data"
             | Some(c,a,s) -> c,a,s
         in
@@ -184,7 +184,7 @@ type RSA_KEX =
     static member server_with_client_auth (listening_address:string, ?cn:string, ?port:int) : unit =
         let cn = defaultArg cn listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        match Cert.for_key_encryption FlexConstants.calgs_RSA cn with
+        match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,sk) -> RSA_KEX.server_with_client_auth(listening_address,chain,sk,port)
 
