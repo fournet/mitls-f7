@@ -25,8 +25,12 @@ let main argv =
     //printf "RSA server finished\n";
 
     (* Standard DHE full handshake as Client *)
-    DHE_KEX.DHE_KEX.client("www.inria.fr");
-    printf "DHE client finished\n";
+    //DHE_KEX.DHE_KEX.client("www.inria.fr");
+    //printf "DHE client finished\n";
+
+    (* Standard DHE full handshake as Server *)
+    DHE_KEX.DHE_KEX.server("127.0.0.1","rsa.cert-01.mitls.org",4433);
+    printf "DHE server finished\n";
 
     ignore (System.Console.ReadLine());
     0
