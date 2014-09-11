@@ -177,7 +177,7 @@ val repr:  e:id{not SafeId(e)} ->
 // Auxiliary definitions and assumptions for typing
 //------------------------------------------------------------------------------------------------------
 
-//CF this was too weak: no constraint on f! patched
+//CF this was too weak: no constraint on f! patched //MK we should need AuthId somewhere.
 private definition !e,pl. MAC.Msg(e,pl) <=>
      (SafeId(e) \/ (?ad,r,f. Length(ad) = 8 + StatefulPlain.ADLength(e) 
                           /\ B(pl) = MACPlain(e,r,B(ad),f)))
