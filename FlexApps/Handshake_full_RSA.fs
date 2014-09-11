@@ -217,23 +217,23 @@ type Handshake_full_RSA =
         // Client authentication
         let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fcreq.payload @| fshd.payload @| fcertC.payload in
-        let st,fcver     = FlexCertificateVerify.receive(st,nsc.si.protocol_version,fcreq.sigAlgs) in
-        if not (log = fcver.payload) then failwith "Log message received doesn't match" else
-
-        let st,nsc,fcke = FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv) in
-        let st,_        = FlexCCS.receive(st) in
+        let st,fcver     = FlexCertificateVerify.receive(st,nsc,fcreq,true,log) in
+        let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv) in
+        let st,_         = FlexCCS.receive(st) in
 
         // Start decrypting
         let st,ffC      = FlexFinished.receive(st) in
+        
+        // BB : Check that the order of the functions is ok, CCS not being in the log it should be fine
+        // Check match of reveived log with the correct one
+        let log          = log @| fcver.payload @| fcke.payload @| ffC.payload in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server log in
+        if not (verify_data = ffC.verify_data) then failwith "Log message received doesn't match" else
+        
+        // Advertise that we will encrypt the trafic from now on
         let st,_        = FlexCCS.send(st) in
 
         // Start encrypting
-        let log          = log @| fcver.payload @| fcke.payload @| ffC.payload in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server log in
-
-        // Check match of reveived log with the correct one
-        if not (verify_data = ffC.verify_data) then failwith "Log message received doesn't match" else
-            
         let st,ffS       = FlexFinished.send(st,verify_data) in
         ()
 

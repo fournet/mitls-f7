@@ -29,11 +29,12 @@ type FlexCertificateRequest =
             (match parseCertificateRequest pv payload with
             | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (certTypes,sigAlgs,names) -> 
-                let certReq :FCertificateRequest =
-                    {certTypes = certTypes;
-                     sigAlgs = sigAlgs;
-                     names = names;
-                     payload = to_log} in
+                let certReq : FCertificateRequest = {
+                    certTypes = certTypes;
+                    sigAlgs = sigAlgs;
+                    names = names;
+                    payload = to_log
+                } in
                 let si  = { si with client_auth = true} in
                 let nsc = { nsc with si = si } in
                     (st,nsc,certReq)
