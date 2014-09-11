@@ -923,12 +923,12 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                         let nout = next_ci.id_out in
                                         let nin = next_ci.id_in in
                                         (* KB: the following should come from the sessiondb *)
-                                        (Pi.expect (Authorize(Client,si)); // annotation 
+                                        Pi.expect (Authorize(Client,si)); // annotation 
                                         recv_fragment_client ci 
                                             {state with pstate = PSClient(ServerCCSResume(nout,writer,
                                                                                         nin,reader,
                                                                                         ms,log))} 
-                                            (Some(sh_server_version)))
+                                            (somePV sh_server_version)
                                     else
                                         InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong resumption extension information provided",state)
                                 else 
@@ -947,7 +947,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         | Error(z) -> let (x,y) = z in InError(x,y,state)
                         | Correct(nExtL) ->
                             let next_pstate = on_serverHello_full ci crand log to_log shello nExtL in
-                            recv_fragment_client ci {state with pstate = next_pstate}  (Some sh_server_version))
+                            recv_fragment_client ci {state with pstate = next_pstate} (somePV sh_server_version))
                   else
                     InError (AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Wrong renegotiation information provided",state)))
                     

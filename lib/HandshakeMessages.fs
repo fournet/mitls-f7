@@ -414,9 +414,7 @@ let parseCertificateRequest version data: Result<(list<certType> * list<Sig.alg>
         | Error(z) -> Error(z)
         | Correct (res) ->
         let (certTypeListBytes,data) = res in
-        match parseCertificateTypeList certTypeListBytes with
-        | Error(z) -> Error(z)
-        | Correct(certTypeList) ->
+        let certTypeList = parseCertificateTypeList certTypeListBytes in
         match parseSigHashAlgVersion version data with
         | Error(z) -> Error(z)
         | Correct (res) ->

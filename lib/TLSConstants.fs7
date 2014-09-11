@@ -754,9 +754,9 @@ private definition !h,t.
 val certificateTypeListBytes: ctl:certType list ->
            b:bytes{B(b)=CertTypesBytes(ctl)}
 val parseCertificateTypeList: b:bytes ->
-	(ctl:certType list{
+	ctl:certType list{
            //KB TODO? B(b) = CertTypesBytes(ctl)
-         }) Result
+         }
 
 function val DefaultCertTypes: bool * cipherSuite -> certType list
 private definition 
