@@ -823,15 +823,15 @@ let rec certificateTypeListBytes ctl =
 
 let rec parseCertificateTypeList data =
   let l = length data in
-    if l = 0 then correct([])
+    if l = 0 then []
     else
         let (thisByte,data) = Bytes.split data 1 in
         match parseCertType thisByte with
+        | Error(z) -> // skip this one
+            parseCertificateTypeList data
         | Correct(ct) ->
-            (match parseCertificateTypeList data with
-            | Correct(ctList) -> Correct(ct :: ctList)
-            | Error(z) -> Error(z))
-        | Error(z) -> Error(z)
+            let rem = parseCertificateTypeList data in
+            ct :: rem
 
 let defaultCertTypes sign cs =
   let alg = sigAlg_of_ciphersuite cs in

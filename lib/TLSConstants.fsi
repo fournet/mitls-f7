@@ -212,7 +212,7 @@ type certType =
 val certTypeBytes: certType -> bytes
 val parseCertType: bytes -> Result<certType>
 val certificateTypeListBytes: list<certType> -> bytes
-val parseCertificateTypeList: bytes -> Result<list<certType>>
+val parseCertificateTypeList: bytes -> list<certType>
 val defaultCertTypes: bool -> cipherSuite -> list<certType>
 val distinguishedNameListBytes: list<string> -> bytes
 val parseDistinguishedNameList: bytes -> list<string> -> Result<list<string>>
