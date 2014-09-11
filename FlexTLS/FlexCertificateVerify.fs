@@ -21,25 +21,25 @@ type FlexCertificateVerify =
     class
     
     (* Receive function will take the previously sent FCertificateRequest and check the log on demand *)
-    static member receive (st:state, nsc:nextSecurityContext, fcreq:FCertificateRequest, ?checkLog:bool, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
+    static member receive (st:state, nsc:nextSecurityContext, fcreq:FCertificateRequest, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
         let ms = defaultArg ms empty_bytes in
         let log = defaultArg log empty_bytes in 
-        let checkLog = defaultArg checkLog false in
-        FlexCertificateVerify.receive(st,nsc,fcreq.sigAlgs,checkLog,log,ms)
+        FlexCertificateVerify.receive(st,nsc,fcreq.sigAlgs,log,ms)
 
     (* Receive function will take the expected signature algorithms list and check the log on demand *)
-    static member receive (st:state, nsc:nextSecurityContext, algs:list<Sig.alg>, ?checkLog:bool, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
+    static member receive (st:state, nsc:nextSecurityContext, algs:list<Sig.alg>, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
         let ms = defaultArg ms empty_bytes in
         let log = defaultArg log empty_bytes in 
-        let checkLog = defaultArg checkLog false in
-        FlexCertificateVerify.receive(st,nsc.si,algs,checkLog,log,ms)
+        FlexCertificateVerify.receive(st,nsc.si,algs,log,ms)
 
     (* Receive function will take the expected signature algorithms list and cross-check it with the sig alg of the received message or fail *)
-    static member receive (st:state, si:SessionInfo, algs:list<Sig.alg>, ?checkLog:bool, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
+    static member receive (st:state, si:SessionInfo, algs:list<Sig.alg>, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
         let ms = defaultArg ms empty_bytes in
         let log = defaultArg log empty_bytes in 
-        let checkLog = defaultArg checkLog false in
-        
+        let checkLog = 
+            if not (log = empty_bytes) then true else false
+        in
+            
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         
         let alg,signature =    

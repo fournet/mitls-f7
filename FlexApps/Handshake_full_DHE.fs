@@ -43,6 +43,7 @@ type Handshake_full_DHE =
         // Ensure we use DHE
         let fch = {FlexConstants.nullFClientHello with
             suites = [TLS_DHE_RSA_WITH_AES_128_CBC_SHA] } in
+
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
@@ -55,21 +56,14 @@ type Handshake_full_DHE =
         let st           = FlexState.installWriteKeys st nsc in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fshd.payload @| fcke.payload in
             
-        let st,ffC       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
+        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
         let st,_         = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let log          = log @| ffC.payload in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server log in
-        let st,ffS        = FlexFinished.receive(st) in
-            
-        // Check match of reveived log with the correct one
-        if not (verify_data = ffS.verify_data)
-        then
-            failwith (perror __SOURCE_FILE__ __LINE__ "Server verify_data doesn't match")
-        else
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let st,ffS       = FlexFinished.receive(st,verify_data) in
         ()
     
 
@@ -100,7 +94,9 @@ type Handshake_full_DHE =
         else
 
         // Ensure we send our preferred ciphersuite
-        let fsh = {FlexConstants.nullFServerHello with suite = TLS_DHE_RSA_WITH_AES_128_CBC_SHA} in
+        let fsh = { FlexConstants.nullFServerHello with 
+            suite = TLS_DHE_RSA_WITH_AES_128_CBC_SHA} in
+
         let st,nsc,fsh   = FlexServerHello.send(st,nsc,fsh) in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
         let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc) in
@@ -108,24 +104,20 @@ type Handshake_full_DHE =
         let st,nsc,fcke  = FlexClientKeyExchange.receiveDHE(st,nsc) in
         let st,_         = FlexCCS.receive(st) in
 
-        let log = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fshd.payload @| fcke.payload in
-        let verify_data = FlexSecrets.makeVerifyData nsc.si nsc.ms Client log in
-
         // Start decrypting
         let st          = FlexState.installReadKeys st nsc in
-        let st,ffC       = FlexFinished.receive(st) in
 
-        // Check verify_data
-        if not (verify_data = ffC.verify_data) then
-            failwith (perror __SOURCE_FILE__ __LINE__ "Client verify_data doesn't match")
-        else
+        let log = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fshd.payload @| fcke.payload in
+        let verify_data = FlexSecrets.makeVerifyData nsc.si nsc.ms Client log in
+        let st,ffC      = FlexFinished.receive(st,verify_data) in
 
+        // Advertise we will encrypt traffic from now on
         let st,_   = FlexCCS.send(st) in
             
         // Start encrypting
         let st     = FlexState.installWriteKeys st nsc in
-        let log    = log @| ffC.payload in
-        let _      = FlexFinished.send(st,logRoleNSC=(log,Server,nsc)) in
+
+        let _      = FlexFinished.send(st,logRoleNSC=((log @| ffC.payload),Server,nsc)) in
         ()
 
     end

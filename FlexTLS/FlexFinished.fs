@@ -17,8 +17,13 @@ open FlexSecrets
 type FlexFinished = 
     class
 
-    (* Receive an expected Finished message from the network stream *)
-    static member receive (st:state) : state * FFinished = 
+    (* Receive an expected Finished message from the network stream and check log on demand *)
+    static member receive (st:state, ?log:bytes) : state * FFinished = 
+        let log = defaultArg log empty_bytes in
+        let checkLog = 
+            if not (log = empty_bytes) then true else false
+        in
+
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_finished  -> 
@@ -27,8 +32,11 @@ type FlexFinished =
             else
                 let ff = {  verify_data = payload; 
                             payload = to_log;
-                            } in
-                st,ff
+                } in
+                if checkLog then
+                    if not (log = payload) then failwith "Log message received doesn't match" else st,ff
+                else
+                    st,ff
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
 
     static member send (st:state, ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =

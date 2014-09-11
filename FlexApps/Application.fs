@@ -14,8 +14,8 @@ let main argv =
     //Attack_Alert.run "www.google.com";
     
     (* Standard RSA full handshake as Client*)
-    //Handshake_full_RSA.client("www.inria.fr");
-    //printf "RSA client finished\n";
+    Handshake_full_RSA.client("www.inria.fr");
+    printf "RSA client finished\n";
 
     (* Standard RSA full handshake with client authentication as Client *)
     //Handshake_full_RSA.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",4433);
