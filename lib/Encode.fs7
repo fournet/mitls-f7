@@ -186,10 +186,9 @@ private definition !e,pl. MAC.Msg(e,pl) <=>
 private ask !i,t. not SafeId(i) /\ MAC.Msg(i,t) =>
 	(?ad,r,p. B(t) = B(ad) @| VLBytes(2,LHAEPlain.Payload(i,B(ad),r,p)) )
 
-// FIXME: fails because we cannot bind ad (and r)/
-// FIXME: In practice, invoking LHAEPlain.plain_auth fails once that function will have stronger pre-conditions
-private ask !i,ad,b,t. not SafeId(i) /\ MAC.Msg(i,t) /\ B(t) = B(ad) @| VLBytes(2,B(b)) =>
-	(?r,p. B(t) = B(ad) @| VLBytes(2,LHAEPlain.Payload(i,B(ad),r,p)) )
+private ask !i,ad,b,t. (?ad'',r'',f''. B(t) = B(ad'') @| VLBytes(2,LHAEPlain.Payload(i,B(ad''),r'',f'')) /\ Length(ad'') = 8 + StatefulPlain.ADLength(i) ) /\
+	B(t) = B(ad) @| VLBytes(2,B(b)) /\ Length(ad) = 8 + StatefulPlain.ADLength(i) =>
+	(?ad',r,p. B(ad) @| VLBytes(2,B(b)) = B(ad') @| VLBytes(2,LHAEPlain.Payload(i,B(ad'),r,p)) /\ ad = ad' )
 
 //CF Comments:
 //CF 

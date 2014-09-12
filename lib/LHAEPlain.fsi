@@ -23,5 +23,4 @@ val parseExtPad: id -> adata -> range -> plain -> Result<plain>
 
 #if ideal
 val widen: id -> adata -> range -> fragment -> fragment
-val plain_auth: id -> adata -> range -> bytes -> plain
 #endif

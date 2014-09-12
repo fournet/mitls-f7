@@ -49,13 +49,11 @@ let verify_MACOnly (e:id) k ad rg b tag =
     if MAC.Verify e k text tag then
 #if ideal
         if authId e then
-            // From MAC.Msg() /\ not SafeId(e),
-            // we know there exists a fragment 'f' such that
-            // B(b) = MACPlain(e,rg,B(ad),f)
-            // all we have to do is pull this f out of the hat.
-            let p = LHAEPlain.plain_auth e ad rg b in
+            // Using the AuthId() /\ ?p. ... refinement of LHAEPlain.plain
+            let p = LHAEPlain.plain e ad rg b in
             correct p
         else
+            // Using the not AuthId() refinement of LHAEPlain.plain
 #endif
             let p = LHAEPlain.plain e ad rg b in
             correct p

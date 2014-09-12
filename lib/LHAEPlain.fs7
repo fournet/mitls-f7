@@ -37,14 +37,13 @@ predicate LHAESent of i:id * ad:cbytes * r:range * (;i,ad,r)fragment
 
 type (;i:id,ad:(;i)adata,r:range) plain = f:(;i,B(ad),r)fragment{ AuthId(i) => LHAESent(i,B(ad),r,f) }
 
-val plain: i:id{not AuthId(i)} -> ad:(;i)adata -> r:range -> b:(;r)rbytes -> p:(;i,ad,r) plain {B(b) = Payload(i,B(ad),r,p)}
+val plain: i:id -> ad:(;i)adata -> r:range -> b:(;r)rbytes{
+	not AuthId(i) \/
+	(AuthId(i) /\ (?r',p. B(b) = Payload(i,B(ad),r',p)) )
+	} -> p:(;i,ad,r) plain {B(b) = Payload(i,B(ad),r,p)}
 val repr:  i:id{not SafeId(i)} -> ad:(;i)adata -> r:range -> p:(;i,ad,r) plain -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,p)}
 private val reprFragment:  
            i:id{not SafeId(i)} -> ad:(;i)adata -> r:range -> f:(;i,B(ad),r) fragment -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,f)}
-
-(* FIXME: Super-tedious, because we'd need to add a plain_auth through all the plain stack! *)
-val plain_auth: i:id{AuthId(i)} -> ad:(;i)adata -> r:range ->
-	b:(;r)rbytes{?ad',r',p. B(b) = Payload(i,B(ad'),r',p) (* FIXME: /\ ad=ad' /\ r=r' *)} -> p:(;i,ad,r)plain{B(b) = Payload(i,B(ad),r,p)}
 
 val widen: i:id -> ad:(;i)adata -> r:range -> 
   f:(;i,ad,r)plain -> 
