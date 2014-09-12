@@ -86,11 +86,22 @@ type FlexCertificateVerify =
 
 
     (* Send function for the Client to answer with a proper algorithm and by signing the log with it's secret key *)
-    static member send (st:state, log:bytes, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ?ms:PRF.masterSecret) : state * FCertificateVerify =
-        let si = { FlexConstants.nullSessionInfo with protocol_version = pv } in
-        let ms = defaultArg ms (PRF.coerce (msi si) empty_bytes) in
-        let payload,_ = HandshakeMessages.makeCertificateVerifyBytes si ms alg skey log in
-        let fcver = { FlexConstants.nullFCertificateVerify with payload = payload } in
+    static member send (st:state, log:bytes, si:SessionInfo, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let ms = defaultArg ms empty_bytes in
+        FlexCertificateVerify.send(st,log,si.cipher_suite,si.protocol_version,alg,skey,ms,fp)
+
+    static member send (st:state, log:bytes, cs:cipherSuite, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let si = { FlexConstants.nullSessionInfo with 
+            cipher_suite = cs;
+            protocol_version = pv 
+        } in
+        let ms = defaultArg ms empty_bytes in
+        let ams = (PRF.coerce (msi si) ms) in
+        let payload,tag = HandshakeMessages.makeCertificateVerifyBytes si ams alg skey log in
+        let st = FlexHandshake.send (st,payload,fp) in
+        let fcver = { sigAlg = alg; signature = tag; payload = payload } in
         st,fcver 
 
     end

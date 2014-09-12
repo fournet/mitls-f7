@@ -67,6 +67,59 @@ type Handshake_full_DHE =
         ()
     
 
+    (* Run a full Handshake DHE with both server side and client side authentication only *)
+    static member client_with_auth (server_name:string, hint:string, ?port:int) : unit =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        let chain,salg,skey =
+            match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
+            | None -> failwith "Failed to retreive certificate data"
+            | Some(c,a,s) -> c,a,s
+        in
+        Handshake_full_DHE.client_with_auth (server_name,chain,salg,skey,port)
+
+    static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int) : unit =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+
+        // Start TCP connection with the server
+        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
+
+        // Typical DHE key exchange messages
+
+        // Ensure we use DHE
+        let fch = {FlexConstants.nullFClientHello with
+            suites = [TLS_DHE_RSA_WITH_AES_128_CBC_SHA] } in
+
+        let st,nsc,fch   = FlexClientHello.send(st,fch) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
+        let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
+        let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc,minDHsize=(512,160)) in
+        let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
+        let st,fshd      = FlexServerHelloDone.receive(st) in
+            
+        // Client authentication
+        let st,nsc,fcertC = FlexCertificate.send(st,Client,chain,nsc) in
+        let st,nsc,fcke  = FlexClientKeyExchange.sendDHE(st,nsc) in
+        let log          = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fcreq.payload @| fshd.payload @| fcertC.payload @| fcke.payload in
+        let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+        let log          = log @| fcver.payload in
+
+        // Advertise that we will encrypt the trafic from now on
+        let st,_         = FlexCCS.send(st) in
+            
+        // Start encrypting
+        let st           = FlexState.installWriteKeys st nsc in
+        
+        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+        let st,_         = FlexCCS.receive(st) in
+
+        // Start decrypting
+        let st           = FlexState.installReadKeys st nsc in
+            
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let st,ffS       = FlexFinished.receive(st,verify_data) in
+        ()
+
+
     static member server (listening_address:string, ?cn:string, ?port:int) : unit =
         let cn = defaultArg cn listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in

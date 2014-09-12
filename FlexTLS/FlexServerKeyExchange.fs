@@ -13,6 +13,9 @@ open FlexConstants
 open FlexHandshake
 open FlexSecrets
 
+
+
+
 let filldh kexdh =
     let (p,g) = kexdh.pg in
     let x, gx =
@@ -25,12 +28,16 @@ let filldh kexdh =
     in
     {kexdh with x = x; gx = gx}
 
+
+
+
 type FlexServerKeyExchange =
     class
 
-    static member receiveDHE (st:state, nsc:nextSecurityContext, ?check_sig:bool): state * nextSecurityContext * FServerKeyExchange =
+    static member receiveDHE (st:state, nsc:nextSecurityContext, ?check_sig:bool, ?minDHsize:nat*nat): state * nextSecurityContext * FServerKeyExchange =
         let check_sig = defaultArg check_sig false in
-        let st,fske = FlexServerKeyExchange.receiveDHE(st,nsc.si.protocol_version,nsc.si.cipher_suite) in
+        let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
+        let st,fske = FlexServerKeyExchange.receiveDHE(st,nsc.si.protocol_version,nsc.si.cipher_suite,minDHsize) in
         let nsc = {nsc with kex = fske.kex} in
         if check_sig then
             let kexDH =
@@ -53,11 +60,12 @@ type FlexServerKeyExchange =
             st,nsc,fske
 
     (* Receive DH ServerKeyExchange *)
-    static member receiveDHE (st:state, pv:ProtocolVersion, cs:cipherSuite) : state * FServerKeyExchange =
+    static member receiveDHE (st:state, pv:ProtocolVersion, cs:cipherSuite, ?minDHsize:nat*nat) : state * FServerKeyExchange =
+        let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_key_exchange  ->
-            (match HandshakeMessages.parseServerKeyExchange_DHE FlexConstants.dhdb FlexConstants.minDHSize pv cs payload with
+            (match HandshakeMessages.parseServerKeyExchange_DHE FlexConstants.dhdb minDHsize pv cs payload with
             | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (_,dhp,gy,alg,signature) ->
                 let kexdh = {pg = (dhp.dhp,dhp.dhg); x = empty_bytes; gx = empty_bytes; gy = gy} in

@@ -149,16 +149,18 @@ type Handshake_full_RSA =
             
         // Client authentication
         let st,nsc,fcertC = FlexCertificate.send(st,Client,chain,nsc) in
-        let log          = fch.payload @| fsh.payload @| fcert.payload @| fcreq.payload @| fshd.payload @| fcertC.payload in
-        let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si.protocol_version,salg,skey) in
-            
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
+        let log          = fch.payload @| fsh.payload @| fcert.payload @| fcreq.payload @| fshd.payload @| fcertC.payload @| fcke.payload in
+        let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+        let log          = log @| fcver.payload in
+
+        // Advertise that we will encrypt the trafic from now on
         let st,_         = FlexCCS.send(st) in
             
         // Start encrypting
         let st           = FlexState.installWriteKeys st nsc in
-            
-        let st,ffC       = FlexFinished.send(st, logRoleNSC=((log @| fcver.payload @| fcke.payload),Client,nsc)) in
+        
+        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
         let st,_         = FlexCCS.receive(st) in
 
         // Start decrypting
