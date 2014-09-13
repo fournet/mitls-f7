@@ -1,0 +1,32 @@
+COMMANDS
+# Useful command lines
+
+
+
+// Certificates
+/opt/mitls/tests/pki/rsa/certificates
+
+
+
+
+// Standard RSA full handshake with client authentication as Client
+openssl s_server -accept 44101 -cipher AES128-SHA -cert rsa.cert-02.mitls.org.crt -key rsa.cert-02.mitls.org.key -verify 1 -msg
+
+// Standard DHE full handshake with client authentication as Client
+openssl s_server -accept 44102 -cipher DHE-RSA-AES128-SHA -cert rsa.cert-02.mitls.org.crt -key rsa.cert-02.mitls.org.key -verify 1 -msg
+
+
+// Standard RSA full handshake as Server
+openssl s_client -host 127.0.0.1 -port 44201 -cipher AES128-SHA -msg -debug -state
+
+    
+// Standard RSA full handshake with client authentication as Server *)
+openssl s_client -host 127.0.0.1 -port 44202 -cipher AES128-SHA -cert rsa.cert-01.mitls.org.crt -key rsa.cert-01.mitls.org.key -msg -debug -state
+
+
+// Standard DHE full handshake as Server *)
+openssl s_client -host 127.0.0.1 -port 44203 -cipher DHE-RSA-AES128-SHA -msg -debug -state
+
+
+// Standard DHE full handshake with client authentication as Server
+openssl s_client -host 127.0.0.1 -port 44204 -cipher DHE-RSA-AES128-SHA -cert rsa.cert-01.mitls.org.crt -key rsa.cert-01.mitls.org.key -msg -debug -state
