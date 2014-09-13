@@ -43,17 +43,22 @@ type FlexCertificateRequest =
 
 
     (* Send a CertificateRequest message to the network stream *)
-    static member send (st:state, ?nsc:nextSecurityContext, ?fcr:FCertificateRequest, ?fp:fragmentationPolicy): state * FCertificateRequest =
+    static member send (st:state, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy): state * FCertificateRequest =
         (* TODO: due to some limitations in miTLS in handling CertificateRequests
            sending this message is currently not as flexible as it could be
            (e.g. we cannot select certification authority names)
-           We could either improve miTLS, or write our code in this module.
+           We have to improve miTLS, or write our code in this module.
            Using limited miTLS capabilities for now. *)
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let fcr = defaultArg fcr FlexConstants.nullFCertificateRequest in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        // FIXME: next function should take fcr fields as input. To be fixed in miTLS or by re-implementing here
-        let payload = HandshakeMessages.certificateRequestBytes true nsc.si.cipher_suite nsc.si.protocol_version in
+        FlexCertificateRequest.send(st,nsc.si.cipher_suite,nsc.si.protocol_version,fp)
+
+    static member send (st:state, cs:cipherSuite, pv:ProtocolVersion, ?fp:fragmentationPolicy): state * FCertificateRequest =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let payload = HandshakeMessages.certificateRequestBytes true cs pv in
         let st = FlexHandshake.send (st,payload,fp) in
-        st,{fcr with payload = payload}
+        // FIXME : miTLS doesn't allow to get back the list of signature algorithms infered from ciphersuite and pv
+        // We return dummy values in the FCertificateRequest sigAlgs so it can be used later by FCertificateVerify functions
+        let fcreq = { FlexConstants.nullFCertificateRequest with sigAlgs = FlexConstants.sigAlgs_ALL ; payload = payload } in
+        st,fcreq
     end

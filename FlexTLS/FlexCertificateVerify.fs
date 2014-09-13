@@ -41,48 +41,50 @@ type FlexCertificateVerify =
         in
             
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
-        
-        let alg,signature =    
-            match parseDigitallySigned algs payload si.protocol_version with
-            | Correct(alg,signature) ->
-                if checkLog then
-                    (match si.protocol_version with
-                    | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
-                        (match Cert.get_chain_public_signing_key si.clientID alg with
-                        | Error(ad,x) -> failwith x
-                        | Correct(vkey) ->
-                            if Sig.verify alg vkey log signature then
-                                (alg,signature)
-                            else
-                                failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
-                    | SSL_3p0 -> 
-                        let ms = 
-                            if ms = empty_bytes then 
-                                failwith (perror __SOURCE_FILE__ __LINE__ "Master Secret cannot be empty")
-                            else
-                                PRF.coerce (msi si) ms
-                        in
-                        let (sigAlg,_) = alg in
-                        let alg = (sigAlg,NULL) in
-                        let expected = PRF.ssl_certificate_verify si ms sigAlg log in
-                        (match Cert.get_chain_public_signing_key si.clientID alg with
-                        | Error(ad,x) -> failwith x
-                        | Correct(vkey) ->
-                            if Sig.verify alg vkey expected signature then
-                                (alg,signature)
-                            else
-                                failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
-                    )
-                else
-                    (alg,signature)
-            | Error(ad,x) -> failwith x
-        in
-        let fcver : FCertificateVerify = { sigAlg = alg;
-                                           signature = signature;
-                                           payload = to_log;
-                                         } 
-        in
-        st,fcver
+        match hstype with
+        | HT_certificate_verify -> 
+            let alg,signature =    
+                match parseDigitallySigned algs payload si.protocol_version with
+                | Correct(alg,signature) ->
+                    if checkLog then
+                        (match si.protocol_version with
+                        | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
+                            (match Cert.get_chain_public_signing_key si.clientID alg with
+                            | Error(ad,x) -> failwith x
+                            | Correct(vkey) ->
+                                if Sig.verify alg vkey log signature then
+                                    (alg,signature)
+                                else
+                                    failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
+                        | SSL_3p0 -> 
+                            let ms = 
+                                if ms = empty_bytes then 
+                                    failwith (perror __SOURCE_FILE__ __LINE__ "Master Secret cannot be empty")
+                                else
+                                    PRF.coerce (msi si) ms
+                            in
+                            let (sigAlg,_) = alg in
+                            let alg = (sigAlg,NULL) in
+                            let expected = PRF.ssl_certificate_verify si ms sigAlg log in
+                            (match Cert.get_chain_public_signing_key si.clientID alg with
+                            | Error(ad,x) -> failwith x
+                            | Correct(vkey) ->
+                                if Sig.verify alg vkey expected signature then
+                                    (alg,signature)
+                                else
+                                    failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
+                        )
+                    else
+                        (alg,signature)
+                | Error(ad,x) -> failwith x
+            in
+            let fcver : FCertificateVerify = { sigAlg = alg;
+                                               signature = signature;
+                                               payload = to_log;
+                                             } 
+            in
+            st,fcver
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected message received: %A" hstype))
 
 
     (* Send function for the Client to answer with a proper algorithm and by signing the log with it's secret key *)

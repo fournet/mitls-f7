@@ -173,4 +173,68 @@ type Handshake_full_DHE =
         let _      = FlexFinished.send(st,logRoleNSC=((log @| ffC.payload),Server,nsc)) in
         ()
 
+
+
+    static member server_with_client_auth (listening_address:string, ?cn:string, ?port:int) : unit =
+        let cn = defaultArg cn listening_address in
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
+        | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
+        | Some(chain,sk) -> Handshake_full_DHE.server_with_client_auth(listening_address,chain,port)
+
+    static member server_with_client_auth (listening_address:string, chain:Cert.chain, ?port:int) : unit =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        let cn =
+            match Cert.get_hint chain with
+            | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Could not parse given certficate")
+            | Some(cn) -> cn
+        in
+
+        // Accept TCP connection from the client
+        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn,port) in
+
+        // Start typical DHE key exchange
+        let st,nsc,fch   = FlexClientHello.receive(st) in
+
+        // Sanity check: our preferred ciphersuite and protovol version are there
+        if ( not (List.exists (fun cs -> cs = TLS_DHE_RSA_WITH_AES_128_CBC_SHA) fch.suites) ) || fch.pv <> TLS_1p2 then
+            failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
+        else
+
+        // Ensure we send our preferred ciphersuite
+        let sh = { FlexConstants.nullFServerHello with
+            pv = TLS_1p2; 
+            suite = TLS_DHE_RSA_WITH_AES_128_CBC_SHA } in
+
+        let st,nsc,fsh   = FlexServerHello.send(st,nsc,sh) in
+        let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+        let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc) in
+        let st,fcreq     = FlexCertificateRequest.send(st,nsc) in
+        let st,fshd      = FlexServerHelloDone.send(st) in
+
+        // Client authentication
+        let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+        let st,nsc,fcke  = FlexClientKeyExchange.receiveDHE(st,nsc) in
+        let log          = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fcreq.payload @| fshd.payload @| fcertC.payload @| fcke.payload in
+        let st,fcver     = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+        let st,_         = FlexCCS.receive(st) in
+
+        // Start decrypting
+        let st           = FlexState.installReadKeys st nsc in
+
+        let log          = log @| fcver.payload in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Client log in
+        let st,ffC       = FlexFinished.receive(st,verify_data) in
+        
+        // Advertise that we will encrypt the trafic from now on
+        let st,_         = FlexCCS.send(st) in
+
+        // Start encrypting
+        let st           = FlexState.installWriteKeys st nsc in
+
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let st,ffS       = FlexFinished.send(st,verify_data) in
+        ()
+
+
     end

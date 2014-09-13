@@ -20,9 +20,7 @@ type FlexFinished =
     (* Receive an expected Finished message from the network stream and check log on demand *)
     static member receive (st:state, ?log:bytes) : state * FFinished = 
         let log = defaultArg log empty_bytes in
-        let checkLog = 
-            if not (log = empty_bytes) then true else false
-        in
+        let checkLog = not (log = empty_bytes) in
 
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
