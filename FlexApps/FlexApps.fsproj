@@ -69,6 +69,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <Compile Include="Attack_Alert.fs" />
+    <Compile Include="Attack_FragmentClientHello.fs" />
     <Compile Include="Handshake_full_RSA.fs" />
     <Compile Include="Handshake_full_DHE.fs" />
     <Compile Include="Application.fs" />

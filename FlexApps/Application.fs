@@ -2,7 +2,9 @@
 
 module Application
 
+open FlexTypes
 open Attack_Alert
+open Attack_FragmentClientHello
 open Handshake_full_RSA
 open Handshake_full_DHE
 
@@ -13,6 +15,9 @@ let main argv =
     (* Alert attack *)
     //Attack_Alert.run "www.google.com";
     
+    (* Protocol downgrade attack (Fragmented ClientHello) *)
+    Attack_FragmentClientHello.run("192.168.0.24",4433,fp=All(5));
+    printf "Downgrade attack against Openssl 1.0.1g finished\n";
 
     (* Standard RSA full handshake as Client*)
     //Handshake_full_RSA.client("www.inria.fr");
