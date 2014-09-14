@@ -57,10 +57,4 @@ let widen i ad r f =
     let ad' = parseAD i ad in
     let f' = StatefulPlain.widen i ad' r f.contents in
     {contents = f'}
-
-let plain_auth (i:id) (ad:adata) (rg:range) b =
-    let ad = parseAD i ad in
-    let h = StatefulPlain.emptyHistory i in
-    let p = StatefulPlain.plain i h ad rg b in
-    {contents =  p}
 #endif
