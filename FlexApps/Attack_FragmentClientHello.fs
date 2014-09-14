@@ -33,7 +33,7 @@ type Attack_FragmentClientHello =
     (* Run a full Handshake RSA with server side authentication only *)
     static member run (server_name:string, ?port:int, ?fp:fragmentationPolicy) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let fp = defaultArg fp (All(5)) in
 
         // Start TCP connection with the server
         let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
