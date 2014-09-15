@@ -32,6 +32,11 @@ type FlexHelloRequest =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message is not of type HelloRequest")
 
 
+    (* Prepare HelloRequest message bytes *)
+    static member prepare (st:state, ?fp:fragmentationPolicy) : bytes * state * FHelloRequest =
+        let payload = HandshakeMessages.messageBytes HT_hello_request empty_bytes in
+        payload,st,{payload = payload}
+
     (* Send HelloRequest message to the network stream *)
     static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in

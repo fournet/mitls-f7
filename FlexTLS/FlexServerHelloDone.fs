@@ -31,6 +31,11 @@ type FlexServerHelloDone =
                 st,fshd
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_server_hello_done")
 
+    (* Prepare ServerHelloDone message bytes *)
+    static member prepare (st:state) : bytes * state * FServerHelloDone =
+        let payload = HandshakeMessages.serverHelloDoneBytes in
+        let fshd: FServerHelloDone = {payload = payload} in
+        payload,st,fshd
 
     (* Send ServerHelloDone message to the network stream *)
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =

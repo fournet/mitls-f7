@@ -73,7 +73,51 @@ type FlexClientKeyExchange =
                     st,fcke
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
-       
+      
+
+    (* Prepare ClientKeyExchange message bytes for RSA ciphersuites *)
+    static member prepareRSA (st:state, nsc:nextSecurityContext, fch:FClientHello): bytes * state * nextSecurityContext * FClientKeyExchange =
+        FlexClientKeyExchange.prepareRSA(st,nsc,fch.pv)
+
+    (* Prepare ClientKeyExchange message bytes for RSA ciphersuites *)
+    static member prepareRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion): bytes * state * nextSecurityContext * FClientKeyExchange =
+        let payload,st,fcke =
+            match nsc.kex with
+            | RSA(pms) ->
+                if pms = empty_bytes then
+                    FlexClientKeyExchange.prepareRSA(st,nsc.si.serverID,pv)
+                else
+                    FlexClientKeyExchange.prepareRSA(st,nsc.si.serverID,pv,pms)
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "RSA kex expected")
+        in
+        let nsc = {nsc with kex = fcke.kex} in
+        let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
+        payload,st,nsc,fcke
+
+    (* Prepare ClientKeyExchange message bytes for RSA ciphersuites *)
+    static member prepareRSA (st:state, certl:list<Cert.cert>, pv:ProtocolVersion, ?pms:bytes) : bytes * state * FClientKeyExchange =
+        if certl.IsEmpty then
+            failwith (perror __SOURCE_FILE__ __LINE__  "Server certificate should always be present with a RSA signing cipher suite.")
+        else
+            match Cert.get_chain_public_encryption_key certl with
+            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct(pk) ->
+                let si = {FlexConstants.nullSessionInfo with
+                            protocol_version = pv;
+                            serverID = certl} in
+                let pms,pmsb =
+                    match pms with
+                    | Some(pmsb) -> (PMS.coerceRSA pk pv pmsb),pmsb
+                    | None ->
+                        let pms = (PMS.genRSA pk pv) in
+                        pms,PMS.leakRSA pk pv pms
+                in
+                let encpms = RSA.encrypt pk pv pms in
+                let payload = clientKeyExchangeBytes_RSA si encpms in
+                let kex = RSA(pmsb) in
+                let fcke : FClientKeyExchange = {kex = kex; payload = payload } in
+                payload,st,fcke
+
     (* Send ClientKeyExchange for RSA ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with the FClientHello message *)
     static member sendRSA (st:state, nsc:nextSecurityContext, fch:FClientHello, ?fp:fragmentationPolicy): state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
@@ -159,6 +203,16 @@ type FlexClientKeyExchange =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
         
+
+    (* Prepare ClientKeyExchange message bytes for DHE ciphersuites *)
+    static member prepareDHE (st:state, kexdh:kexDH) : bytes * state * FClientKeyExchange =        
+        let p,g = kexdh.pg in
+        let dhp = { FlexConstants.nullDHParams with dhp = p; dhg = g } in
+        let x,gx = CoreDH.gen_key_pg p g in
+        let payload = clientKEXExplicitBytes_DH gx in
+        let kexdh = { kexdh with x = x; gx = gx } in
+        let fcke = { kex = DH(kexdh); payload = payload } in
+        payload,st,fcke
 
     // BB : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH
     (* Send ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext from a FServerKeyExchange message *)

@@ -41,6 +41,11 @@ type FlexCertificateRequest =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate_request")
 
+    (* Prepare a CertificateRequest message to the network stream *)
+    static member prepare (st:state, cs:cipherSuite, pv:ProtocolVersion): bytes * state * FCertificateRequest =
+        let payload = HandshakeMessages.certificateRequestBytes true cs pv in
+        let fcreq = { FlexConstants.nullFCertificateRequest with sigAlgs = FlexConstants.sigAlgs_ALL ; payload = payload } in
+        payload,st,fcreq
 
     (* Send a CertificateRequest message to the network stream *)
     static member send (st:state, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy): state * FCertificateRequest =

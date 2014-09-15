@@ -46,6 +46,29 @@ type FlexCertificate =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate")
 
+
+    (* Prepare a Certificate message bytes *)
+    static member prepare (st:state, role:Role, ?nsc:nextSecurityContext, ?fcrt:FCertificate) : bytes * state * nextSecurityContext * FCertificate =
+        let fcrt = defaultArg fcrt FlexConstants.nullFCertificate in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let chain = fcrt.chain in
+        let si = nsc.si in
+        let payload = HandshakeMessages.serverCertificateBytes chain in
+        let si =
+            match role with
+            | Client ->   { si with 
+                            clientID = chain;
+                            client_auth = true;
+                          }
+            | Server -> { si with serverID = chain }
+        in
+        let nsc = { nsc with si = si } in
+        let fcrt = { fcrt with 
+                        chain = chain;
+                        payload = payload
+        } in
+        payload,st,nsc,fcrt
+
     (* Send a Certificate message to the network stream using User provided chain of certificates *)
     static member send (st:state, role:Role, ?nsc:nextSecurityContext, ?fcrt:FCertificate, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
         let ns = st.ns in

@@ -75,6 +75,18 @@ type FlexServerKeyExchange =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
 
 
+    (* Prepare DHE ServerKeyExchange bytes *)
+    static member prepareDHE (st:state, kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey) : bytes * state * FServerKeyExchange =
+        let kexdh = filldh kexdh in
+        let p,g = kexdh.pg in
+        let gx  = kexdh.gx in
+        let dheB = HandshakeMessages.dheParamBytes p g gx in
+        let msgb = crand @| srand @| dheB in
+        let sign = Sig.sign sigAlg sigKey msgb in
+        let payload = HandshakeMessages.serverKeyExchangeBytes_DHE dheB sigAlg sign pv in
+        let fske = { sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
+        payload,st,fske
+
     (* Send DHE ServerKeyExchange *)
     static member sendDHE (st:state, nsc:nextSecurityContext, ?sigAlgAndKey:(Sig.alg * Sig.skey), ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in

@@ -86,6 +86,17 @@ type FlexCertificateVerify =
             st,fcver
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected message received: %A" hstype))
 
+    (* Prepare the CertificateVerify message bytes *)
+    static member prepare (st:state, log:bytes, cs:cipherSuite, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ?ms:bytes) : bytes * state * FCertificateVerify =
+        let si = { FlexConstants.nullSessionInfo with 
+            cipher_suite = cs;
+            protocol_version = pv 
+        } in
+        let ms = defaultArg ms empty_bytes in
+        let ams = (PRF.coerce (msi si) ms) in
+        let payload,tag = HandshakeMessages.makeCertificateVerifyBytes si ams alg skey log in
+        let fcver = { sigAlg = alg; signature = tag; payload = payload } in
+        payload,st,fcver 
 
     (* Send function for the Client to answer with a proper algorithm and by signing the log with it's secret key *)
     static member send (st:state, log:bytes, si:SessionInfo, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =

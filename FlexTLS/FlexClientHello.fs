@@ -138,6 +138,19 @@ type FlexClientHello =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "Message type should be HT_client_hello")
  
+     (* Send a ClientHello message to the network stream *)
+    static member prepare (st:state, ?fch:FClientHello, ?cfg:config) : bytes * state * nextSecurityContext * FClientHello =
+        let fch = defaultArg fch FlexConstants.nullFClientHello in
+        let cfg = defaultArg cfg defaultConfig in
+        let fch,cfg = fillFClientHelloANDConfig fch cfg in
+        let st = fillStateEpochInitPvIFIsEpochInit st fch in
+        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
+        let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
+        let nsc = { FlexConstants.nullNextSecurityContext with
+                        si = si;
+                        crand = fch.rand } in
+        let fch = { fch with payload = payload } in
+        payload,st,nsc,fch
 
     (* Send a ClientHello message to the network stream *)
     static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =

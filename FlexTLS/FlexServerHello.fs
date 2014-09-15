@@ -100,7 +100,20 @@ type FlexServerHello =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_hello")
         
-        
+    (* Prepare a ServerHello message bytes *)
+    static member prepare (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello) : bytes * state * nextSecurityContext * FServerHello =
+        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let si = nsc.si in
+        let fsh,si = fillFServerHelloANDSi fsh si in
+        let nsc = { nsc with
+                      si = si;
+                      srand = fsh.rand } in
+        let st = fillStateEpochInitPvIFIsEpochInit st fsh in
+        let payload = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
+        let fsh = { fsh with payload = payload } in
+        payload,st,nsc,fsh
+
     (* Send a ServerHello message to the network stream *)
     static member send (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
         let ns = st.ns in
