@@ -5,6 +5,7 @@ module Application
 open FlexTypes
 open Attack_Alert
 open Attack_FragmentClientHello
+open Attack_EarlyCCS
 open Handshake_full_RSA
 open Handshake_full_DHE
 
@@ -19,9 +20,13 @@ let main argv =
     //Attack_FragmentClientHello.run("www.inria.fr",fp=All(5));
     //printf "Protocol version downgrade attack finished\n";
 
+    (* Early CCS attack *)
+    Attack_EarlyCCS.run("128.93.189.207",4433);
+    printf "Early CCS attack finished\n";
+
     (* Standard RSA full handshake as Client*)
-    Handshake_full_RSA.client("www.inria.fr");
-    printf "RSA client finished\n";
+    //Handshake_full_RSA.client("www.inria.fr");
+    //printf "RSA client finished\n";
 
     (* Standard RSA full handshake with client authentication as Client *)
     //Handshake_full_RSA.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44101);
