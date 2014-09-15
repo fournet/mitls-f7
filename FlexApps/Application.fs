@@ -16,12 +16,12 @@ let main argv =
     //Attack_Alert.run "www.google.com";
     
     (* Protocol downgrade attack (Fragmented ClientHello) *)
-    Attack_FragmentClientHello.run("192.168.0.24",4433,fp=All(5));
-    printf "Downgrade attack against Openssl 1.0.1g finished\n";
+    //Attack_FragmentClientHello.run("www.inria.fr",fp=All(5));
+    //printf "Protocol version downgrade attack finished\n";
 
     (* Standard RSA full handshake as Client*)
-    //Handshake_full_RSA.client("www.inria.fr");
-    //printf "RSA client finished\n";
+    Handshake_full_RSA.client("www.inria.fr");
+    printf "RSA client finished\n";
 
     (* Standard RSA full handshake with client authentication as Client *)
     //Handshake_full_RSA.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44101);
