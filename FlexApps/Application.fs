@@ -21,7 +21,7 @@ let main argv =
     //printf "Protocol version downgrade attack finished\n";
 
     (* Early CCS attack *)
-    Attack_EarlyCCS.run("128.93.189.207",4433);
+    Attack_EarlyCCS.run("192.168.0.24",4433);
     printf "Early CCS attack finished\n";
 
     (* Standard RSA full handshake as Client*)

