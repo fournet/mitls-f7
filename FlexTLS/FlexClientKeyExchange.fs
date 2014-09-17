@@ -46,7 +46,8 @@ type FlexClientKeyExchange =
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk nsc.si.serverID in
         let st,fcke = FlexClientKeyExchange.receiveRSA(st,nsc.si.serverID,pv,checkPV,sk) in
-        let nsc = {nsc with kex = fcke.kex} in
+        let epk = {nsc.keys with kex = fcke.kex} in
+        let nsc = {nsc with keys = epk} in
         let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         st,nsc,fcke
 
@@ -82,7 +83,7 @@ type FlexClientKeyExchange =
     (* Prepare ClientKeyExchange message bytes for RSA ciphersuites *)
     static member prepareRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion): bytes * state * nextSecurityContext * FClientKeyExchange =
         let payload,st,fcke =
-            match nsc.kex with
+            match nsc.keys.kex with
             | RSA(pms) ->
                 if pms = empty_bytes then
                     FlexClientKeyExchange.prepareRSA(st,nsc.si.serverID,pv)
@@ -90,7 +91,8 @@ type FlexClientKeyExchange =
                     FlexClientKeyExchange.prepareRSA(st,nsc.si.serverID,pv,pms)
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "RSA kex expected")
         in
-        let nsc = {nsc with kex = fcke.kex} in
+        let epk = {nsc.keys with kex = fcke.kex} in
+        let nsc = {nsc with keys = epk} in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         payload,st,nsc,fcke
 
@@ -127,7 +129,7 @@ type FlexClientKeyExchange =
     static member sendRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion, ?fp:fragmentationPolicy): state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let st,fcke =
-            match nsc.kex with
+            match nsc.keys.kex with
             | RSA(pms) ->
                 if pms = empty_bytes then
                     FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,fp=fp)
@@ -135,7 +137,8 @@ type FlexClientKeyExchange =
                     FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,pms,fp)
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "RSA kex expected")
         in
-        let nsc = {nsc with kex = fcke.kex} in
+        let epk = {nsc.keys with kex = fcke.kex} in
+        let nsc = {nsc with keys = epk} in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fcke
 
@@ -172,18 +175,20 @@ type FlexClientKeyExchange =
     (* Receive ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with the FServerKeyExchangeDHx  message *)
     static member receiveDHE (st:state, fske:FServerKeyExchange, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let nsc = {nsc with kex = fske.kex} in
+        let epk = {nsc.keys with kex = fske.kex} in
+        let nsc = {nsc with keys = epk} in
         FlexClientKeyExchange.receiveDHE(st,nsc)
 
     (* Receive ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext with a user provided kexDH record *)
     static member receiveDHE (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
         let kexdh =
-            match nsc.kex with
+            match nsc.keys.kex with
             | DH(kexdh) -> kexdh
             | _         -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHE")
         in
         let st,fcke = FlexClientKeyExchange.receiveDHE(st,kexdh) in
-        let nsc = {nsc with kex = fcke.kex} in
+        let epk = {nsc.keys with kex = fcke.kex} in
+        let nsc = {nsc with keys = epk} in
         let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         st,nsc,fcke
 
@@ -219,19 +224,21 @@ type FlexClientKeyExchange =
     static member sendDHE (st:state, fske:FServerKeyExchange, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let nsc = {nsc with kex = fske.kex} in
+        let epk = {nsc.keys with kex = fske.kex} in
+        let nsc = {nsc with keys = epk} in
         FlexClientKeyExchange.sendDHE(st,nsc,fp)
 
     (* Send ClientKeyExchange for DHE ciphersuites, compute the PMS, MS, KEYS and update the nextSecurityContext from a KEX record *)
     static member sendDHE (st:state, nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let kexdh =
-            match nsc.kex with
+            match nsc.keys.kex with
             | DH(kexdh) -> kexdh
             | _         -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHE")
         in
         let st,fcke = FlexClientKeyExchange.sendDHE(st,kexdh,fp) in
-        let nsc = { nsc with kex = fcke.kex } in
+        let epk = { nsc.keys with kex = fcke.kex } in
+        let nsc = { nsc with keys = epk } in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fcke
 

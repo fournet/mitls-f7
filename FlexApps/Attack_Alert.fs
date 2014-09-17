@@ -2,6 +2,9 @@
 
 module Attack_Alert
 
+open Bytes
+open TLSInfo
+
 open FlexTypes
 open FlexConnection
 open FlexClientHello
@@ -13,12 +16,8 @@ open FlexServerHelloDone
 open FlexClientKeyExchange
 open FlexCCS
 open FlexFinished
-open FlexRecord
 open FlexAppData
 open FlexSecrets
-
-open Bytes
-open TLSInfo
 
 
 
@@ -54,7 +53,7 @@ let run peer =
     // Start decrypting
     let st          = FlexState.installReadKeys st nsc in
     // Check that verify_data is correct
-    let vd = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| cf.payload) in
+    let vd = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| cf.payload) in
     let st,sf       = FlexFinished.receive(st) in
     if not (vd = sf.verify_data) then
         failwith "Verify_data check failed"

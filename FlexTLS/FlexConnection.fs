@@ -4,9 +4,7 @@ module FlexConnection
 
 open Bytes
 open Tcp
-open TLS
 open TLSInfo
-open TLSConstants
 
 open FlexTypes
 open FlexConstants
@@ -24,12 +22,14 @@ type FlexConnection =
         let record_s_out = Record.nullConnState ci.id_out Writer in
         { read  = { record = record_s_in;
                     epoch = ci.id_in;
+                    keys = FlexConstants.nullKeys;
                     epoch_init_pv = defaultConfig.maxVer;
                     hs_buffer = empty_bytes;
                     alert_buffer = empty_bytes;
                     appdata_buffer = empty_bytes};
           write = { record = record_s_out;
                     epoch = ci.id_out;
+                    keys = FlexConstants.nullKeys;
                     epoch_init_pv = defaultConfig.maxVer;
                     hs_buffer = empty_bytes;
                     alert_buffer = empty_bytes;

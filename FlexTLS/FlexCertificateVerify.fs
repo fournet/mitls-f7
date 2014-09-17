@@ -5,14 +5,12 @@ module FlexCertificateVerify
 open Bytes
 open Error
 open TLSInfo
-open TLSError
 open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
 open FlexConstants
 open FlexHandshake
-open FlexSecrets
 
 
 

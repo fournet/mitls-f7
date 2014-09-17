@@ -5,7 +5,6 @@ module FlexHandshake
 open Bytes
 open Error
 open TLSConstants
-open HandshakeMessages
 
 open FlexTypes
 open FlexConstants

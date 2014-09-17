@@ -13,7 +13,6 @@ open FlexRecord
 open FlexClientHello
 open FlexServerHello
 open FlexCertificate
-open FlexServerKeyExchange
 open FlexServerHelloDone
 open FlexClientKeyExchange
 open FlexCCS
@@ -47,7 +46,8 @@ type Attack_EarlyCCS =
 
         // We fill the master secret with zeros because it has no data from the KEX yet
         // Then we compute and install the writing keys
-        let nsc          = { nsc with ms = (Bytes.createBytes 48 0) } in
+        let epk          = { nsc.keys with ms = (Bytes.createBytes 48 0)} in
+        let nsc          = { nsc with keys = epk} in
         let nsc          = FlexSecrets.fillSecrets(st,Client,nsc) in
         let st           = FlexState.installWriteKeys st nsc in
 
@@ -71,7 +71,7 @@ type Attack_EarlyCCS =
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
         ()
 

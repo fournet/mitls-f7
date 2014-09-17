@@ -2,10 +2,8 @@
 
 module Handshake_full_RSA
 
-open Tcp
 open Bytes
 open Error
-open TLS
 open TLSInfo
 open TLSConstants
 
@@ -60,7 +58,7 @@ type Handshake_full_RSA =
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
         ()
 
@@ -104,7 +102,7 @@ type Handshake_full_RSA =
         let st          = FlexState.installReadKeys st nsc in
 
         let log         = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
-        let verify_data = FlexSecrets.makeVerifyData nsc.si nsc.ms Client log in
+        let verify_data = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client log in
         let st,ffC      = FlexFinished.receive(st,verify_data) in
 
         // Advertise that we will encrypt the trafic from now on
@@ -166,7 +164,7 @@ type Handshake_full_RSA =
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
             
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
         ()
 
@@ -218,7 +216,7 @@ type Handshake_full_RSA =
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = log @| fcver.payload in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Client log in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client log in
         let st,ffC       = FlexFinished.receive(st,verify_data) in
         
         // Advertise that we will encrypt the trafic from now on
@@ -227,7 +225,7 @@ type Handshake_full_RSA =
         // Start encrypting
         let st           = FlexState.installWriteKeys st nsc in
 
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.send(st,verify_data) in
         ()
 

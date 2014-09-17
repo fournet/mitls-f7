@@ -5,7 +5,6 @@ module FlexAlert
 open Bytes
 open Alert
 open Error
-open TLSInfo
 open TLSError
 open TLSConstants
 

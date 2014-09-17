@@ -3,8 +3,6 @@
 module FlexTypes
 
 open Bytes
-open System
-open TLSError
 open TLSInfo
 open TLSConstants
 
@@ -15,23 +13,6 @@ open TLSConstants
 type fragmentationPolicy =
     | All of int
     | One of int
-
-(* Keep track of the Record state and the associated Epoch of an I/O channel *)
-type channel = {
-    record: Record.ConnectionState;
-    epoch:  TLSInfo.epoch;
-    epoch_init_pv: ProtocolVersion;
-    hs_buffer: bytes;
-    alert_buffer: bytes;
-    appdata_buffer: bytes
-}
-
-(* Global state of the application for Handshake and both input/output channels of a network stream *)
-type state = {
-    read: channel;
-    write: channel;
-    ns: Tcp.NetworkStream;
-}
 
 (* DH key exchange parameters where x,gx are the local values and gy is the remote public value. Note that gx is in fact g^x mod p *)
 type kexDH = { 
@@ -47,16 +28,39 @@ type kex =
     | DH of kexDH
  // | ECDH of kexECDH // TODO
 
+(* Epoch keys *)
+type keys = {
+    kex: kex;
+    pms: bytes;
+    ms: bytes;
+    epoch_keys: bytes * bytes;
+       (* read  , write *)
+}
+
+(* Keep track of the Record state and the associated Epoch of an I/O channel *)
+type channel = {
+    record: Record.ConnectionState;
+    epoch:  TLSInfo.epoch;
+    keys: keys;
+    epoch_init_pv: ProtocolVersion;
+    hs_buffer: bytes;
+    alert_buffer: bytes;
+    appdata_buffer: bytes
+}
+
+(* Global state of the application for Handshake and both input/output channels of a network stream *)
+type state = {
+    read: channel;
+    write: channel;
+    ns: Tcp.NetworkStream;
+}
+
 (* Next security context record used to generate a new channel epoch *)
 type nextSecurityContext = {
     si: SessionInfo;
     crand: bytes;
     srand: bytes;
-    kex: kex;
-    pms: bytes;
-    ms: bytes;
-    keys: bytes * bytes;
-       (* read  , write *)
+    keys: keys;
 }
 
 (* Record associated to a HelloRequest message *)

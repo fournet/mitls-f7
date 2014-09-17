@@ -6,7 +6,6 @@ open Bytes
 open TLSInfo
 
 open FlexTypes
-open FlexConstants
 
 
 
@@ -21,6 +20,10 @@ type FlexState =
 
     static member updateIncomingEpoch (st:state) (e:TLSInfo.epoch) : state =
         let read_s = {st.read with epoch = e} in
+        {st with read = read_s}
+
+    static member updateIncomingKeys (st:state) (keys:keys) : state =
+        let read_s = {st.read with keys = keys} in
         {st with read = read_s}
 
     static member updateIncomingRecordEpochInitPV (st:state) (pv:TLSConstants.ProtocolVersion) : state =
@@ -48,11 +51,12 @@ type FlexState =
 
    static member installReadKeys (st:state) (nsc:nextSecurityContext): state =
         let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.crand nsc.srand nsc.si in
-        let rk,_ = nsc.keys in
+        let rk,_ = nsc.keys.epoch_keys in
         let ark = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Reader rk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Reader ark in
         let st = FlexState.updateIncomingRecord st nextRecord in
         let st = FlexState.updateIncomingEpoch st nextEpoch in
+        let st = FlexState.updateIncomingKeys st nsc.keys in
         st
 
     (* Update outgoing state *)
@@ -62,6 +66,10 @@ type FlexState =
 
     static member updateOutgoingEpoch (st:state) (e:TLSInfo.epoch) : state =
         let write_s = {st.write with epoch = e} in
+        {st with write = write_s}
+
+    static member updateOutgoingKeys (st:state) (keys:keys) : state =
+        let write_s = {st.write with keys = keys} in
         {st with write = write_s}
 
     static member updateOutgoingRecordEpochInitPV (st:state) (pv:TLSConstants.ProtocolVersion) : state =
@@ -89,11 +97,12 @@ type FlexState =
     
     static member installWriteKeys (st:state) (nsc:nextSecurityContext) : state =
         let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
-        let _,wk = nsc.keys in
+        let _,wk = nsc.keys.epoch_keys in
         let awk = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Writer wk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Writer awk in
         let st = FlexState.updateOutgoingRecord st nextRecord in
         let st = FlexState.updateOutgoingEpoch st nextEpoch in
+        let st = FlexState.updateOutgoingKeys st nsc.keys in
         st
       
     end

@@ -2,10 +2,7 @@
 
 module Attack_FragmentClientHello
 
-open Tcp
 open Bytes
-open Error
-open TLS
 open TLSInfo
 open TLSConstants
 
@@ -15,8 +12,6 @@ open FlexConnection
 open FlexClientHello
 open FlexServerHello
 open FlexCertificate
-open FlexCertificateRequest
-open FlexCertificateVerify
 open FlexServerHelloDone
 open FlexClientKeyExchange
 open FlexCCS
@@ -61,7 +56,7 @@ type Attack_FragmentClientHello =
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.ms Server (log @| ffC.payload) in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
         ()
 

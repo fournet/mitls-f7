@@ -2,11 +2,9 @@
 
 module FlexFinished
 
-open Tcp
 open Bytes
 open Error
 open TLSInfo
-open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
@@ -45,7 +43,7 @@ type FlexFinished =
     static member prepare (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext) : bytes * state * FFinished =
         let verify_data =
             match logRoleNSC with
-            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.ms role log
+            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
             | None ->
                 match verify_data with
                 | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")
@@ -62,7 +60,7 @@ type FlexFinished =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let verify_data =
             match logRoleNSC with
-            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.ms role log
+            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
             | None ->
                 match verify_data with
                 | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")

@@ -11,7 +11,6 @@ open HandshakeMessages
 open FlexTypes
 open FlexConstants
 open FlexHandshake
-open FlexSecrets
 
 
 
@@ -38,10 +37,11 @@ type FlexServerKeyExchange =
         let check_sig = defaultArg check_sig false in
         let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
         let st,fske = FlexServerKeyExchange.receiveDHE(st,nsc.si.protocol_version,nsc.si.cipher_suite,minDHsize) in
-        let nsc = {nsc with kex = fske.kex} in
+        let epk = {nsc.keys with kex = fske.kex} in
+        let nsc = {nsc with keys = epk} in
         if check_sig then
             let kexDH =
-                match nsc.kex with
+                match nsc.keys.kex with
                 | DH(x) -> x
                 | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Internal error: receiveDHE should return a DH kex")
             in
@@ -102,12 +102,13 @@ type FlexServerKeyExchange =
                     | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Cannot find private key for certificate")
                     | Some(_,sAlg,sKey) -> sAlg,sKey
         in
-        let kexdh = match nsc.kex with
+        let kexdh = match nsc.keys.kex with
             | DH(kexdh) -> kexdh
             | _ -> FlexConstants.nullKexDH
         in
         let st,fske = FlexServerKeyExchange.sendDHE(st,kexdh,nsc.crand,nsc.srand,nsc.si.protocol_version,sAlg,sKey,fp) in
-        let nsc = {nsc with kex = fske.kex} in
+        let epk = {nsc.keys with kex = fske.kex } in
+        let nsc = {nsc with keys = epk} in
         st,nsc,fske
 
     (* Send DHE ServerKeyExchange *)

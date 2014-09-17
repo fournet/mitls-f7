@@ -2,12 +2,9 @@
 
 module FlexHelloRequest
 
-open Tcp
 open Bytes
 open Error
 open HandshakeMessages
-open TLSInfo
-open TLSConstants
 
 open FlexTypes
 open FlexConstants

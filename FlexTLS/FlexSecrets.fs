@@ -3,7 +3,6 @@
 module FlexSecrets
 
 open Bytes
-open Error
 open TLSInfo
 
 open FlexTypes
@@ -69,15 +68,15 @@ type FlexSecrets =
         let ew = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
         
         let pms =
-            if nsc.pms = empty_bytes then
-                FlexSecrets.kex_to_pms nsc.kex
+            if nsc.keys.pms = empty_bytes then
+                FlexSecrets.kex_to_pms nsc.keys.kex
             else
-                nsc.pms
+                nsc.keys.pms
         in
 
-        let ms = if nsc.ms = empty_bytes then FlexSecrets.pms_to_ms nsc.si pms else nsc.ms in
-        let keys = if nsc.keys = (empty_bytes,empty_bytes) then FlexSecrets.ms_to_keys er ew role ms else nsc.keys in
-        
-        { nsc with pms = pms; ms = ms; keys = keys}
+        let ms = if nsc.keys.ms = empty_bytes then FlexSecrets.pms_to_ms nsc.si pms else nsc.keys.ms in
+        let keys = if nsc.keys.epoch_keys = (empty_bytes,empty_bytes) then FlexSecrets.ms_to_keys er ew role ms else nsc.keys.epoch_keys in
+        let epk = {nsc.keys with pms = pms; ms = ms; epoch_keys = keys} in
+        { nsc with keys = epk }
 
     end

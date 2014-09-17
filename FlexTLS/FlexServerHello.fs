@@ -2,15 +2,9 @@
 
 module FlexServerHello
 
-open Tcp
 open Bytes
 open Error
-open System
-open System.IO
-open TLS
 open TLSInfo
-open TLSConstants
-open TLSExtensions
 open HandshakeMessages
 
 open FlexTypes

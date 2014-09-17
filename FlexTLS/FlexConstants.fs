@@ -3,9 +3,7 @@
 module FlexConstants
 
 open Bytes
-open System
 open Error
-open TLSError
 open TLSInfo
 open TLSConstants
 open CoreKeys
@@ -192,15 +190,20 @@ type FlexConstants =
         pmsId = noPmsId;
     }
 
+    (* Define a null epoch_keys *)
+    static member nullKeys = {
+        kex = RSA(empty_bytes);
+        pms = empty_bytes;
+        ms = empty_bytes;
+        epoch_keys = empty_bytes,empty_bytes;
+    }
+
     (* Define a null nextSecurityContext record *)
     static member nullNextSecurityContext = {   
         si = FlexConstants.nullSessionInfo;
         crand = empty_bytes;
         srand = empty_bytes;
-        kex = RSA(empty_bytes);
-        pms = empty_bytes;
-        ms = empty_bytes;
-        keys = empty_bytes,empty_bytes;
+        keys = FlexConstants.nullKeys;
     }
 
     end

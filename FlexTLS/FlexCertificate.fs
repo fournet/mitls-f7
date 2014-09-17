@@ -2,7 +2,6 @@
 
 module FlexCertificate
 
-open Tcp
 open Bytes
 open Error
 open TLSInfo

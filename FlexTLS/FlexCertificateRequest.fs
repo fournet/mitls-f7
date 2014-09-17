@@ -2,7 +2,6 @@
 
 module FlexCertificateRequest
 
-open Tcp
 open Bytes
 open Error
 open TLSInfo
@@ -11,7 +10,6 @@ open HandshakeMessages
 
 open FlexTypes
 open FlexConstants
-open FlexRecord
 open FlexHandshake
 
 type FlexCertificateRequest =

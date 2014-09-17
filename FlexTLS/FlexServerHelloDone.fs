@@ -2,11 +2,8 @@
 
 module FlexServerHelloDone
 
-open Tcp
 open Bytes
 open Error
-open TLSInfo
-open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
