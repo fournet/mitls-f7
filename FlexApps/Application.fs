@@ -8,6 +8,7 @@ open Attack_FragmentClientHello
 open Attack_EarlyCCS
 open Handshake_full_RSA
 open Handshake_full_DHE
+open Handshake_resumption
 
 
 [<EntryPoint>]
@@ -24,7 +25,7 @@ let main argv =
     //Attack_EarlyCCS.run("128.93.189.207",4433);
     //printf "Early CCS attack finished\n";
 
-    (* Standard RSA full handshake as Client*)
+    (* Standard RSA full handshake as Client *)
     let st = Handshake_full_RSA.client("www.inria.fr") in
     printf "RSA client finished\n";
 
@@ -59,6 +60,12 @@ let main argv =
     //printf "Running RSA server. Please connect to port 44204\n";
     //let st = Handshake_full_DHE.server_with_client_auth("127.0.0.1","rsa.cert-01.mitls.org",44204) in
     //printf "DHE server_with_client_auth finished\n";
+
+    (* Standard RSA full handshake then resume both as Client *)
+    let st = Handshake_full_RSA.client("www.inria.fr") in
+    // TODO: Close current connection
+    let st = Handshake_resumption.client(st,"www.inria.fr") in
+    printf "RSA client resumption finished\n"; 
 
     ignore (System.Console.ReadLine());
     0

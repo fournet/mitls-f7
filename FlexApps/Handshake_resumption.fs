@@ -3,11 +3,14 @@
 module Handshake_resumption
 
 open Bytes
+open Error
 open TLSInfo
+open TLSConstants
 
 open FlexTypes
 open FlexConstants
 open FlexConnection
+open FlexSecrets
 open FlexClientHello
 open FlexServerHello
 open FlexCCS
@@ -21,29 +24,57 @@ open FlexSecrets
 type Handshake_resumption =
     class
 
-//    (* Run a Handshake resumption with server side authentication only *)
-//    static member client (server_name:string, sid:bytes, crand:bytes, srand:bytes, ?port:int) : state =
-//        let port = defaultArg port FlexConstants.defaultTCPPort in
-//
-//        // Start TCP connection with the server
-//        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
-//
-//        let st,nsc,fch   = FlexClientHello.send(st) in
-//        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
-//
-//        let st,_         = FlexCCS.send(st) in
-//            
-//        // Start encrypting
-//        let st           = FlexState.installWriteKeys st nsc in
-//        let log          = fch.payload @| fsh.payload in
-//        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
-// 
-//        let st,_         = FlexCCS.receive(st) in
-//
-//        // Start decrypting
-//        let st           = FlexState.installReadKeys st nsc in
-//        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
-//        let st,ffS       = FlexFinished.receive(st,verify_data) in
-//        st
+    (* Run a Handshake resumption with server side authentication only *)
+    static member client (st:state, server_name:string, ?port:int) : state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        let e = st.read.epoch in
+        let k = st.read.keys in
+        Handshake_resumption.client(server_name,e,k,port)
+
+    static member client (server_name:string, e:epoch, k:keys, ?port:int) : state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        let ms = k.ms in
+        let si = TLSInfo.epochSI e in
+        Handshake_resumption.client(server_name,si,ms,port)
+
+    static member client (server_name:string, si:SessionInfo, ms:bytes, ?port:int) : state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+
+        // Start TCP connection with the server
+        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
+
+        let suite = 
+            match name_of_cipherSuite si.cipher_suite with
+            | Error(ad,x) -> failwith x
+            | Correct(csn) -> csn
+        in
+        let fch          = {FlexConstants.nullFClientHello with sid = si.sessionID; suites = [suite] } in
+
+        let st,nsc,fch   = FlexClientHello.send(st,fch) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
+
+        // Check whether the server authorized or refused the resumption and if the data is matching previous session
+        if not (si.sessionID = fsh.sid) then failwith "Server refused resumption" else
+        if not (suite = fsh.suite) then failwith "Server resumption data doesn't match previous session" else
+        if not (si.protocol_version = fsh.pv) then failwith "Server resumption data doesn't match previous session" else
+
+        // Install the new keys according to the previous master secret
+        let keys         = { nsc.keys with ms = ms } in
+        let nsc          = { nsc with keys = keys; si = si } in
+        let nsc          = FlexSecrets.fillSecrets(st,Client,nsc) in
+        let st,_         = FlexCCS.send(st) in
+            
+        // Start encrypting
+        let st           = FlexState.installWriteKeys st nsc in
+        let log          = fch.payload @| fsh.payload in
+        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+ 
+        let st,_         = FlexCCS.receive(st) in
+
+        // Start decrypting
+        let st           = FlexState.installReadKeys st nsc in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
+        let st,ffS       = FlexFinished.receive(st,verify_data) in
+        st
 
     end
