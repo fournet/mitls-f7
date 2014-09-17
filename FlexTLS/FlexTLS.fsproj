@@ -52,8 +52,8 @@
     <Compile Include="FlexServerKeyExchange.fs" />
     <Compile Include="FlexCertificateRequest.fs" />
     <Compile Include="FlexServerHelloDone.fs" />
-    <Compile Include="FlexCertificateVerify.fs" />
     <Compile Include="FlexClientKeyExchange.fs" />
+    <Compile Include="FlexCertificateVerify.fs" />
     <Compile Include="FlexFinished.fs" />
   </ItemGroup>
   <ItemGroup>

