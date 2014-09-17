@@ -30,7 +30,7 @@ type Handshake_full_DHE =
     class
 
     (* Run a full Handshake DHE with server side authentication only *)
-    static member client (server_name:string, ?port:int) : unit =
+    static member client (server_name:string, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         // Start TCP connection with the server
@@ -62,11 +62,11 @@ type Handshake_full_DHE =
 
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
-        ()
+        st
     
 
     (* Run a full Handshake DHE with both server side and client side authentication only *)
-    static member client_with_auth (server_name:string, hint:string, ?port:int) : unit =
+    static member client_with_auth (server_name:string, hint:string, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let chain,salg,skey =
             match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
@@ -75,7 +75,7 @@ type Handshake_full_DHE =
         in
         Handshake_full_DHE.client_with_auth (server_name,chain,salg,skey,port)
 
-    static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int) : unit =
+    static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         // Start TCP connection with the server
@@ -115,17 +115,17 @@ type Handshake_full_DHE =
             
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
-        ()
+        st
 
 
-    static member server (listening_address:string, ?cn:string, ?port:int) : unit =
+    static member server (listening_address:string, ?cn:string, ?port:int) : state =
         let cn = defaultArg cn listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_signing FlexConstants.sigAlgs_ALL cn FlexConstants.sigAlgs_RSA with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,_,_) -> Handshake_full_DHE.server(listening_address,chain,port)
 
-    static member server (listening_address:string, chain:Cert.chain, ?port:int) : unit =
+    static member server (listening_address:string, chain:Cert.chain, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn =
             match Cert.get_hint chain with
@@ -169,18 +169,18 @@ type Handshake_full_DHE =
         let st     = FlexState.installWriteKeys st nsc in
 
         let _      = FlexFinished.send(st,logRoleNSC=((log @| ffC.payload),Server,nsc)) in
-        ()
+        st
 
 
 
-    static member server_with_client_auth (listening_address:string, ?cn:string, ?port:int) : unit =
+    static member server_with_client_auth (listening_address:string, ?cn:string, ?port:int) : state =
         let cn = defaultArg cn listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,sk) -> Handshake_full_DHE.server_with_client_auth(listening_address,chain,port)
 
-    static member server_with_client_auth (listening_address:string, chain:Cert.chain, ?port:int) : unit =
+    static member server_with_client_auth (listening_address:string, chain:Cert.chain, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn =
             match Cert.get_hint chain with
@@ -232,7 +232,7 @@ type Handshake_full_DHE =
 
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.send(st,verify_data) in
-        ()
+        st
 
 
     end

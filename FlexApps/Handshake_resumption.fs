@@ -22,7 +22,7 @@ type Handshake_resumption =
     class
 
 //    (* Run a Handshake resumption with server side authentication only *)
-//    static member client (server_name:string, sid:bytes, crand:bytes, srand:bytes, ?port:int) : unit =
+//    static member client (server_name:string, sid:bytes, crand:bytes, srand:bytes, ?port:int) : state =
 //        let port = defaultArg port FlexConstants.defaultTCPPort in
 //
 //        // Start TCP connection with the server
@@ -44,6 +44,6 @@ type Handshake_resumption =
 //        let st           = FlexState.installReadKeys st nsc in
 //        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
 //        let st,ffS       = FlexFinished.receive(st,verify_data) in
-//        ()
+//        st
 
     end
