@@ -57,7 +57,7 @@ type Attack_EarlyCCS =
         // We compute the encrypted payload including the fragment header of the ClientKeyExchange but don't send it
         let fckep,_,_,_  = FlexClientKeyExchange.prepareRSA(st,nsc,fch) in
         let _,fckeencpwh = FlexRecord.encrypt(st.write.epoch,fsh.pv,st.write.record,Handshake,fckep) in
-        let _,fckeencp   = Bytes.split fckeencpwh 6 in
+        let _,fckeencp   = Bytes.split fckeencpwh 5 in
 
 
         // We continue the usual handshake procedure
