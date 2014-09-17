@@ -21,12 +21,12 @@ let main argv =
     //printf "Protocol version downgrade attack finished\n";
 
     (* Early CCS attack *)
-    //Attack_EarlyCCS.run("128.93.189.207",4433);
-    //printf "Early CCS attack finished\n";
+    Attack_EarlyCCS.runMITM("0.0.0.0","128.93.62.11",4433);
+    printf "Early CCS attack finished\n";
 
     (* Standard RSA full handshake as Client*)
-    let st = Handshake_full_RSA.client("www.inria.fr") in
-    printf "RSA client finished\n";
+    //let st = Handshake_full_RSA.client("www.inria.fr") in
+    //printf "RSA client finished\n";
 
     (* Standard RSA full handshake with client authentication as Client *)
     //let st = Handshake_full_RSA.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44101) in

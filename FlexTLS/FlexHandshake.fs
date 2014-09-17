@@ -47,7 +47,7 @@ type FlexHandshake =
                 let buf = buf @| b in
                 let st = FlexState.updateIncomingHSBuffer st buf in
                 FlexHandshake.getHSMessage st
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected content type"))
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type: %A" ct)))
         | Correct(hst,payload,to_log,rem) ->
                 let st = FlexState.updateIncomingHSBuffer st rem in
                 (st,hst,payload,to_log)
