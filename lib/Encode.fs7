@@ -68,6 +68,21 @@ private ask !i,r,ad,b,p.
 
 predicate val Decoded: 'e * 'a * 'b -> bool
 
+// We define a MACOnly log exclusively for MACOnly ciphersuites where
+// - Items are inserted only for honest macs, that when AuthId && MAC.Msg hold
+// - Items can be retrieved only verified macs, that is when AuthId holds, and when we have learnt
+//   sufficient information from the MAC.Msg predicate
+type maconly_entry =
+	(i:id * ad:(;i)LHAEPlain.adata *
+	 rg:range * tlen:nat *
+	 (;i,ad,rg)LHAEPlain.plain * (;i)MAC.tag)
+	{tlen <= max_TLSCipher_fragment_length /\ tlen = TargetLength(i,rg)}
+private val maconly_log: maconly_entry list ref
+private val maconly_mem:
+	i:id -> ad:(;i)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length} ->
+	(;i)MAC.tag -> xs:maconly_entry list ->
+	((rg:range * (;i,ad,rg)LHAEPlain.plain){tlen = TargetLength(i,rg)}) option
+
 val mac: e:id -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata -> rg:range ->
   p:(;e,ad,rg)LHAEPlain.plain ->
@@ -76,8 +91,9 @@ val mac: e:id -> k:(;e) MAC.key ->
 val verify_MACOnly: e:id{not SafeId(e)} -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata ->
   rg:range ->
+  tlen:nat{tlen <= max_TLSCipher_fragment_length /\ rg = CipherRangeClass(e,tlen)} ->
   b:(;rg)rbytes -> t:(;e)MAC.tag ->
-  (;e,ad,rg)LHAEPlain.plain Result
+  ((rg':range*(;e,ad,rg')LHAEPlain.plain){rg' = CipherRangeClass(e,tlen)}) Result
 
 val verify: e:id -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata -> 
@@ -131,7 +147,7 @@ val decodeNoPad_bytes: e:id{?mac. e.aeAlg  = MACOnly(mac) \/
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacKeySize(MacAlg(e)) /\
 	rg = CipherRangeClass(e,tlen)} -> (;PlainLength(e,tlen))lbytes ->
-	(;rg)rbytes * (;e)MAC.tag
+	(;CipherRangeClass(e,tlen))rbytes * (;e)MAC.tag
 	
 val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg = MtE(Stream_RC4_128,mac))} ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
