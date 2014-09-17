@@ -17,8 +17,8 @@ val mac: id -> MAC.key -> LHAEPlain.adata -> range -> LHAEPlain.plain -> plain
 val verify: id -> MAC.key -> LHAEPlain.adata -> range -> plain -> Result<LHAEPlain.plain>
 
 val decodeNoPad_bytes: id -> LHAEPlain.adata -> range -> nat -> lbytes -> rbytes * MAC.tag
-val verify_MACOnly: id -> MAC.key -> LHAEPlain.adata -> range -> rbytes -> MAC.tag ->
-    Result<LHAEPlain.plain>
+val verify_MACOnly: id -> MAC.key -> LHAEPlain.adata -> range -> nat -> rbytes -> MAC.tag ->
+    Result<range*LHAEPlain.plain>
 
 #if ideal
 val widen: id -> LHAEPlain.adata -> range -> plain -> plain
