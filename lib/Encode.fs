@@ -36,12 +36,13 @@ let macPlain (e:id) (rg:range) ad f =
     macPlain_bytes e rg ad b
 
 #if ideal
-type maconly_entry = id * LHAEPlain.adata * range * nat * LHAEPlain.plain * MAC.tag
+type maconly_entry = id * LHAEPlain.adata * range * nat * bytes * bytes * LHAEPlain.plain * MAC.tag
 let maconly_log = ref ([]:list<maconly_entry>)
-let rec maconly_mem i ad cl tag (xs:list<maconly_entry>) =
+let rec maconly_mem i ad cl pl text tag (xs:list<maconly_entry>) =
     match xs with
-    | (i', ad', rg', cl', p', tag')::_ when i=i' && ad=ad' && cl=cl' && tag=tag' -> let x = (rg',p') in Some x
-    | _::xs -> maconly_mem i ad cl tag xs
+    | (i', ad', rg', cl', pl', text', p', tag')::_
+        when i=i' && ad=ad' && cl=cl' && pl=pl' && text=text' && tag=tag' -> let x = (rg',p') in Some x
+    | _::xs -> maconly_mem i ad cl pl text tag xs
     | [] -> None
 #endif
 
@@ -56,7 +57,8 @@ let mac e k ad rg plain =
     (match (authId e, e_aealg) with
     | (true,MACOnly(_)) ->
         let tlen = targetLength e rg in
-        maconly_log := (e,ad,rg,tlen,plain,tag)::!maconly_log
+        let pl = payload e rg ad plain in
+        maconly_log := (e,ad,rg,tlen,pl,text,plain,tag)::!maconly_log
     | (_,_) -> ());
 #endif
     {plain = plain;
@@ -69,7 +71,7 @@ let verify_MACOnly (e:id) k ad rg (cl:nat) b tag =
     if MAC.Verify e k text tag then
 #if ideal
         if authId e then
-            match maconly_mem e ad cl tag !maconly_log with
+            match maconly_mem e ad cl b text tag !maconly_log with
             | Some(x) ->
                 let (rg',p') = x in
                 let p = LHAEPlain.widen e ad rg' p' in
