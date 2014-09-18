@@ -74,12 +74,13 @@ type FlexRecord =
         (k,b)
 
     (* Forward a record *)
-    static member forward (stin:state, stout:state) : state * state * bytes =
+    static member forward (stin:state, stout:state, ?fp:fragmentationPolicy) : state * state * bytes =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ct,pv,len,header = FlexRecord.parseFragmentHeader(stin) in
         let stin,payload = FlexRecord.getFragmentContent(stin,ct,len) in
-        let k,_ = FlexRecord.send(stout.ns,stout.write.epoch,stout.write.record,ct,payload,stout.write.epoch_init_pv) in
+        let k,_ = FlexRecord.send(stout.ns,stout.write.epoch,stout.write.record,ct,payload,stout.write.epoch_init_pv,fp) in
         let stout = FlexState.updateOutgoingRecord stout k in
-        stin,stout,(header@|payload)
+        stin,stout,payload
 
     (* Send genric method based on content type and state *)
     static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
