@@ -19,9 +19,9 @@ type FlexFinished =
     class
 
     (* Receive an expected Finished message from the network stream and check log on demand *)
-    static member receive (st:state, ?log:bytes) : state * FFinished = 
-        let log = defaultArg log empty_bytes in
-        let checkLog = not (log = empty_bytes) in
+    static member receive (st:state, ?verify_data:bytes) : state * FFinished = 
+        let verify_data = defaultArg verify_data empty_bytes in
+        let checkLog = not (verify_data = empty_bytes) in
 
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -33,7 +33,7 @@ type FlexFinished =
                             payload = to_log;
                 } in
                 if checkLog then
-                    if not (log = payload) then failwith "Log message received doesn't match" else st,ff
+                    if not (verify_data = payload) then failwith "Log message received doesn't match" else st,ff
                 else
                     st,ff
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
