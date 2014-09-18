@@ -2,6 +2,7 @@
 
 module FlexCCS
 
+open Bytes
 open Error
 open TLSConstants
 
@@ -17,7 +18,7 @@ type FlexCCS =
     class
     
     (* Receive function for handshake ChangeCipherSpecs message *)
-    static member receive (st:state) : state * FChangeCipherSpecs =
+    static member receive (st:state) : state * FChangeCipherSpecs * bytes =
         let ct,pv,len = FlexRecord.parseFragmentHeader st in
         match ct with
         | Change_cipher_spec ->
@@ -25,11 +26,18 @@ type FlexCCS =
             | 1 ->
                 let st,payload = FlexRecord.getFragmentContent(st,Change_cipher_spec,1) in
                 if payload = HandshakeMessages.CCSBytes then
-                    st,{payload = payload }
+                    st,{payload = payload },payload
                 else
                     failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected CCS content")
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected CCS length: %d" len)))
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type: %A" ct))
+
+    (* Forward functon *)
+    static member forward (stin:state, stout:state) : state * state * bytes =
+        let stin,ccs,msgb  = FlexCCS.receive(stin) in
+        let stout,_ = FlexCCS.send(stout) in
+        let msgb = ccs.payload in
+        stin,stout,msgb
 
     (* Send function for handshake ChangeCipherSpecs message *)
     static member send (st:state, ?fccs:FChangeCipherSpecs) : state * FChangeCipherSpecs =

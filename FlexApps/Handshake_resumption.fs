@@ -79,7 +79,6 @@ type Handshake_resumption =
 
         let log          = log @| ffS.payload in
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
- 
         st
 
     end

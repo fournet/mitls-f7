@@ -13,6 +13,7 @@ open FlexRecord
 
 
 
+
 type FlexHandshake =
     class
 
@@ -35,7 +36,7 @@ type FlexHandshake =
             Error("Given buffer too small")
 
     (* Get Handshake message from the buffer and return the state *)
-    static member getHSMessage st =
+    static member getHSMessage (st:state) : state * HandshakeMessages.PreHandshakeType * bytes * bytes =
         let ns = st.ns in
         let buf = st.read.hs_buffer in
         match FlexHandshake.parseHSMessage buf with

@@ -20,7 +20,7 @@ type FlexAlert =
     class
     
     (* Receive an expected ServerHelloDone message from the network stream *)
-    static member receive (st:state) : state * alertDescription =
+    static member receive (st:state) : state * alertDescription * bytes =
         let ns = st.ns in
         let buf = st.read.alert_buffer in
         if length buf < 2 then
@@ -38,7 +38,14 @@ type FlexAlert =
             | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(ad) ->
                 let st = FlexState.updateIncomingAlertBuffer st rem in
-                (st,ad)
+                (st,ad,alb)
+
+    (* Forward alert message *)
+    static member forward (stin:state, stout:state, ?fp:fragmentationPolicy) : state * state * bytes =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let stin,ad,alb = FlexAlert.receive(stin) in
+        let stout   = FlexAlert.send(stout,alb,fp) in
+        stin,stout,alb
 
     (* Send alert message *)
     static member send (st:state, ad:alertDescription, ?fp:fragmentationPolicy) : state =
