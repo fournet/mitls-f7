@@ -53,7 +53,7 @@ type FlexHandshake =
                 (st,hst,payload,to_log)
 
     (* Forward handshake message *)
-    static member forwardHSMessage (stin:state, stout:state) : state * state * bytes =
+    static member forward (stin:state, stout:state) : state * state * bytes =
         let stin,_,_,msg = FlexHandshake.getHSMessage(stin) in
         let stout = FlexHandshake.send(stout,msg) in
         stin,stout,msg
