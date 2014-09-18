@@ -19,7 +19,7 @@ type FlexAppData =
 
     (* Receive application data *)
     static member receive (st:state) : state * bytes =
-        let ct,pv,len = FlexRecord.parseFragmentHeader st in
+        let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in
         match ct with
         | Application_data ->
             FlexRecord.getFragmentContent(st,ct,len)

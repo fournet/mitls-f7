@@ -51,7 +51,7 @@ type Attack_FragmentClientHello =
         
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
-        let st,_         = FlexCCS.receive(st) in
+        let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in

@@ -48,7 +48,7 @@ let run peer =
     let log          = ch.payload @| sh.payload @| cert.payload @| shd.payload @| cke.payload in
             
     let st,cf       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
-    let st,_        = FlexCCS.receive(st) in
+    let st,_,_      = FlexCCS.receive(st) in
 
     // Start decrypting
     let st          = FlexState.installReadKeys st nsc in
@@ -75,7 +75,7 @@ let run peer =
            However, the peer mis-interpreted our alert, and is now
            waiting for more data. *)
     printf "Sending close notify. Going to hang...\n";
-    let st,ad = FlexAlert.receive(st) in
+    let st,ad,_ = FlexAlert.receive(st) in
     printf "Alert: %A" ad;
     ignore (System.Console.ReadLine());
     ()

@@ -41,7 +41,7 @@ type FlexHandshake =
         let buf = st.read.hs_buffer in
         match FlexHandshake.parseHSMessage buf with
         | Error(_) ->
-            (let ct,pv,len = FlexRecord.parseFragmentHeader st in
+            (let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in
             match ct with
             | Handshake -> 
                 let st,b = FlexRecord.getFragmentContent (st, ct, len) in

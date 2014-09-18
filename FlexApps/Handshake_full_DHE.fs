@@ -55,7 +55,7 @@ type Handshake_full_DHE =
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fshd.payload @| fcke.payload in
             
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
-        let st,_         = FlexCCS.receive(st) in
+        let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
@@ -108,7 +108,7 @@ type Handshake_full_DHE =
         let st           = FlexState.installWriteKeys st nsc in
         
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
-        let st,_         = FlexCCS.receive(st) in
+        let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
@@ -153,7 +153,7 @@ type Handshake_full_DHE =
         let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc) in
         let st,fshd      = FlexServerHelloDone.send(st) in
         let st,nsc,fcke  = FlexClientKeyExchange.receiveDHE(st,nsc) in
-        let st,_         = FlexCCS.receive(st) in
+        let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st          = FlexState.installReadKeys st nsc in
@@ -215,7 +215,7 @@ type Handshake_full_DHE =
         let st,nsc,fcke  = FlexClientKeyExchange.receiveDHE(st,nsc) in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fcreq.payload @| fshd.payload @| fcertC.payload @| fcke.payload in
         let st,fcver     = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-        let st,_         = FlexCCS.receive(st) in
+        let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in

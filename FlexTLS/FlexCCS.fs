@@ -19,7 +19,7 @@ type FlexCCS =
     
     (* Receive function for handshake ChangeCipherSpecs message *)
     static member receive (st:state) : state * FChangeCipherSpecs * bytes =
-        let ct,pv,len = FlexRecord.parseFragmentHeader st in
+        let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in
         match ct with
         | Change_cipher_spec ->
             (match len with

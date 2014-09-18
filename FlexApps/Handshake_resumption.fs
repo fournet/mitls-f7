@@ -63,7 +63,7 @@ type Handshake_resumption =
         let nsc          = { nsc with keys = keys; si = si } in
         let nsc          = FlexSecrets.fillSecrets(st,Client,nsc) in
 
-        let st,_         = FlexCCS.receive(st) in
+        let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in

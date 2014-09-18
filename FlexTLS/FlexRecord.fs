@@ -35,18 +35,19 @@ let pickCTBuffer (ch:channel) (ct:ContentType) : bytes =
 
 
 
+
 type FlexRecord = 
     class
 
     (* Read a record fragment header to get ContentType, ProtocolVersion and Length of the fragment *)
-    static member parseFragmentHeader (st:state) : ContentType * ProtocolVersion * nat =
+    static member parseFragmentHeader (st:state) : ContentType * ProtocolVersion * nat * bytes =
         let ns = st.ns in
         match Tcp.read ns 5 with
         | Error x        -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct header ->
             match Record.parseHeader header with
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct(res) -> res
+            | Correct(ct,pv,len) -> ct,pv,len,header
 
     (* Reads and decrypts a fragment. Return the updated (decryption) state and the decrypted plaintext *)
     static member getFragmentContent (st:state, ct:ContentType, len:int) : state * bytes = 
@@ -59,8 +60,8 @@ type FlexRecord =
             | Correct (rec_in,rg,frag)  ->
                 let st = FlexState.updateIncomingRecord st rec_in in
                 let id = TLSInfo.id st.read.epoch in
-                let b = TLSFragment.reprFragment id ct rg frag in
-                (st,b)
+                let fragb = TLSFragment.reprFragment id ct rg frag in
+                (st,fragb)
 
     static member encrypt (e:epoch, pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes) : Record.ConnectionState * bytes =
         // pv is the protocol version set in the record header.
@@ -71,6 +72,23 @@ type FlexRecord =
         let frag = TLSFragment.fragment id ct rg payload in
         let k,b = Record.recordPacketOut e k pv rg ct frag in
         (k,b)
+
+    (* Forward a record *)
+    static member forward (stin:state, stout:state) : state * state * bytes =
+        let ct,pv,len,header = FlexRecord.parseFragmentHeader(stin) in
+        let stin,payload = FlexRecord.getFragmentContent(stin,ct,len) in
+        let k,_ = FlexRecord.send(stout.ns,stout.write.epoch,stout.write.record,ct,payload,stout.write.epoch_init_pv) in
+        let stout = FlexState.updateOutgoingRecord stout k in
+        stin,stout,(header@|payload)
+
+    (* Send genric method based on content type and state *)
+    static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let payload = pickCTBuffer st.write ct in
+        let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.record,ct,payload,st.write.epoch_init_pv,fp) in
+        let st = FlexState.updateOutgoingBuffer st ct rem in
+        let st = FlexState.updateOutgoingRecord st k in
+        st
 
     (* Send data over the network after encrypting a record depending on the fragmentation policy *)
     static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?epoch_init_pv:ProtocolVersion, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
@@ -97,15 +115,4 @@ type FlexRecord =
                     FlexRecord.send(ns,e,k,ct,rem,pv,fp)
             | One(fs) -> (k,rem)
                 
-                
-
-    (* Send genric method based on content type and state *)
-    static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
-        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let payload = pickCTBuffer st.write ct in
-        let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.record,ct,payload,st.write.epoch_init_pv,fp) in
-        let st = FlexState.updateOutgoingBuffer st ct rem in
-        let st = FlexState.updateOutgoingRecord st k in
-        (st)
-
     end

@@ -24,7 +24,7 @@ type FlexAlert =
         let ns = st.ns in
         let buf = st.read.alert_buffer in
         if length buf < 2 then
-            let ct,pv,len = FlexRecord.parseFragmentHeader st in
+            let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in
             match ct with
             | Alert -> 
                 let st,b = FlexRecord.getFragmentContent (st, ct, len) in

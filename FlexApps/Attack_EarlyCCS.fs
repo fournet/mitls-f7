@@ -60,7 +60,7 @@ type Attack_EarlyCCS =
         
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload  @| fcke.payload in
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
-        let st,_         = FlexCCS.receive(st) in
+        let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nscAtt in
@@ -108,14 +108,14 @@ type Attack_EarlyCCS =
         let sst,cst,_ = FlexHandshake.forward(sst,cst) in
 
         // Get the Client CCS, drop it, but install new weak reading keys
-        let sst,_ = FlexCCS.receive(sst) in
+        let sst,_,_ = FlexCCS.receive(sst) in
         let sst   = FlexState.installReadKeys sst weakNSCServer in
 
         // Forward the client finished message
         let sst,cst,_ = FlexHandshake.forward(sst,cst) in
 
         // Forward the server CCS, and install weak reading keys on the client side
-        let cst,_ = FlexCCS.receive(cst) in
+        let cst,_,_ = FlexCCS.receive(cst) in
         let cst   = FlexState.installReadKeys cst weakNSCClient in
         let sst,_ = FlexCCS.send(sst) in
 
