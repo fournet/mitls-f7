@@ -61,20 +61,25 @@ type Handshake_resumption =
         // Install the new keys according to the previous master secret
         let keys         = { nsc.keys with ms = ms } in
         let nsc          = { nsc with keys = keys; si = si } in
-        let nsc          = FlexSecrets.fillSecrets(st,Client,nsc,resetKeys=true) in
-        let st,_         = FlexCCS.send(st) in
-            
-        // Start encrypting
-        let st           = FlexState.installWriteKeys st nsc in
-        let log          = fch.payload @| fsh.payload in
-        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
- 
+        let nsc          = FlexSecrets.fillSecrets(st,Client,nsc) in
+
         let st,_         = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
+
+        let log          = fch.payload @| fsh.payload in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
+
+         let st,_         = FlexCCS.send(st) in
+            
+        // Start encrypting
+        let st           = FlexState.installWriteKeys st nsc in
+
+        let log          = log @| ffS.payload in
+        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+ 
         st
 
     end
