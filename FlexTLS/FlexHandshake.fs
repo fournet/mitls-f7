@@ -52,6 +52,12 @@ type FlexHandshake =
                 let st = FlexState.updateIncomingHSBuffer st rem in
                 (st,hst,payload,to_log)
 
+    (* Forward handshake message *)
+    static member forwardHSMessage (stin:state, stout:state) : state * state * bytes =
+        let stin,_,_,msg = FlexHandshake.getHSMessage(stin) in
+        let stout = FlexHandshake.send(stout,msg) in
+        stin,stout,msg
+
     (* Send handshake message *)
     static member send (st:state, payload:bytes, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
