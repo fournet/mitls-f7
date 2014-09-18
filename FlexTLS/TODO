@@ -2,14 +2,12 @@
   - Each send/receive function should be able to take a full Fxxxxxxxxxxx message
 
 - Resumption
-  - Nothing special to do at the FlexTLS library level?
+  - Server-side
 
 - Logging
 
 - Attack scenarios
   - 3Shake
-  - CCS Injection
-  - Client Hello Fragmentation
   [- Renegotiation
    - Heartbleed
    - Lucky 13
