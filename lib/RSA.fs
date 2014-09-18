@@ -95,6 +95,7 @@ let real_decrypt dk si cv cvCheck ciphertext =
     | Some pms when length pms = 48 ->
         let (clVB,postPMS) = split pms 2 in
         (match si.protocol_version with
+            | TLS_1p3 -> unexpected "[real_decrypt] TLS 1.3 does not use RSA key exchange"
             | TLS_1p1 | TLS_1p2 ->
                 (* 3. If new TLS version, just go on with client version and true pms.
                     This corresponds to a check of the client version number, but we'll fail later. *)

@@ -465,7 +465,7 @@ type incomingCCS =
 /// ClientKeyExchange
 let find_client_cert_sign certType certAlg (distName:list<string>) pv hint =
     match pv with
-    | TLS_1p2 ->
+    | TLS_1p2 | TLS_1p3 ->
         let keyAlg = sigHashAlg_bySigList certAlg (cert_type_list_to_SigAlg certType) in
         Cert.for_signing certAlg hint keyAlg
     | TLS_1p1 | TLS_1p0 | SSL_3p0 ->

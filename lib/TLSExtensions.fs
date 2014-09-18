@@ -434,7 +434,7 @@ let default_sigHashAlg_fromSig pv sigAlg=
     match sigAlg with
     | SA_RSA ->
         (match pv with
-        | TLS_1p2 -> [(SA_RSA, SHA)]
+        | TLS_1p2 | TLS_1p3-> [(SA_RSA, SHA)]
         | TLS_1p0 | TLS_1p1 | SSL_3p0 -> [(SA_RSA,MD5SHA1)])
         //| SSL_3p0 -> [(SA_RSA,NULL)]
     | SA_DSA ->

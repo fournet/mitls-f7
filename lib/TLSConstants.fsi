@@ -11,6 +11,7 @@ type PreProtocolVersion =
     | TLS_1p0
     | TLS_1p1
     | TLS_1p2
+    | TLS_1p3
 type ProtocolVersion = PreProtocolVersion
 
 type kexAlg =
@@ -106,7 +107,7 @@ type prePrfAlg =
   | PRF_SSL3_nested                   // MD5(SHA1(...)) for extraction and keygen
   | PRF_SSL3_concat                   // MD5 @| SHA1    for VerifyData tags
   | PRF_TLS_1p01 of prflabel          // MD5 xor SHA1
-  | PRF_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
+  | PRF_TLS_1p23 of prflabel * macAlg  // typically SHA256 but may depend on CS
 
 type kefAlg = prePrfAlg
 type kdfAlg = prePrfAlg
