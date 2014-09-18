@@ -28,4 +28,5 @@ openssl s_client -host 127.0.0.1 -port 44204 -cipher DHE-RSA-AES128-SHA -cert rs
 
 // Early CCS injection attack
 // OpenSSL server, version 1.0.1g (needs to be version 1.x, not 0.x, <= 1.0.1g)
+openssl s_client -host 128.93.44.34 -port 6666 -cipher AES128-SHA -msg -state
 openssl s_server -key rsa.cert-01.mitls.org.key -cert rsa.cert-01.mitls.org.crt -msg -state -no_ticket
