@@ -45,9 +45,15 @@ let ENC_int (id:id) state (adata:LHAEPlain.adata) (rg:range) text =
     //let p = LHAEPlain.makeExtPad id adata rg p in
     // AP: If not ideal, the following lines
     //let text = LHAEPlain.repr id adata rg p in
-    let tLen = length text in
-    let tLenB = bytes_of_int 2 tLen in
-    let ad = adata @| tLenB in
+    let ad =
+        match pv_of_id id with
+        | TLS_1p3 -> adata
+        | TLS_1p2 | TLS_1p1
+        | TLS_1p0 | SSL_3p0 ->
+            let tLen = length text in
+            let tLenB = bytes_of_int 2 tLen in
+            adata @| tLenB
+    in
     let cipher = CoreCiphers.aes_gcm_encrypt k.kb iv ad text in
     // AP: Else log encryption somewhere
     let cipher = cb @| cipher in
@@ -87,9 +93,15 @@ let DEC_int (id:id) state (adata:LHAEPlain.adata) (rg:range) cipher =
         let ivb = state.iv.ivb in
         let iv = ivb @| explicit in
         let tagLen = aeadTagSize aealg in
-        let len = length cipher - tagLen in
-        let lenB = bytes_of_int 2 len in
-        let ad = adata @| lenB in
+        let ad =
+            match pv_of_id id with
+            | TLS_1p3 -> adata
+            | TLS_1p2 | TLS_1p1
+            | TLS_1p0 | SSL_3p0 ->
+                let len = length cipher - tagLen in
+                let lenB = bytes_of_int 2 len in
+                adata @| lenB
+        in
         let k = state.key in
         match CoreCiphers.aes_gcm_decrypt k.kb iv ad cipher with
         | None ->
