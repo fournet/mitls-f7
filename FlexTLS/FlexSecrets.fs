@@ -62,7 +62,8 @@ type FlexSecrets =
     (* Generate secrets from the Key Exchange data and fill the next security context.
        It is assumed that the nsc.kex field is already set to the desired value.
        Any user-provided value will not be overwritten; instead it will be used for secrets generation. *)
-    static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext) : nextSecurityContext =
+    static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext, ?resetKeys:bool) : nextSecurityContext =
+        let resetKeys = defaultArg resetKeys false in
 
         let er = TLSInfo.nextEpoch st.read.epoch  nsc.crand nsc.srand nsc.si in
         let ew = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
@@ -75,7 +76,7 @@ type FlexSecrets =
         in
 
         let ms = if nsc.keys.ms = empty_bytes then FlexSecrets.pms_to_ms nsc.si pms else nsc.keys.ms in
-        let keys = if nsc.keys.epoch_keys = (empty_bytes,empty_bytes) then FlexSecrets.ms_to_keys er ew role ms else nsc.keys.epoch_keys in
+        let keys = if (nsc.keys.epoch_keys = (empty_bytes,empty_bytes)) || resetKeys then FlexSecrets.ms_to_keys er ew role ms else nsc.keys.epoch_keys in
         let epk = {nsc.keys with pms = pms; ms = ms; epoch_keys = keys} in
         { nsc with keys = epk }
 
