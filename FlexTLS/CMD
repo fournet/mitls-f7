@@ -1,13 +1,8 @@
 COMMANDS
 # Useful command lines
 
-
-
 // Certificates
 /opt/mitls/tests/pki/rsa/certificates
-
-
-
 
 // Standard RSA full handshake with client authentication as Client
 openssl s_server -accept 44101 -cipher AES128-SHA -cert rsa.cert-02.mitls.org.crt -key rsa.cert-02.mitls.org.key -verify 1 -msg
@@ -30,3 +25,7 @@ openssl s_client -host 127.0.0.1 -port 44203 -cipher DHE-RSA-AES128-SHA -msg -de
 
 // Standard DHE full handshake with client authentication as Server
 openssl s_client -host 127.0.0.1 -port 44204 -cipher DHE-RSA-AES128-SHA -cert rsa.cert-01.mitls.org.crt -key rsa.cert-01.mitls.org.key -msg -debug -state
+
+// Early CCS injection attack
+// OpenSSL server, version 1.0.1g (needs to be version 1.x, not 0.x, <= 1.0.1g)
+openssl s_server -key rsa.cert-01.mitls.org.key -cert rsa.cert-01.mitls.org.crt -msg -state -no_ticket
