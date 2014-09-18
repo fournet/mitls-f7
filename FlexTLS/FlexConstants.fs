@@ -48,6 +48,7 @@ type FlexConstants =
                     | Error(x,y) -> Error(x,y)
                     | Correct(rem) -> correct (n::rem)
 
+    (* Diffie Hellman defaults for size and database name *)
     static member minDHSize = TLSInfo.defaultConfig.dhPQMinLength
     static member dhdb = DHDB.create "dhparams-db.bin"
 
@@ -191,6 +192,7 @@ type FlexConstants =
     }
 
     (* Define a null epoch_keys *)
+    // TODO : Here the key exchange should probably be agnostic instead of using a RSA constructor
     static member nullKeys = {
         kex = RSA(empty_bytes);
         pms = empty_bytes;
