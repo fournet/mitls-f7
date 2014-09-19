@@ -200,6 +200,7 @@ let decode (e:id) (ad:LHAEPlain.adata) (rg:range) (tlen:nat) pl =
     else
         let (data_no_pad,pad) = split tmpdata padstart in
         match pv_of_id e with
+        | TLS_1p3 -> unexpected "[decode] TLS 1.3 only allows AEAD ciphers"
         | TLS_1p0 | TLS_1p1 | TLS_1p2 ->
             (*@ We note the small timing leak here.
                 The timing of the following two lines

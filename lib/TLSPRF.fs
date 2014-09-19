@@ -116,19 +116,19 @@ let verifyData (pv,cs) (secret:bytes) (role:Role) (data:bytes) =
   match pv with 
     | SSL_3p0           -> ssl_verifyData     secret role data
     | TLS_1p0 | TLS_1p1 -> tls_verifyData     secret role data
-    | TLS_1p2           -> tls12VerifyData cs secret role data
+    | TLS_1p2 | TLS_1p3 -> tls12VerifyData cs secret role data
 
 let prf (pv,cs) secret (label:bytes) data len =
   match pv with 
   | SSL_3p0           -> ssl_prf     secret       data len
   | TLS_1p0 | TLS_1p1 -> tls_prf     secret label data len
-  | TLS_1p2           -> tls12prf cs secret label data len
+  | TLS_1p2 | TLS_1p3 -> tls12prf cs secret label data len
 
 let prf' a secret data len =
     match a with
-    | PRF_TLS_1p2(label,macAlg) -> tls12prf' macAlg secret label data len  // typically SHA256 but may depend on CS
-    | PRF_TLS_1p01(label)       -> tls_prf          secret label data len  // MD5 xor SHA1
-    | PRF_SSL3_nested           -> ssl_prf          secret       data len  // MD5(SHA1(...)) for extraction and keygen
+    | PRF_TLS_1p23(label,macAlg) -> tls12prf' macAlg secret label data len  // typically SHA256 but may depend on CS
+    | PRF_TLS_1p01(label)        -> tls_prf          secret label data len  // MD5 xor SHA1
+    | PRF_SSL3_nested            -> ssl_prf          secret       data len  // MD5(SHA1(...)) for extraction and keygen
     | _ -> Error.unexpected "[prf'] unreachable pattern match"
 
 //let extract a secret data len = prf a secret extract_label data len

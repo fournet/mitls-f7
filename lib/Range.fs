@@ -56,6 +56,7 @@ let maxPadSize id =
                     match id.pv with
                     | SSL_3p0 -> blockSize alg
                     | TLS_1p0 | TLS_1p1 | TLS_1p2 -> 256
+                    | TLS_1p3 -> Error.unexpected "[maxPadSize] TLS 1.3 does not support CBC encryption"
 
 let minimalPadding e len =
     let authEnc = e.aeAlg in

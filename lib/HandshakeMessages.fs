@@ -374,7 +374,7 @@ let parseClientOrServerCertificate data =
 
 let sigHashAlgBytesVersion version cs =
      match version with
-        | TLS_1p2 ->
+        | TLS_1p2 | TLS_1p3 ->
             let defaults = default_sigHashAlg version cs in
             let res = sigHashAlgListBytes defaults in
             vlbytes 2 res
@@ -382,7 +382,7 @@ let sigHashAlgBytesVersion version cs =
 
 let parseSigHashAlgVersion version data =
     match version with
-    | TLS_1p2 ->
+    | TLS_1p2 | TLS_1p3 ->
         if length data >= 2 then
             match vlsplit 2 data with
             | Error(z) -> Error(z)
@@ -442,6 +442,7 @@ let encpmsBytesVersion version encpms =
     match version with
     | SSL_3p0 -> encpms
     | TLS_1p0 | TLS_1p1 | TLS_1p2 -> vlbytes 2 encpms
+    | TLS_1p3 -> unexpected "[encpmsBytesVersion] TLS 1.3 does not support RSA key exchange"
 
 let parseEncpmsVersion version data =
     match version with
@@ -452,6 +453,7 @@ let parseEncpmsVersion version data =
             | Correct (encPMS) -> correct(encPMS)
             | Error(z) -> Error(z)
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+    | TLS_1p3 -> unexpected "[encpmsBytesVersion] TLS 1.3 does not support RSA key exchange"
 
 let clientKeyExchangeBytes_RSA si encpms =
     let nencpms = encpmsBytesVersion si.protocol_version encpms in
@@ -489,14 +491,14 @@ let parseClientKEXImplicit_DH data =
 let digitallySignedBytes alg data pv =
     let tag = vlbytes 2 data in
     match pv with
-    | TLS_1p2 ->
+    | TLS_1p2 | TLS_1p3 ->
         let sigHashB = sigHashAlgBytes alg in
         sigHashB @| tag
     | SSL_3p0 | TLS_1p0 | TLS_1p1 -> tag
 
 let parseDigitallySigned expectedAlgs payload pv =
     match pv with
-    | TLS_1p2 ->
+    | TLS_1p2 | TLS_1p3 ->
         if length payload >= 2 then
             let (recvAlgsB,sign) = Bytes.split payload 2 in
             match parseSigHashAlg recvAlgsB with
@@ -595,7 +597,8 @@ let makeCertificateVerifyBytes si (ms:PRF.masterSecret) alg skey data =
     // The returned "tag" variable is ghost, only used to avoid
     // existentials in formal verification.
     match si.protocol_version with
-    | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
+    | TLS_1p3 | TLS_1p2
+    | TLS_1p1 | TLS_1p0 ->
         let tag = Sig.sign alg skey data in
         let payload = digitallySignedBytes alg tag si.protocol_version in
         let mex = messageBytes HT_certificate_verify payload in
@@ -621,7 +624,8 @@ let certificateVerifyCheck si ms algs log payload =
         let (alg,signature) = res in
         //let (alg,expected) =
         (match si.protocol_version with
-        | TLS_1p2 | TLS_1p1 | TLS_1p0 ->
+        | TLS_1p3 | TLS_1p2
+        | TLS_1p1 | TLS_1p0 ->
             (match Cert.get_chain_public_signing_key si.clientID alg with
             | Error(z) -> (false,alg,empty_bytes)
             | Correct(vkey) ->

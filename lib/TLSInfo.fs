@@ -93,22 +93,22 @@ let kefAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(extract_label) in x
-  | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
-                         PRF_TLS_1p2(extract_label,ma)
+  | TLS_1p2 | TLS_1p3 -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
+                         PRF_TLS_1p23(extract_label,ma)
 
 let kdfAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(kdf_label) in x
-  | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
-                         PRF_TLS_1p2(kdf_label,ma)
+  | TLS_1p2 | TLS_1p3 -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
+                         PRF_TLS_1p23(kdf_label,ma)
 
 let kefAlg_extended (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(extended_extract_label) in x
-  | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
-                         PRF_TLS_1p2(extended_extract_label,ma) 
+  | TLS_1p2 | TLS_1p3 -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
+                         PRF_TLS_1p23(extended_extract_label,ma) 
 
 let vdAlg (si:SessionInfo) = 
   si.protocol_version, si.cipher_suite

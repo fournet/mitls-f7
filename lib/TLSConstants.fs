@@ -217,6 +217,7 @@ type PreProtocolVersion =
     | TLS_1p0
     | TLS_1p1
     | TLS_1p2
+    | TLS_1p3
 type ProtocolVersion = PreProtocolVersion
 
 let versionBytes pv =
@@ -225,13 +226,15 @@ let versionBytes pv =
     | TLS_1p0 -> abyte2 ( 3uy, 1uy)
     | TLS_1p1 -> abyte2 ( 3uy, 2uy )
     | TLS_1p2 -> abyte2 ( 3uy, 3uy )
+    | TLS_1p3 -> abyte2 ( 3uy, 4uy )
 
 let parseVersion (v:bytes) =
     match cbyte2 v with
-    | (3uy, 0uy) -> correct(SSL_3p0)
+    | ( 3uy, 0uy ) -> correct(SSL_3p0)
     | ( 3uy, 1uy ) -> correct(TLS_1p0)
     | ( 3uy, 2uy ) -> correct(TLS_1p1)
     | ( 3uy, 3uy ) -> correct(TLS_1p2)
+    | ( 3uy, 4uy ) -> correct(TLS_1p3)
     | _ -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
 let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
@@ -239,7 +242,8 @@ let minPV (a:ProtocolVersion) (b:ProtocolVersion) =
   | SSL_3p0, _ | _, SSL_3p0 -> SSL_3p0
   | TLS_1p0, _ | _, TLS_1p0 -> TLS_1p0
   | TLS_1p1, _ | _, TLS_1p1 -> TLS_1p1
-  | _, _                    -> TLS_1p2
+  | TLS_1p2, _ | _, TLS_1p2 -> TLS_1p2
+  | _, _                    -> TLS_1p3
   // in F#, could use if a < b then a else b
 
 let somePV (a:ProtocolVersion) = Some a
@@ -252,6 +256,8 @@ let geqPV (a:ProtocolVersion) (b:ProtocolVersion) =
     | TLS_1p0,_ -> false
     | _,TLS_1p1 -> true
     | TLS_1p1,_ -> false
+    | _,TLS_1p2 -> true
+    | TLS_1p2,_ -> false
     | _,_       -> true
 
 let nullCipherSuite = NullCipherSuite
@@ -472,7 +478,7 @@ type prePrfAlg =
   | PRF_SSL3_nested         // MD5(SHA1(...)) for extraction and keygen
   | PRF_SSL3_concat         // MD5 @| SHA1    for VerifyData tags
   | PRF_TLS_1p01 of prflabel          // MD5 xor SHA1
-  | PRF_TLS_1p2 of prflabel * macAlg  // typically SHA256 but may depend on CS
+  | PRF_TLS_1p23 of prflabel * macAlg  // typically SHA256 but may depend on CS
 
 
 type kefAlg = prePrfAlg
@@ -480,12 +486,12 @@ type kdfAlg = prePrfAlg
 type vdAlg = ProtocolVersion * cipherSuite
 
 let verifyDataLen_of_ciphersuite (cs:cipherSuite) =
-    (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
+    (* Only to be invoked with TLS >= 1.2 (hardcoded in previous versions *)
     match cs with
     | _ -> 12
 
 let prfMacAlg_of_ciphersuite (cs:cipherSuite) =
-    (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
+    (* Only to be invoked with TLS >= 1.2 (hardcoded in previous versions *)
     match cs with
    // | CipherSuite ( ECDH*, MtE (_,SHA384)) -> SHA384
     | CipherSuite ( _ , CS_MtE ( _ , _ )) -> MA_HMAC(SHA256)
@@ -494,12 +500,12 @@ let prfMacAlg_of_ciphersuite (cs:cipherSuite) =
     | NullCipherSuite         -> unexpected "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
     | SCSV (_)                -> unexpected "[prfHashAlg_of_ciphersuite] invoked on an invalid ciphersuite" 
 
-// PRF and verifyData hash algorithms are potentially independent in TLS 1.2,
+// PRF and verifyData hash algorithms are potentially independent in TLS >= 1.2,
 // so we use two distinct functions. However, all currently defined ciphersuites
 // use the same hash algorithm, so the current implementation of the two functions
 // is the same.
 let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
-    (* Only to be invoked with TLS 1.2 (hardcoded in previous versions *)
+    (* Only to be invoked with TLS >= 1.2 (hardcoded in previous versions *)
     match cs with
    // | CipherSuite ( ECDH*, MtE (_,SHA384)) -> SHA384
     | CipherSuite ( _ , CS_MtE ( _ , _ ))     -> SHA256
@@ -511,12 +517,13 @@ let verifyDataHashAlg_of_ciphersuite (cs:cipherSuite) =
 let sessionHashAlg pv cs =
     match pv with
     | SSL_3p0 | TLS_1p0 | TLS_1p1 -> MD5SHA1
-    | TLS_1p2 -> verifyDataHashAlg_of_ciphersuite cs
+    | TLS_1p2 | TLS_1p3 -> verifyDataHashAlg_of_ciphersuite cs
 
 let tlsMacAlg alg pv = 
     match pv with
     | SSL_3p0 -> MA_SSLKHASH(alg)
     | TLS_1p0 | TLS_1p1 | TLS_1p2 -> MA_HMAC(alg)
+    | TLS_1p3 -> unexpected "[tlsMacAlg] TLS 1.3 should only use AEAD ciphers"
         
 let tlsEncAlg alg pv = 
     match pv with
@@ -532,7 +539,7 @@ let tlsEncAlg alg pv =
           | TDES_EDE_CBC -> CBC_Fresh(TDES_EDE)
           | AES_128_CBC -> CBC_Fresh(AES_128)
           | AES_256_CBC -> CBC_Fresh(AES_256))
-
+    | TLS_1p3 -> unexpected "[tlsMacAlg] TLS 1.3 should only use AEAD ciphers"
 
 let aeAlg cs pv =
     match cs with
@@ -867,6 +874,3 @@ let rec parseDistinguishedNameList data res =
             let name = iutf8 nameBytes in (* FIXME: I have no idea wat "X501 represented in DER-encoding format" (RFC 5246, page 54) is. I assume UTF8 will do. *)
             let res = name :: res in
             parseDistinguishedNameList data res
-
-
-
