@@ -9,12 +9,23 @@ open TLSConstants
 
 
 
-(* Fragmentation policy union type *)
+/// <summary>
+/// Fragmentation policy union type,
+/// The constructor represents the number of fragments that will be sent to the network
+/// The value represents the length of the fragments that will be sent
+/// </summary>
 type fragmentationPolicy =
     | All of int
     | One of int
 
-(* DH key exchange parameters where x,gx are the local values and gy is the remote public value. Note that gx is in fact g^x mod p *)
+/// <summary>
+/// DH key exchange parameters record,
+/// Contains both public and secret values associated of Diffie Hellman parameters
+/// </summary>
+/// <param name="pg"> Tuple (p,g) that contains both p and g public DH parameters </param>
+/// <param name="x"> Local secret value of the DH exchange </param>
+/// <param name="gx"> Local public value (g^x mod p) of the DH exchange </param>
+/// <param name="gy"> Local public value (g^y mod p) of the DH exchange </param>
 type kexDH = { 
     pg: bytes * bytes;
     x:  bytes;
@@ -22,13 +33,25 @@ type kexDH = {
     gy: bytes
 }
 
-(* Key exchange methods, and associated data *)
+/// <summary>
+/// Key exchange union type,
+/// The constructor represents the type of Key Exchange Mechanism used in the Handshake
+/// The value for RSA is a PreMasterSecret as bytes
+/// The value for DH is a record containing all DH parameters known to a peer
+/// </summary>
 type kex =
     | RSA of bytes
     | DH of kexDH
  // | ECDH of kexECDH // TODO
 
-(* Epoch keys *)
+/// <summary>
+/// Session Keys record,
+/// This structure contains all secret information of a Handshake
+/// </summary>
+/// <param name="kex"> Type of Key Exchange Mechanism </param>
+/// <param name="pms"> Pre Master Secret bytes of the current session </param>
+/// <param name="ms"> Master Secret bytes of the current Epoch </param>
+/// <param name="epoch_keys"> Keys bytes of the current Epoch as a tuple (reading keys, writing keys) </param>
 type keys = {
     kex: kex;
     pms: bytes;
@@ -37,7 +60,18 @@ type keys = {
        (* read  , write *)
 }
 
-(* Keep track of the Record state and the associated Epoch of an I/O channel *)
+/// <summary>
+/// Channel record,
+/// Keep track of the Record state and the associated Epoch of an I/O channel
+/// </summary>
+/// <param name="record"> Record connection state that embed the encryption status, etc... </param>
+/// <param name="epoch"> Epoch connection state </param>
+/// <param name="keys"> Keys of the designated Handshake </param>
+/// <param name="epoch_init_pv"> Initially choosen protocol version before negociation </param>
+/// <param name="hs_buffer"> Buffer for packets with the Handshake content type </param>
+/// <param name="alert_buffer"> Buffer for packets with the Alert content type </param>
+/// <param name="appdata_buffer"> Buffer for packets with the ApplicationData content type </param>
+/// <remarks> There is no CCS buffer because those are only one byte </remarks>
 type channel = {
     record: Record.ConnectionState;
     epoch:  TLSInfo.epoch;
@@ -48,7 +82,12 @@ type channel = {
     appdata_buffer: bytes
 }
 
-(* Global state of the application for Handshake and both input/output channels of a network stream *)
+/// <summary>
+/// Global state of the application for the designated Handshake separated as input/output channels
+/// </summary>
+/// <param name="read"> Reading channel state (Incoming) </param>
+/// <param name="write"> Writing channel state (Outcoming) </param>
+/// <param name="ns"> Network stream where the data is exchanged with the other peer </param>
 type state = {
     read: channel;
     write: channel;
@@ -56,6 +95,13 @@ type state = {
 }
 
 (* Next security context record used to generate a new channel epoch *)
+/// <summary>
+/// Elements required to build the new state of epoch for a channel
+/// </summary>
+/// <param name="si"> Next session informations (for the future epoch/record state) </param>
+/// <param name="crand"> Current client random bytes that will be used to generate new keys </param>
+/// <param name="srand"> Current server random bytes that will be used to generate new keys </param>
+/// <param name="keys"> New keys associated to the next epoch, to be generated and/or installed into state </param>
 type nextSecurityContext = {
     si: SessionInfo;
     crand: bytes;
@@ -63,12 +109,24 @@ type nextSecurityContext = {
     keys: keys;
 }
 
-(* Record associated to a HelloRequest message *)
+/// <summary>
+/// Handshake Message record type for Hello Request
+/// </summary>
+/// <param name="payload"> Contains the entire message (without fragments headers) </param>
 type FHelloRequest = {
     payload: bytes;
 }
 
-(* Record associated to a ClientHello message *)
+/// <summary>
+/// Handshake Message record type for Client Hello
+/// </summary>
+/// <param name="pv"> Protocol version </param>
+/// <param name="rand"> Current client random bytes </param>
+/// <param name="sid"> Session identification number bytes that are not empty if the client wants a resumption </param>
+/// <param name="suites"> List of ciphersuite names supported by the client </param>
+/// <param name="comps"> List of compression mechanisms supported by the client </param>
+/// <param name="ext"> List of extensions supported by the client (unparsed, as bytes) </param>
+/// <param name="payload"> Real message bytes </param>
 type FClientHello = {
     pv: ProtocolVersion;
     rand: bytes;
@@ -79,7 +137,16 @@ type FClientHello = {
     payload: bytes;
 }
 
-(* Record associated to a ServerHello message *)
+/// <summary>
+/// Handshake Message record type for Server Hello
+/// </summary>
+/// <param name="pv"> Protocol version </param>
+/// <param name="rand"> Current server random bytes </param>
+/// <param name="sid"> Session identification number bytes that are not empty if the server grants a resumption </param>
+/// <param name="suite"> Ciphersuite selected by the server </param>
+/// <param name="comp"> Compression selected by the server </param>
+/// <param name="ext"> List of extensions agreed by the client (unparsed, as bytes) </param>
+/// <param name="payload"> Real message bytes </param>
 type FServerHello = {
     pv: ProtocolVersion;
     rand: bytes;
@@ -90,13 +157,23 @@ type FServerHello = {
     payload: bytes;
 }
 
-(* Record associated to a Certificate message *)
+/// <summary>
+/// Handshake Message record type for Certificate
+/// </summary>
+/// <param name="chain"> Full certificate chain bytes </param>
+/// <param name="payload"> Real message bytes </param>
 type FCertificate = {
     chain: Cert.chain;
     payload: bytes;
 }
 
-(* Record associated to a ServerKeyExchange message *)
+/// <summary>
+/// Handshake Message record type for Server Key Exchange
+/// </summary>
+/// <param name="sigAlg"> Signature algorithm </param>
+/// <param name="signature"> Signature </param>
+/// <param name="kex"> Key Exchange Information </param>
+/// <param name="payload"> Real message bytes </param>
 type FServerKeyExchange = {
     sigAlg: Sig.alg;
     signature: bytes;
@@ -104,7 +181,13 @@ type FServerKeyExchange = {
     payload: bytes;
 }
 
-(* Record associated to a CertificateRequest message *)
+/// <summary>
+/// Handshake Message record type for Certificate Request
+/// </summary>
+/// <param name="certTypes"> List of certificate types </param>
+/// <param name="sigAlgs"> List of Signature algorithms </param>
+/// <param name="names"> List of user provided cert names </param>
+/// <param name="payload"> Real message bytes </param>
 type FCertificateRequest = {
     certTypes: list<certType>;
     sigAlgs: list<Sig.alg>;
@@ -112,50 +195,52 @@ type FCertificateRequest = {
     payload: bytes;
 }
 
-(* Record associated to a ServerHelloDone message *)
+/// <summary>
+/// Handshake Message record type for Server Hello Done
+/// </summary>
+/// <param name="payload"> Real message bytes </param>
 type FServerHelloDone = {
     payload: bytes;
 }
 
-(* Record associated to a CertificateVerify message *)
+/// <summary>
+/// Handshake Message record type for Certificate Verify
+/// </summary>
+/// <param name="sigAlg"> Signature algorithm </param>
+/// <param name="signature"> Signature </param>
+/// <param name="payload"> Real message bytes </param>
 type FCertificateVerify = {
     sigAlg: Sig.alg;
     signature: bytes;
     payload: bytes;
 }
 
-(* Record associated to a ClientKeyExchange message *)
+/// <summary>
+/// Handshake Message record type for Client Key Exchange
+/// </summary>
+/// <param name="kex"> Key Exchange mechanism information </param>
+/// <param name="payload"> Real message bytes </param>
 type FClientKeyExchange = {
     kex:kex;
     payload:bytes;
 }
 
 
-(* Record associated to a ChangeCipherSpecs message *)
+/// <summary>
+/// CCS Message record type
+/// </summary>
+/// <param name="payload"> Real message bytes </param>
 type FChangeCipherSpecs = {
     payload: bytes;
 }
 
-(* Record associated to a Finished message *)
+/// <summary>
+/// Handshake Message record type for Client Key Exchange
+/// </summary>
+/// <param name="verify_data"> Signature over a hash of the log of the handshake </param>
+/// <param name="payload"> Real message bytes </param>
 type FFinished = {
     verify_data: bytes;
     payload: bytes;
 }
 
-(* Record associated with conservation of all HS messages *)
-type FHSMessages = {
-    helloRequest: FHelloRequest;
-    clientHello: FClientHello;
-    serverHello: FServerHello;
-    serverCertificate: FCertificate;
-    clientCertificate: FCertificate;
-    serverKeyExchange: FServerKeyExchange;
-    certificateRequest: FCertificateRequest;
-    serverHelloDone: FServerHelloDone;
-    certificateVerify: FCertificateVerify;
-    clientKeyExchange: FClientKeyExchange;
-    clientChangeCipherSpecs: FChangeCipherSpecs;
-    serverChangeCipherSpecs: FChangeCipherSpecs;
-    clientFinished: FFinished;
-    serverFinished: FFinished
-}

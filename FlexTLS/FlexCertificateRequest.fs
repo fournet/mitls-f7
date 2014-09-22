@@ -12,11 +12,18 @@ open FlexTypes
 open FlexConstants
 open FlexHandshake
 
+
+
+
 type FlexCertificateRequest =
     class
 
-    
-    (* Receive a CertificateRequest message from the network stream *)
+    /// <summary>
+    /// Receive a CertificateRequest message from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Optional Next security context object updated with new data </param>
+    /// <returns> Updated state * next security context * FCertificateRequest message record </returns>
     static member receive (st:state, ?nsc:nextSecurityContext) : state * nextSecurityContext * FCertificateRequest =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
@@ -39,13 +46,25 @@ type FlexCertificateRequest =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate_request")
 
-    (* Prepare a CertificateRequest message to the network stream *)
+    /// <summary>
+    /// Prepare a CertificateRequest message that won't be sent to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="cs"> Ciphersuite used to generate the request </param>
+    /// <param name="pv"> Protocol version used to generate the request </param>
+    /// <returns> Payload of the message as bytes * Updated state * FCertificateRequest message record</returns>
     static member prepare (st:state, cs:cipherSuite, pv:ProtocolVersion): bytes * state * FCertificateRequest =
         let payload = HandshakeMessages.certificateRequestBytes true cs pv in
         let fcreq = { FlexConstants.nullFCertificateRequest with sigAlgs = FlexConstants.sigAlgs_ALL ; payload = payload } in
         payload,st,fcreq
 
-    (* Send a CertificateRequest message to the network stream *)
+    /// <summary>
+    /// Send a CertificateRequest message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Optional next security context to be updated </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FCertificateRequest message record </returns>
     static member send (st:state, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy): state * FCertificateRequest =
         (* TODO: due to some limitations in miTLS in handling CertificateRequests
            sending this message is currently not as flexible as it could be
@@ -56,6 +75,14 @@ type FlexCertificateRequest =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         FlexCertificateRequest.send(st,nsc.si.cipher_suite,nsc.si.protocol_version,fp)
 
+    /// <summary>
+    /// Send a CertificateRequest message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="cs"> Ciphersuite used to generate the request </param>
+    /// <param name="pv"> Protocol version used to generate the request </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FCertificateRequest message record </returns>
     static member send (st:state, cs:cipherSuite, pv:ProtocolVersion, ?fp:fragmentationPolicy): state * FCertificateRequest =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let payload = HandshakeMessages.certificateRequestBytes true cs pv in

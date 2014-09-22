@@ -16,7 +16,11 @@ open FlexHandshake
 type FlexHelloRequest = 
     class
 
-    (* Receive an expected HelloRequest message from the network stream *)
+    /// <summary>
+    /// Receive a HelloRequest message from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> Updated state * FHelloRequest message record </returns>
     static member receive (st:state) : state * FHelloRequest = 
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -29,12 +33,21 @@ type FlexHelloRequest =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message is not of type HelloRequest")
 
 
-    (* Prepare HelloRequest message bytes *)
-    static member prepare (st:state, ?fp:fragmentationPolicy) : bytes * state * FHelloRequest =
+    /// <summary>
+    /// Prepare a HelloRequest message that will not be sent
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> FHelloRequest message bytes * Updated state * next security context * FHelloRequest message record </returns>
+    static member prepare (st:state) : bytes * state * FHelloRequest =
         let payload = HandshakeMessages.messageBytes HT_hello_request empty_bytes in
         payload,st,{payload = payload}
 
-    (* Send HelloRequest message to the network stream *)
+    /// <summary>
+    /// Send a HelloRequest message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fp"> Optional fragmentation policy applied to the message </param>
+    /// <returns> Updated state * next security context * FHelloRequest message record </returns>
     static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ns = st.ns in

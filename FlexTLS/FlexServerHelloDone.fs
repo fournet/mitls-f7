@@ -16,7 +16,11 @@ open FlexHandshake
 type FlexServerHelloDone = 
     class
 
-    (* Receive an expected ServerHelloDone message from the network stream *)
+    /// <summary>
+    /// Receive a ServerHelloDone message from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> Updated state * FServerHelloDone message record </returns>
     static member receive (st:state) : state * FServerHelloDone =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -28,13 +32,22 @@ type FlexServerHelloDone =
                 st,fshd
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_server_hello_done")
 
-    (* Prepare ServerHelloDone message bytes *)
+    /// <summary>
+    /// Prepare ServerHelloDone message bytes that will not be sent to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> FServerHelloDone message bytes * Updated state * FServerHelloDone message record </returns>
     static member prepare (st:state) : bytes * state * FServerHelloDone =
         let payload = HandshakeMessages.serverHelloDoneBytes in
         let fshd: FServerHelloDone = {payload = payload} in
         payload,st,fshd
 
-    (* Send ServerHelloDone message to the network stream *)
+    /// <summary>
+    /// Send a ServerHelloDone message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FServerHelloDone message record </returns>
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HandshakeMessages.serverHelloDoneBytes,fp) in

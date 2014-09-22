@@ -33,6 +33,14 @@ let filldh kexdh =
 type FlexServerKeyExchange =
     class
 
+    /// <summary>
+    /// Receive DHE ServerKeyExchange from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="check_sig"> Optional check on the Server certificate chain </param>
+    /// <param name="minDHsize"> Optional Minimal sizes for DH parameters </param>
+    /// <returns> Updated state * Updated next security context * FServerKeyExchange message record </returns>
     static member receiveDHE (st:state, nsc:nextSecurityContext, ?check_sig:bool, ?minDHsize:nat*nat): state * nextSecurityContext * FServerKeyExchange =
         let check_sig = defaultArg check_sig false in
         let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
@@ -59,7 +67,14 @@ type FlexServerKeyExchange =
         else
             st,nsc,fske
 
-    (* Receive DH ServerKeyExchange *)
+    /// <summary>
+    /// Receive DHE ServerKeyExchange from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="pv"> Protocol version negociated </param>
+    /// <param name="cs"> Ciphersuite negociated </param>
+    /// <param name="minDHsize"> Optional Minimal sizes for DH parameters </param>
+    /// <returns> Updated state * FServerKeyExchange message record </returns>
     static member receiveDHE (st:state, pv:ProtocolVersion, cs:cipherSuite, ?minDHsize:nat*nat) : state * FServerKeyExchange =
         let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
@@ -75,7 +90,17 @@ type FlexServerKeyExchange =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
 
 
-    (* Prepare DHE ServerKeyExchange bytes *)
+    /// <summary>
+    /// Prepare DHE ServerKeyExchange message bytes that will not be sent to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="kexdh"> Key Exchange record containing Diffie-Hellman parameters </param>
+    /// <param name="crand"> Client public randomness </param>
+    /// <param name="srand"> Server public randomness </param>
+    /// <param name="pv"> Protocol version negociated </param>
+    /// <param name="sigAlg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
+    /// <param name="sigKey"> Signature secret key associated to the algorithm </param>
+    /// <returns> FServerKeyExchange message bytes * Updated state * FServerKeyExchange message record </returns>
     static member prepareDHE (st:state, kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey) : bytes * state * FServerKeyExchange =
         let kexdh = filldh kexdh in
         let p,g = kexdh.pg in
@@ -87,7 +112,14 @@ type FlexServerKeyExchange =
         let fske = { sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
         payload,st,fske
 
-    (* Send DHE ServerKeyExchange *)
+    /// <summary>
+    /// Send a DHE ServerKeyExchange message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="sigAlgAndKey"> Optional pair of Signature Algorithm and Signing key to use by force </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FServerKeyExchange message record </returns>
     static member sendDHE (st:state, nsc:nextSecurityContext, ?sigAlgAndKey:(Sig.alg * Sig.skey), ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let sAlg,sKey =
@@ -111,7 +143,18 @@ type FlexServerKeyExchange =
         let nsc = {nsc with keys = epk} in
         st,nsc,fske
 
-    (* Send DHE ServerKeyExchange *)
+    /// <summary>
+    /// Send a DHE ServerKeyExchange message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="kexdh"> Key Exchange record containing Diffie-Hellman parameters </param>
+    /// <param name="crand"> Client public randomness </param>
+    /// <param name="srand"> Server public randomness </param>
+    /// <param name="pv"> Protocol version negociated </param>
+    /// <param name="sigAlg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
+    /// <param name="sigKey"> Signature secret key associated to the algorithm </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FServerKeyExchange message record </returns>
     static member sendDHE (st:state, kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey, ?fp:fragmentationPolicy) : state * FServerKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let kexdh = filldh kexdh in

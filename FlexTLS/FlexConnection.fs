@@ -15,7 +15,12 @@ open FlexConstants
 type FlexConnection =
     class
 
-    (* Initiate a connection either from Client or Server *)
+    /// <summary>
+    /// Initiate a connection either from Client or Server and create a global state
+    /// </summary>
+    /// <param name="role"> Behaviour set as Client or Server </param>
+    /// <param name="ns"> Network stream </param>
+    /// <returns> Global state of the handshake </returns>
     static member init (role:Role, ns:NetworkStream) : state =
         let rand = Nonce.mkHelloRandom() in
         let ci = TLSInfo.initConnection role rand in
@@ -38,7 +43,13 @@ type FlexConnection =
           ns = ns }
 
 
-    (* Open a connection as a Server *)
+    /// <summary>
+    /// Server role, open a port and wait for a tcp connection from a client
+    /// </summary>
+    /// <param name="address"> Binding address or domain name </param>
+    /// <param name="cn"> Optional common name </param>
+    /// <param name="port"> Optional port number </param>
+    /// <returns> Updated state * Updated config </returns>
     static member serverOpenTcpConnection (address:string, ?cn:string, ?port:int) : state * config =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
@@ -53,8 +64,14 @@ type FlexConnection =
         (st,cfg)
 
  
-     (* Open a connection as a Client *)
-     static member clientOpenTcpConnection (address:string, ?cn:string, ?port:int) :  state * config =
+    /// <summary>
+    /// Client role, open a tcp connection to a server
+    /// </summary>
+    /// <param name="address"> Binding address or domain name </param>
+    /// <param name="cn"> Optional common name </param>
+    /// <param name="port"> Optional port number </param>
+    /// <returns> Updated state * Updated config </returns> 
+    static member clientOpenTcpConnection (address:string, ?cn:string, ?port:int) :  state * config =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
         let cfg = {

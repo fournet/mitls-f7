@@ -15,17 +15,31 @@ open FlexState
 
 
 
-(* Get fragment length depending on the fragmentation policy *)
+/// <summary>
+/// Get fragment size depending on the fragmentation policy
+/// </summary>
+/// <param name="fp"> Fragmentation policy </param>
+/// <returns> size of the fragment to be applied </returns>
 let fs_of_fp fp =
     match fp with
     | All(n) | One(n) -> n
 
-(* Split any CT payload data depending on the fragmentation size *)
+/// <summary>
+/// Split any CT payload data depending on the fragmentation size
+/// </summary>
+/// <param name="bytes"> Data bytes to be split </param>
+/// <param name="fp"> Fragmentation policy </param>
+/// <returns> Fragment of the choosen size * remaining unsplit data bytes </returns>
 let splitCTPayloadFP (b:bytes) (fp:fragmentationPolicy) : bytes * bytes =
     let len = System.Math.Min((length b),(fs_of_fp fp)) in
     Bytes.split b len
 
-(* Pick a buffer according to corresponding ContentType *)
+/// <summary>
+/// Select a buffer to use depending on the content type
+/// </summary>
+/// <param name="channel"> Channel to extract buffer from </param>
+/// <param name="ct"> Content type </param>
+/// <returns> Buffer associated to the choosen content type </returns>
 let pickCTBuffer (ch:channel) (ct:ContentType) : bytes = 
     match ct with
     | Handshake -> ch.hs_buffer
@@ -39,7 +53,11 @@ let pickCTBuffer (ch:channel) (ct:ContentType) : bytes =
 type FlexRecord = 
     class
 
-    (* Read a record fragment header to get ContentType, ProtocolVersion and Length of the fragment *)
+    /// <summary>
+    /// Read a record fragment header to get ContentType, ProtocolVersion and Length of the fragment
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> ContentType * ProtocolVersion * Length * Header bytes </returns>
     static member parseFragmentHeader (st:state) : ContentType * ProtocolVersion * nat * bytes =
         let ns = st.ns in
         match Tcp.read ns 5 with
@@ -49,7 +67,13 @@ type FlexRecord =
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(ct,pv,len) -> ct,pv,len,header
 
-    (* Reads and decrypts a fragment. Return the updated (decryption) state and the decrypted plaintext *)
+    /// <summary>
+    /// Reads and decrypts a fragment
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="ct"> Content type of the fragment </param>
+    /// <param name="len"> Length of the fragment </param>
+    /// <returns> Updated (decryption) state * decrypted plaintext </returns>
     static member getFragmentContent (st:state, ct:ContentType, len:int) : state * bytes = 
         let ns = st.ns in
         match Tcp.read ns len with
@@ -63,6 +87,15 @@ type FlexRecord =
                 let fragb = TLSFragment.reprFragment id ct rg frag in
                 (st,fragb)
 
+    /// <summary>
+    /// Encrypt data 
+    /// </summary>
+    /// <param name="e"> Epoch to use for encryption </param>
+    /// <param name="pv"> Protocol version to use </param>
+    /// <param name="k"> Record connection state to use </param>
+    /// <param name="ct"> Content type of the fragment </param>
+    /// <param name="payload"> Data to encrypt </param>
+    /// <returns> Updated incoming record state * ciphertext </returns>
     static member encrypt (e:epoch, pv:ProtocolVersion, k:Record.ConnectionState, ct:ContentType, payload:bytes) : Record.ConnectionState * bytes =
         // pv is the protocol version set in the record header.
         // For encrypting epochs, it'd better match the protocol version contained in the epoch, since the latter is used for the additional data
@@ -73,7 +106,13 @@ type FlexRecord =
         let k,b = Record.recordPacketOut e k pv rg ct frag in
         (k,b)
 
-    (* Forward a record *)
+    /// <summary>
+    /// Forward a record
+    /// </summary>
+    /// <param name="stin"> State of the current Handshake on the incoming side </param>
+    /// <param name="stout"> State of the current Handshake on the outgoing side </param>
+    /// <param name="fp"> Optional fragmentation policy applied to the message </param>
+    /// <returns> Updated incoming state * Updated outgoing state * forwarded record bytes </returns>
     static member forward (stin:state, stout:state, ?fp:fragmentationPolicy) : state * state * bytes =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ct,pv,len,header = FlexRecord.parseFragmentHeader(stin) in
@@ -91,7 +130,17 @@ type FlexRecord =
         let st = FlexState.updateOutgoingRecord st k in
         st
 
-    (* Send data over the network after encrypting a record depending on the fragmentation policy *)
+    /// <summary>
+    /// Send data over the network after encrypting a record depending on the fragmentation policy
+    /// </summary>
+    /// <param name="ns"> Network stream </param>
+    /// <param name="e"> Epoch to use for encryption </param>
+    /// <param name="k"> Record connection state to use </param>
+    /// <param name="ct"> Content type of the fragment </param>
+    /// <param name="payload"> Data to encrypt </param>
+    /// <param name="epoch_init_pv"> Optional Protocol version set for the Initial epoch </param>
+    /// <param name="fp"> Optional fragmentation policy applied to the message </param>
+    /// <returns> Updated outgoing record state * remainder of the plaindata </returns>
     static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?epoch_init_pv:ProtocolVersion, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let pv = 

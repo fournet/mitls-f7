@@ -17,7 +17,11 @@ open FlexRecord
 type FlexHandshake =
     class
 
-    (* Parse a Handshake message. Return message type, payload, to_log -- that is raw header+payload -- and the remainder of the buffer *)
+    /// <summary>
+    /// Parse a Handshake message from a buffer and leave the remaining data in the buffer
+    /// </summary>
+    /// <param name="buf"> Buffer containing handshake message(s) </param>
+    /// <returns> PreHandshakeType * payload * full message * remainder of the buffer </returns>
     static member parseHSMessage (buf:bytes) =
         if length buf >= 4 then
             let (hstypeb,rem) = Bytes.split buf 1 in
@@ -35,7 +39,11 @@ type FlexHandshake =
         else    
             Error("Given buffer too small")
 
-    (* Get Handshake message from the buffer and return the state *)
+    /// <summary>
+    /// Get an Handshake message from a network stream and manage buffering
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> Updated state * PreHandshakeType * payload * full message * remainder of the buffer </returns>
     static member getHSMessage (st:state) : state * HandshakeMessages.PreHandshakeType * bytes * bytes =
         let ns = st.ns in
         let buf = st.read.hs_buffer in
@@ -53,13 +61,25 @@ type FlexHandshake =
                 let st = FlexState.updateIncomingHSBuffer st rem in
                 (st,hst,payload,to_log)
 
-    (* Forward handshake message *)
+    /// <summary>
+    /// Forward an Handshake message from a network stream without buffering anything
+    /// </summary>
+    /// <param name="stin"> State of the current Handshake on the incoming side </param>
+    /// <param name="stout"> State of the current Handshake on the outgoing side </param>
+    /// <param name="fp"> Optional fragmentation policy applied to the message </param>
+    /// <returns> Updated incoming state * Updated outgoing state * forwarded handshake message bytes </returns>
     static member forward (stin:state, stout:state) : state * state * bytes =
         let stin,_,_,msg = FlexHandshake.getHSMessage(stin) in
         let stout = FlexHandshake.send(stout,msg) in
         stin,stout,msg
 
-    (* Send handshake message *)
+    /// <summary>
+    /// Send an Handshake message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="payload"> Data bytes to send as en handshake message </param>
+    /// <param name="fp"> Optional fragmentation policy applied to the message </param>
+    /// <returns> Updated state </returns>
     static member send (st:state, payload:bytes, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let buf = st.write.hs_buffer @| payload in

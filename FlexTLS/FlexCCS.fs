@@ -17,7 +17,11 @@ open FlexRecord
 type FlexCCS =
     class
     
-    (* Receive function for handshake ChangeCipherSpecs message *)
+    /// <summary>
+    /// Receive ChangeCipherSpecs message from network stream 
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> Updated state * CCS record * CCS byte </returns>
     static member receive (st:state) : state * FChangeCipherSpecs * bytes =
         let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in
         match ct with
@@ -32,14 +36,24 @@ type FlexCCS =
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected CCS length: %d" len)))
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type: %A" ct))
 
-    (* Forward functon *)
+    /// <summary>
+    /// Forward CCS to the network stream 
+    /// </summary>
+    /// <param name="stin"> State of the current Handshake on the incoming side </param>
+    /// <param name="stout"> State of the current Handshake on the outgoing side </param>
+    /// <returns> Updated incoming state * Updated outgoing state * forwarded CCS byte </returns>
     static member forward (stin:state, stout:state) : state * state * bytes =
         let stin,ccs,msgb  = FlexCCS.receive(stin) in
         let stout,_ = FlexCCS.send(stout) in
         let msgb = ccs.payload in
         stin,stout,msgb
 
-    (* Send function for handshake ChangeCipherSpecs message *)
+    /// <summary>
+    /// Send CCS to the network stream 
+    /// </summary>
+    /// <param name="st"> State of the current Handshake on the incoming side </param>
+    /// <param name="fccs"> Optional CCS message record </param>
+    /// <returns> Updated state * CCS message record </returns>
     static member send (st:state, ?fccs:FChangeCipherSpecs) : state * FChangeCipherSpecs =
         let fccs = defaultArg fccs FlexConstants.nullFChangeCipherSpecs in
         let record_write,_ = FlexRecord.send(

@@ -16,7 +16,12 @@ open FlexHandshake
 
 
 
-(* Inference on user provided information *)
+/// <summary>
+/// Establish a desired set of values from provided FClientHello record and config
+/// </summary>
+/// <param name="fch"> Desired client hello </param>
+/// <param name="cfg"> Desired config </param>
+/// <returns> Updated FClientHello record * Updated config </returns>
 let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * config =
     (* pv = Is there some pv ? If no, check config maxVer *)
     // FIXME : There is a corner case when the user sets fch pv to default because it should have priority over cfg.maxVer
@@ -84,7 +89,12 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     in
     (fch,cfg)
 
-(* Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing *)
+/// <summary>
+/// Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing 
+/// </summary>
+/// <param name="st"> State of the current Handshake </param>
+/// <param name="fch"> Client hello message containing the desired protocol version </param>
+/// <returns> Updated state of the handshake </returns>
 let fillStateEpochInitPvIFIsEpochInit (st:state) (fch:FClientHello) : state =
     if TLSInfo.isInitEpoch st.read.epoch then
         let st = FlexState.updateIncomingRecordEpochInitPV st fch.pv in
@@ -99,7 +109,11 @@ let fillStateEpochInitPvIFIsEpochInit (st:state) (fch:FClientHello) : state =
 type FlexClientHello =
     class
 
-    (* Receive a ClientHello message from the network stream *)
+    /// <summary>
+    /// Receive a ClientHello message from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
     static member receive (st:state) : state * nextSecurityContext * FClientHello =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -133,7 +147,13 @@ type FlexClientHello =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "Message type should be HT_client_hello")
  
-     (* Send a ClientHello message to the network stream *)
+    /// <summary>
+    /// Prepare ClientHello message bytes that will not be sent to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fch"> Desired client hello </param>
+    /// <param name="cfg"> Desired config </param>
+    /// <returns> FClientHello message bytes * Updated state * Next security context in negociation * FClientHello message record </returns>
     static member prepare (st:state, ?fch:FClientHello, ?cfg:config) : bytes * state * nextSecurityContext * FClientHello =
         let fch = defaultArg fch FlexConstants.nullFClientHello in
         let cfg = defaultArg cfg defaultConfig in
@@ -147,7 +167,14 @@ type FlexClientHello =
         let fch = { fch with payload = payload } in
         payload,st,nsc,fch
 
-    (* Send a ClientHello message to the network stream *)
+    /// <summary>
+    /// Send ClientHello message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fch"> Desired client hello </param>
+    /// <param name="cfg"> Desired config </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
     static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
         let ns = st.ns in
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in

@@ -15,7 +15,12 @@ open FlexHandshake
 
 
 
-(* Inference on user provided information *)
+/// <summary>
+/// Inference on user provided information
+/// </summary>
+/// <param name="fsh"> FServerHello message record </param>
+/// <param name="si"> Session information being negociated </param>
+/// <returns> Updated FServerHello message record * Updated session infos </returns>
 let fillFServerHelloANDSi (fsh:FServerHello) (si:SessionInfo) : FServerHello * SessionInfo =
     (* rand = Is there random bytes ? If no, create some *)
     let rand =
@@ -42,7 +47,12 @@ let fillFServerHelloANDSi (fsh:FServerHello) (si:SessionInfo) : FServerHello * S
     in
     (fsh,si)
 
-(* Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing *)
+/// <summary>
+/// Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing
+/// </summary>
+/// <param name="st"> State of the current Handshake </param>
+/// <param name="fsh"> FServerHello message record </param>
+/// <returns> Updated state </returns>
 let fillStateEpochInitPvIFIsEpochInit (st:state) (fsh:FServerHello) : state =
     if TLSInfo.isInitEpoch st.read.epoch then
         let st = FlexState.updateIncomingRecordEpochInitPV st fsh.pv in
@@ -57,7 +67,12 @@ let fillStateEpochInitPvIFIsEpochInit (st:state) (fsh:FServerHello) : state =
 type FlexServerHello = 
     class
 
-    (* Receive a ServerHello message from the network stream *)
+    /// <summary>
+    /// Receive a ServerHello message from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Optional Next security context being negociated </param>
+    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
     static member receive (st:state, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
@@ -94,7 +109,13 @@ type FlexServerHello =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_hello")
         
-    (* Prepare a ServerHello message bytes *)
+    /// <summary>
+    /// Prepare a ServerHello message bytes that will not be sent to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Optional Next security context being negociated </param>
+    /// <param name="fsh"> Optional FServerHello message record </param>
+    /// <returns> FServerHello message bytes * Updated state * Updated next securtity context * FServerHello message record </returns>
     static member prepare (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello) : bytes * state * nextSecurityContext * FServerHello =
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
@@ -108,7 +129,14 @@ type FlexServerHello =
         let fsh = { fsh with payload = payload } in
         payload,st,nsc,fsh
 
-    (* Send a ServerHello message to the network stream *)
+    /// <summary>
+    /// Send a ServerHello message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Optional Next security context being negociated </param>
+    /// <param name="fsh"> Optional FServerHello message record </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
     static member send (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
         let ns = st.ns in
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in

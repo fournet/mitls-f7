@@ -18,7 +18,12 @@ open FlexSecrets
 type FlexFinished = 
     class
 
-    (* Receive an expected Finished message from the network stream and check log on demand *)
+    /// <summary>
+    /// Receive a Finished message from the network stream and check the verify_data on demand
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="verify_data"> Optional verify_data that will be checked if provided </param>
+    /// <returns> Updated state * FFinished message record </returns>
     static member receive (st:state, ?verify_data:bytes) : state * FFinished = 
         let verify_data = defaultArg verify_data empty_bytes in
         let checkLog = not (verify_data = empty_bytes) in
@@ -38,11 +43,14 @@ type FlexFinished =
                     st,ff
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
 
-    static member send (st:state, ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
-        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        FlexFinished.send(st,ff.verify_data,fp=fp)
-
-    (* Prepare Finished message bytes *)
+    /// <summary>
+    /// Prepare a Finished message from the network stream and check the verify_data on demand
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="verify_data"> Optional verify_data that will be checked if provided </param>
+    /// <param name="logRoleNSC"> Optional triplet that includes the log the role and the next security context and that compute the verify data if provided </param>
+    /// <returns> Finished message bytes * Updated state * FFinished message record </returns>
+    /// TODO BB : sending and receiving verify_data should be uniform 
     static member prepare (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext) : bytes * state * FFinished =
         let verify_data =
             match logRoleNSC with
@@ -58,7 +66,27 @@ type FlexFinished =
                  } in
         payload,st,ff
 
-    (* Send Finished message to the network stream *)
+    /// <summary>
+    /// Overload : Send a Finished message from the network stream and check the verify_data on demand
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="ff"> Optional finished message record including the payload to be used </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FFinished message record </returns>
+    static member send (st:state, ff:FFinished, ?fp:fragmentationPolicy) : state * FFinished =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        FlexFinished.send(st,ff.verify_data,fp=fp)
+
+
+    /// <summary>
+    /// Send a Finished message from the network stream and check the verify_data on demand
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="verify_data"> Optional verify_data that will be checked if provided </param>
+    /// <param name="logRoleNSC"> Optional triplet that includes the log the role and the next security context and that compute the verify data if provided </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FFinished message record </returns>
+    // TODO BB : Double check choice race between verify_data and logRoleNSC
     static member send (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext, ?fp:fragmentationPolicy) : state * FFinished =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let verify_data =
