@@ -14,6 +14,17 @@ type PreProtocolVersion =
     | TLS_1p3
 type ProtocolVersion = PreProtocolVersion
 
+(* Fixed DH groups *)
+type dhGroup =
+    | DHE2432
+    | DHE3072
+    | DHE4096
+    | DHE6144
+    | DHE8192
+
+val dhGroupBytes: dhGroup -> bytes
+val parseDHGroup: bytes -> Result<dhGroup>
+
 type kexAlg =
     | RSA
     | DH_DSS

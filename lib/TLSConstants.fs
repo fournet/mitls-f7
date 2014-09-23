@@ -156,6 +156,32 @@ let sigalg_of_pkeyparams = function
 | PK_RSA _ -> SA_RSA
 | PK_DSA _ -> SA_DSA
 
+(* Fixed DH parameters, see draft-ietf-tls-negotiated-dl-dhe *)
+
+type dhGroup =
+    | DHE2432
+    | DHE3072
+    | DHE4096
+    | DHE6144
+    | DHE8192
+
+let dhGroupBytes dhg =
+    match dhg with
+    | DHE2432 -> abytes [|0uy|]
+    | DHE3072 -> abytes [|1uy|]
+    | DHE4096 -> abytes [|2uy|]
+    | DHE6144 -> abytes [|3uy|]
+    | DHE8192 -> abytes [|4uy|]
+
+let parseDHGroup b =
+    match cbytes b with
+    | [|0uy|] -> correct DHE2432
+    | [|1uy|] -> correct DHE3072
+    | [|2uy|] -> correct DHE4096
+    | [|3uy|] -> correct DHE6144
+    | [|4uy|] -> correct DHE8192
+    |   _     -> Error(AD_decode_error,perror __SOURCE_FILE__ __LINE__ "")
+
 (* Cipher Suites *)
 
 // For now we only support one SCSV, but there exist others.

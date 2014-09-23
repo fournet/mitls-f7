@@ -486,6 +486,85 @@ let parseClientKEXImplicit_DH data =
     else
         Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
+(* TLS 1.3 Client Key Exchange (Sec 7.4.2 of TLS 1.3 draft) *)
+
+type tls13kex =
+    | DHE of dhGroup * bytes
+
+let tls13CKEOfferBytes kex =
+    match kex with
+    | DHE(group,gx) ->
+        let kexb = abytes [|1uy|] in
+        let groupb = dhGroupBytes group in
+        let gxb = vlbytes 2 gx in
+        kexb @| groupb @| gxb
+
+let rec tls13CKEOffersBytes_int kexs =
+    match kexs with
+    | [] -> empty_bytes
+    | h::t ->
+        let hb = tls13CKEOfferBytes h in
+        let remb = tls13CKEOffersBytes_int t in
+        hb @| remb
+
+let tls13CKEOffersBytes kexs =
+    let b = tls13CKEOffersBytes_int kexs in
+    let data = vlbytes 2 b in
+    messageBytes HT_client_key_exchange data
+
+let rec parseTLS13CKEOffers_int b =
+    if equalBytes b empty_bytes then
+        correct([])
+    else
+        let (kexb,b) = split b 1 in
+        match cbytes kexb with
+        | [| 1uy |] -> // DHE
+            if length b < 3 then
+                Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+            else
+                (let groupb,b = split b 1 in
+                match parseDHGroup groupb with
+                | Error(x,y) ->
+                    // Unknown group, parse and ignore this entry
+                    (match vlsplit 2 b with
+                    | Error(x,y) -> Error(x,y) // parsing error
+                    | Correct(res) ->
+                        let _,b = res in
+                        parseTLS13CKEOffers_int b)
+                | Correct(group) ->
+                    match vlsplit 2 b with
+                    | Error(x,y) -> Error(x,y)
+                    | Correct(res) ->
+                        (let gx,b = res in
+                        match parseTLS13CKEOffers_int b with
+                        | Error(x,y) -> Error(x,y)
+                        | Correct(res) -> let res = DHE(group,gx) :: res in correct res))
+        | _ ->
+            // unsupported key exchange
+            // FIXME: (This FIXME is for the TLS 1.3 spec) We'd like to ignore this and continue, but we don't know its format, so we have to fail here.
+            Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
+
+let parseTLS13CKEOffers b =
+    match vlparse 2 b with
+    | Error(x,y) -> Error(x,y)
+    | Correct(b) ->
+        parseTLS13CKEOffers_int b
+
+(* TLS 1.3 Server Key Exchange (Sec 7.4.3 of TLS 1.3 draft) *)
+
+let tls13SKEDHEBytes gx = vlbytes 2 gx
+
+let tls13SKEBytes kex =
+    match kex with
+    | DHE(group,gx) ->
+        let data = tls13SKEDHEBytes gx in
+        messageBytes HT_server_key_exchange data
+
+let parseTLS13SKEDHE group b =
+    match vlparse 2 b with
+    | Error(x,y) -> Error(x,y)
+    | Correct(gx) -> correct (DHE(group,gx))
+
 (* Digitally signed struct *)
 
 let digitallySignedBytes alg data pv =
