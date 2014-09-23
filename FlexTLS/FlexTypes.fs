@@ -5,6 +5,7 @@ module FlexTypes
 open Bytes
 open TLSInfo
 open TLSConstants
+open TLSExtensions
 
 
 
@@ -159,7 +160,7 @@ type FClientHello = {
     sid: bytes;
     suites: list<cipherSuiteName>;
     comps: list<Compression>;
-    ext: bytes;
+    ext: list<clientExtension>;
     payload: bytes;
 }
 
@@ -179,7 +180,7 @@ type FServerHello = {
     sid: bytes;
     suite: cipherSuiteName;
     comp: Compression;
-    ext: bytes;
+    ext: list<serverExtension>;
     payload: bytes;
 }
 

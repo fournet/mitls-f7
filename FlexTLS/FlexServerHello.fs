@@ -5,6 +5,7 @@ module FlexServerHello
 open Bytes
 open Error
 open TLSInfo
+open TLSExtensions
 open HandshakeMessages
 
 open FlexTypes
@@ -73,42 +74,62 @@ type FlexServerHello =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="nsc"> Optional Next security context being negociated </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member receive (st:state, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
+    static member receive (st:state, cextL:list<clientExtension>, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let si = nsc.si in
+        let st,fsh = FlexServerHello.receive(st,cextL) in
+        let si  = { nsc.si with 
+                    init_srand = fsh.rand;
+                    protocol_version = fsh.pv;
+                    sessionID = fsh.sid;
+                    cipher_suite = fsh.suite;
+                    compression = fsh.comp;
+                    extensions = negociatedExtensions;
+                  } 
+        in
+        let nsc = { nsc with
+                    si = si;
+                    srand = sr; 
+                    }
+        in
+        
+    
+    /// <summary>
+    /// Receive a ServerHello message from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
+    static member receive (st:state, cextL:list<clientExtension>) : state * FServerHello =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_hello  ->    
             (match parseServerHello payload with
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct (pv,sr,sid,cs,cm,extensions) ->
-                let si  = { si with 
-                            init_srand = sr;
-                            protocol_version = pv;
-                            sessionID = sid;
-                            cipher_suite = cs;
-                            compression = cm;
-                } in
-                let nsc = { nsc with
-                                si = si;
-                                srand = sr } in
-                let cs = match TLSConstants.name_of_cipherSuite cs with
+            | Correct (pv,sr,sid,cs,cm,sexts) ->
+                let IsResuming = (not (sid = empty_bytes)) in
+                let csname = match TLSConstants.name_of_cipherSuite cs with
                     | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                     | Correct(cs) -> cs
                 in
+                let sextb,sextL = 
+                    match parseServerExtensions sexts with
+                    | Error(ad,x) -> failwith x
+                    | Correct(sextL)-> (serverExtensionsBytes sextL),sextL
+                in
+                let negociatedExtensions = negotiateClientExtensions cextL sextL IsResuming cs in
                 let fsh = { pv = pv;
                             rand = sr;
                             sid = sid;
-                            suite = cs;
+                            suite = csname;
                             comp = cm;
-                            ext = extensions;
-                            payload = to_log;
-                } in
+                            ext = sextb;
+                            payload = to_log; 
+                          } 
+                in
                 let st = fillStateEpochInitPvIFIsEpochInit st fsh in
-                (st,nsc,fsh)
+                st,fsh
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_hello")
-        
+           
     /// <summary>
     /// Prepare a ServerHello message bytes that will not be sent to the network stream
     /// </summary>

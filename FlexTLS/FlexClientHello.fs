@@ -120,27 +120,34 @@ type FlexClientHello =
         | HT_client_hello  ->    
             (match parseClientHello payload with
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct (pv,cr,sid,clientCipherSuites,cm,extensions) -> 
-                let si  = { FlexConstants.nullSessionInfo with 
-                            init_crand = cr 
-                            } 
-                in
-                let nsc = { FlexConstants.nullNextSecurityContext with
-                                si = si;
-                                crand = cr } in
-                let suites = match FlexConstants.names_of_cipherSuites clientCipherSuites with
+            | Correct (pv,cr,sid,clientCipherSuites,cm,cextL) -> 
+                let csnames = match FlexConstants.names_of_cipherSuites clientCipherSuites with
                     | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                     | Correct(suites) -> suites
+                in
+                let cextb =
+                    match parseClientExtensions cextL clientCipherSuites with
+                    | Error(ad,x) -> failwith x
+                    | Correct(extL)-> clientExtensionsBytes extL
                 in
                 let fch = { FlexConstants.nullFClientHello with
                             pv = pv;
                             rand = cr;
                             sid = sid;
-                            suites = suites;
+                            suites = csnames;
                             comps = cm;
-                            ext = extensions;
+                            ext = cextb;
                             payload = to_log;
-                            } 
+                          } 
+                in
+                let si  = { FlexConstants.nullSessionInfo with 
+                            init_crand = cr;
+                          } 
+                in
+                let nsc = { FlexConstants.nullNextSecurityContext with
+                            si = si;
+                            crand = cr; 
+                          } 
                 in
                 let st = fillStateEpochInitPvIFIsEpochInit st fch in
                 (st,nsc,fch)
@@ -189,8 +196,8 @@ type FlexClientHello =
         // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
         let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
         let nsc = { FlexConstants.nullNextSecurityContext with
-                        si = si;
-                        crand = fch.rand } in
+                    si = si;
+                    crand = fch.rand } in
         let fch = { fch with payload = payload } in
         st,nsc,fch
     
