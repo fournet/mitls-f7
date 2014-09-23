@@ -42,7 +42,33 @@ type kexDH = {
 type kex =
     | RSA of bytes
     | DH of kexDH
+    | DH13 of HandshakeMessages.tls13kex
  // | ECDH of kexECDH // TODO
+
+(* ------------------------------------------------------------------------------------- *)
+(* EXPERIMENTAL TLS 1.3 *)
+
+/// <summary>
+/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Client Key Exchange
+/// </summary>
+/// <param name="offers"> List of Key Exchange mechanisms informations </param>
+/// <param name="payload"> Real message bytes </param>
+type FClientKeyExchangeTLS13 = {
+    offers:list<HandshakeMessages.tls13kex>;
+    payload:bytes;
+}
+
+/// <summary>
+/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Server Key Exchange
+/// </summary>
+/// <param name="kex"> Key Exchange mechanism information </param>
+/// <param name="payload"> Real message bytes </param>
+type FServerKeyExchangeTLS13 = {
+    kex:kex;
+    payload:bytes;
+}
+
+(* ------------------------------------------------------------------------------------- *)
 
 /// <summary>
 /// Session Keys record,
@@ -243,4 +269,3 @@ type FFinished = {
     verify_data: bytes;
     payload: bytes;
 }
-

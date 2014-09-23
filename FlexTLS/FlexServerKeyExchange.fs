@@ -171,3 +171,82 @@ type FlexServerKeyExchange =
         st,fske
     
     end
+
+
+
+
+type FlexServerKeyExchangeTLS13 =
+    class
+
+    /// <summary>
+    /// EXPERIMENTAL TLS 1.3 Receive DHE ServerKeyExchange from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Next security context that embbed the kex to be sent </param>
+    /// <returns> Updated state * FServerKeyExchange message record </returns>
+    // TODO BB : Min DH size ?
+    static member receive (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchangeTLS13 =
+        let group = 
+            match nsc.keys.kex with
+            | DH13(DHE(group,gx)) -> group
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
+        in
+        let st,fske = FlexServerKeyExchangeTLS13.receive(st,group) in
+        let epk = {nsc.keys with kex = fske.kex} in
+        let nsc = {nsc with keys = epk} in
+        st,nsc,fske
+
+    /// <summary>
+    /// EXPERIMENTAL TLS 1.3 Receive DHE ServerKeyExchange from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> Updated state * FServerKeyExchange message record </returns>
+    // TODO BB : Min DH size ?
+    static member receive (st:state, group:dhGroup) : state * FServerKeyExchangeTLS13 =
+        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        match hstype with
+        | HT_server_key_exchange  ->
+            (match HandshakeMessages.parseTLS13SKEDHE group payload with
+            | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct (kex13) ->
+                let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex13); payload = to_log } in
+                st,fske 
+            )
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
+
+    /// <summary>
+    /// EXPERIMENTAL TLS 1.3 Overload : Send a DHE ServerKeyExchange message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="nsc"> Next security context that embbed the kex to be sent </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
+    static member send (st:state, nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchangeTLS13 =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let kex = match nsc.keys.kex with
+            | DH13(kex) -> kex
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
+        in
+        let payload = HandshakeMessages.tls13SKEBytes kex in
+        let st = FlexHandshake.send(st,payload,fp) in
+        let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex) ; payload = payload } in
+        let epk = {nsc.keys with kex = fske.kex} in
+        let nsc = {nsc with keys = epk} in
+        st,nsc,fske
+
+    /// <summary>
+    /// EXPERIMENTAL TLS 1.3 Send a DHE ServerKeyExchange message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="kex"> Key Exchange record containing Diffie-Hellman parameters </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
+    static member send (st:state, kex:tls13kex, ?fp:fragmentationPolicy) : state * FServerKeyExchangeTLS13 =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+
+        let payload = HandshakeMessages.tls13SKEBytes kex in
+        let st = FlexHandshake.send(st,payload,fp) in
+        let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex) ; payload = payload } in
+        st,fske
+
+    end
