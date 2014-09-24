@@ -31,6 +31,7 @@ type sessionHash = bytes
 type negotiatedExtension =
     | NE_extended_ms
     | NE_extended_padding
+    | NE_negotiated_dh_group of dhGroup
 
 type negotiatedExtensions = list<negotiatedExtension>
 
@@ -150,7 +151,8 @@ type config = {
 	(* DH groups database *)
 	dhDBFileName: string;
 	dhDefaultGroupFileName: string;
-    dhPQMinLength: nat * nat
+    dhPQMinLength: nat * nat;
+    negotiableDHGroups: list<dhGroup>
     }
 
 val defaultConfig: config

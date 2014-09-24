@@ -32,6 +32,7 @@ type sessionHash = bytes
 type negotiatedExtension =
     | NE_extended_ms
     | NE_extended_padding
+    | NE_negotiated_dh_group of dhGroup
 
 type negotiatedExtensions = list<negotiatedExtension>
 
@@ -303,7 +304,8 @@ type config = {
 	(* DH groups database *)
 	dhDBFileName: string;
 	dhDefaultGroupFileName: string;
-    dhPQMinLength: nat * nat
+    dhPQMinLength: nat * nat;
+    negotiableDHGroups: list<dhGroup>
     }
 
 let defaultConfig ={
@@ -329,7 +331,8 @@ let defaultConfig ={
 
     dhDBFileName = "dhparams-db.bin";
     dhDefaultGroupFileName = "default-dh.pem";
-    dhPQMinLength = (1024, 160)
+    dhPQMinLength = (1024, 160);
+    negotiableDHGroups = [] // To enable by default use: [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]
     }
 
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)
