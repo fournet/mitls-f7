@@ -25,6 +25,9 @@ type dhGroup =
 val dhGroupBytes: dhGroup -> bytes
 val parseDHGroup: bytes -> Result<dhGroup>
 
+val dhGroupsBytes: list<dhGroup> -> bytes
+val parseDHGroups: bytes -> list<dhGroup>
+
 type kexAlg =
     | RSA
     | DH_DSS
