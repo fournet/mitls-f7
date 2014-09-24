@@ -197,6 +197,14 @@ let rec parseDHGroups dhglb =
         | Correct(g) ->
             g :: (parseDHGroups dhglb)
 
+let dhgroup_to_dhparams g =
+    match g with
+    | DHE2432 -> CoreDH.dhe2432
+    | DHE3072 -> CoreDH.dhe3072
+    | DHE4096 -> CoreDH.dhe4096
+    | DHE6144 -> CoreDH.dhe6144
+    | DHE8192 -> CoreDH.dhe8192
+
 (* Cipher Suites *)
 
 // For now we only support one SCSV, but there exist others.

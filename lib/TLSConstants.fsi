@@ -28,6 +28,8 @@ val parseDHGroup: bytes -> Result<dhGroup>
 val dhGroupsBytes: list<dhGroup> -> bytes
 val parseDHGroups: bytes -> list<dhGroup>
 
+val dhgroup_to_dhparams: dhGroup -> CoreKeys.dhparams
+
 type kexAlg =
     | RSA
     | DH_DSS

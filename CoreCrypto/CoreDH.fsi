@@ -17,3 +17,10 @@ val agreement    : bytes -> dhskey -> dhpkey -> bytes
 // Throws exceptions in case of error
 // (file not found, parsing error, unsafe parameters...)
 val load_default_params   : string -> dhdb -> nat * nat -> dhdb*dhparams
+
+(* Constant groups as defined in draft-ietf-tls-negotiated-dl-dhe *)
+val dhe2432: dhparams
+val dhe3072: dhparams
+val dhe4096: dhparams
+val dhe6144: dhparams
+val dhe8192: dhparams
