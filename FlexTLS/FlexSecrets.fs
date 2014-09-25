@@ -46,6 +46,7 @@ type FlexSecrets =
             let p,_ = dhp.pg in
             let x,gy = dhp.x, dhp.gy in
             CoreDH.agreement p x gy
+        | DH13(HandshakeMessages.tls13kex.DHE(group,gx)) -> failwith "TODO"
 
     /// <summary>
     /// Generate the MasterSecret from the PreMasterSecret

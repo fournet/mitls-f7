@@ -40,7 +40,7 @@ type Attack_FragmentClientHello =
             suites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch,fp=fp) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in

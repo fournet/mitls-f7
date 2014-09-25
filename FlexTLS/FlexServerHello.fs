@@ -5,6 +5,7 @@ module FlexServerHello
 open Bytes
 open Error
 open TLSInfo
+open TLSConstants
 open TLSExtensions
 open HandshakeMessages
 
@@ -72,33 +73,35 @@ type FlexServerHello =
     /// Receive a ServerHello message from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fch"> FClientHello containing the client extensions </param>
     /// <param name="nsc"> Optional Next security context being negociated </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member receive (st:state, cextL:list<clientExtension>, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
+    static member receive (st:state, fch:FClientHello, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let st,fsh = FlexServerHello.receive(st,cextL) in
+        let st,fsh,negExts = FlexServerHello.receive(st,fch.ext) in
         let si  = { nsc.si with 
                     init_srand = fsh.rand;
                     protocol_version = fsh.pv;
                     sessionID = fsh.sid;
-                    cipher_suite = fsh.suite;
+                    cipher_suite = cipherSuite_of_name fsh.suite;
                     compression = fsh.comp;
-                    extensions = negociatedExtensions;
+                    extensions = negExts;
                   } 
         in
         let nsc = { nsc with
                     si = si;
-                    srand = sr; 
-                    }
+                    srand = fsh.rand; 
+                  }
         in
+        st,nsc,fsh
         
     
     /// <summary>
     /// Receive a ServerHello message from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member receive (st:state, cextL:list<clientExtension>) : state * FServerHello =
+    /// <returns> Updated state * Updated next securtity context * FServerHello message record * Negociated extensions </returns>
+    static member receive (st:state, cextL:list<clientExtension>) : state * FServerHello * negotiatedExtensions =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_hello  ->    
@@ -110,70 +113,109 @@ type FlexServerHello =
                     | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                     | Correct(cs) -> cs
                 in
-                let sextb,sextL = 
+                let sextL = 
                     match parseServerExtensions sexts with
                     | Error(ad,x) -> failwith x
-                    | Correct(sextL)-> (serverExtensionsBytes sextL),sextL
+                    | Correct(sextL)-> sextL
                 in
-                let negociatedExtensions = negotiateClientExtensions cextL sextL IsResuming cs in
+                let negExts = 
+                    match negotiateClientExtensions cextL sextL IsResuming cs with
+                    | Error(ad,x) -> failwith x
+                    | Correct(exts) -> exts
+                in
                 let fsh = { pv = pv;
                             rand = sr;
                             sid = sid;
                             suite = csname;
                             comp = cm;
-                            ext = sextb;
+                            ext = sextL;
                             payload = to_log; 
                           } 
                 in
                 let st = fillStateEpochInitPvIFIsEpochInit st fsh in
-                st,fsh
+                st,fsh,negExts
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_hello")
            
     /// <summary>
-    /// Prepare a ServerHello message bytes that will not be sent to the network stream
+    /// Prepare a ServerHello message that will not be sent to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Optional Next security context being negociated </param>
-    /// <param name="fsh"> Optional FServerHello message record </param>
-    /// <returns> FServerHello message bytes * Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member prepare (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello) : bytes * state * nextSecurityContext * FServerHello =
-        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let si = nsc.si in
-        let fsh,si = fillFServerHelloANDSi fsh si in
-        let nsc = { nsc with
-                      si = si;
-                      srand = fsh.rand } in
+    /// <param name="si"> Session Info of the currently negociated next security context </param>
+    /// <param name="cextL"> Client extensions list </param>
+    /// <param name="cfg"> Optional Configuration of the server </param>
+    /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
+    /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
+    static member prepare (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>) : state * SessionInfo * FServerHello =
+        let cfg = defaultArg cfg defaultConfig in
+        let sessionHash = defaultArg sessionHash None in
+        let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
+        let sextL,negExts = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas sessionHash in
+        let exts = serverExtensionsBytes sextL in
+        // TODO BB : Check this is put at the right place ?
+        let fsh,si = fillFServerHelloANDSi FlexConstants.nullFServerHello si in
+        let si = {si with extensions = negExts } in
         let st = fillStateEpochInitPvIFIsEpochInit st fsh in
-        let payload = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
-        let fsh = { fsh with payload = payload } in
-        payload,st,nsc,fsh
+        let payload = HandshakeMessages.serverHelloBytes si fsh.rand exts in
+        let fsh = { fsh with 
+                    ext = sextL;
+                    payload = payload 
+                  } 
+        in
+        st,si,fsh
 
     /// <summary>
     /// Send a ServerHello message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fch"> FClientHello message record containing client extensions </param>
     /// <param name="nsc"> Optional Next security context being negociated </param>
     /// <param name="fsh"> Optional FServerHello message record </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member send (st:state, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
-        let ns = st.ns in
+    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let si = nsc.si in
 
-        let fsh,si = fillFServerHelloANDSi fsh si in
+        let fsh,si = fillFServerHelloANDSi fsh nsc.si in
+        let st,si,fsh = FlexServerHello.send(st,si,fch.ext,fp=fp) in
         let nsc = { nsc with
-                      si = si;
-                      srand = fsh.rand } in
-        let st = fillStateEpochInitPvIFIsEpochInit st fsh in
-
-        let payload = HandshakeMessages.serverHelloBytes si fsh.rand fsh.ext in
-        let st = FlexHandshake.send(st,payload,fp) in
-        let fsh = { fsh with payload = payload } in
+                    si = si;
+                    srand = fsh.rand;
+                  }
+        in
         st,nsc,fsh
+
+    /// <summary>
+    /// Send a ServerHello message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="si"> Session Info of the currently negociated next security context </param>
+    /// <param name="cextL"> Client extensions list </param>
+    /// <param name="cfg"> Optional Configuration of the server </param>
+    /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
+    // TODO BB : Possibility to override the negociatedExtensions 
+    static member send (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let cfg = defaultArg cfg defaultConfig in
+        let sessionHash = defaultArg sessionHash None in
+        let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
+        let sextL,negExts = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas sessionHash in
+        let exts = serverExtensionsBytes sextL in
+        // TODO BB : Check this is put at the right place ?
+        let fsh,si = fillFServerHelloANDSi FlexConstants.nullFServerHello si in
+        let si = {si with extensions = negExts } in
+        let st = fillStateEpochInitPvIFIsEpochInit st fsh in
+        let payload = HandshakeMessages.serverHelloBytes si fsh.rand exts in
+        let st = FlexHandshake.send(st,payload,fp) in
+        let fsh = { fsh with 
+                    ext = sextL;
+                    payload = payload 
+                  } 
+        in
+        st,si,fsh
 
     end

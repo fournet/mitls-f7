@@ -31,31 +31,31 @@ let run peer =
     let st,_ = FlexConnection.clientOpenTcpConnection(peer,peer) in
 
     // Start a typical RSA handshake with the server
-    let st,nsc,ch = FlexClientHello.send(st) in
-    let st,nsc,sh = FlexServerHello.receive(st,nsc) in
+    let st,nsc,fch = FlexClientHello.send(st) in
+    let st,nsc,fsh = FlexServerHello.receive(st,fch,nsc) in
 
     // *** Inject a one byte alert on behalf of the attacker ***
     let st = FlexAlert.send(st,Bytes.abytes [|1uy|]) in
 
     // Continue the typical RSA handshake
-    let st,nsc,cert = FlexCertificate.receive(st,Client,nsc) in
-    let st,shd      = FlexServerHelloDone.receive(st) in
-    let st,nsc,cke  = FlexClientKeyExchange.sendRSA(st,nsc,ch) in
-    let st,_        = FlexCCS.send(st) in
+    let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
+    let st,fshd      = FlexServerHelloDone.receive(st) in
+    let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
+    let st,_         = FlexCCS.send(st) in
             
     // Start encrypting
     let st           = FlexState.installWriteKeys st nsc in
-    let log          = ch.payload @| sh.payload @| cert.payload @| shd.payload @| cke.payload in
+    let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
             
-    let st,cf       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
-    let st,_,_      = FlexCCS.receive(st) in
+    let st,cff       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
+    let st,_,_       = FlexCCS.receive(st) in
 
     // Start decrypting
-    let st          = FlexState.installReadKeys st nsc in
+    let st           = FlexState.installReadKeys st nsc in
     // Check that verify_data is correct
-    let vd = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| cf.payload) in
-    let st,sf       = FlexFinished.receive(st) in
-    if not (vd = sf.verify_data) then
+    let vd = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| cff.payload) in
+    let st,sff       = FlexFinished.receive(st) in
+    if not (vd = sff.verify_data) then
         failwith "Verify_data check failed"
     else
 

@@ -51,7 +51,7 @@ type Handshake_resumption =
         let fch          = {FlexConstants.nullFClientHello with sid = si.sessionID; suites = [suite] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
 
         // Check whether the server authorized or refused the resumption and if the data is matching previous session
         if not (si.sessionID = fsh.sid) then failwith "Server refused resumption" else

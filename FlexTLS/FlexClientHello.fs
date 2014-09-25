@@ -73,8 +73,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
         | false -> fch.ext
         | true -> 
             let ci = initConnection Client rand in
-            let extL = prepareClientExtensions cfg ci empty_bytes None in
-            clientExtensionsBytes extL
+            prepareClientExtensions cfg ci empty_bytes None
     in
 
     (* Update fch with correct informations and sets payload to empty bytes *)
@@ -125,10 +124,10 @@ type FlexClientHello =
                     | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                     | Correct(suites) -> suites
                 in
-                let cextb =
+                let cextL =
                     match parseClientExtensions cextL clientCipherSuites with
                     | Error(ad,x) -> failwith x
-                    | Correct(extL)-> clientExtensionsBytes extL
+                    | Correct(extL)-> extL
                 in
                 let fch = { FlexConstants.nullFClientHello with
                             pv = pv;
@@ -136,7 +135,7 @@ type FlexClientHello =
                             sid = sid;
                             suites = csnames;
                             comps = cm;
-                            ext = cextb;
+                            ext = cextL;
                             payload = to_log;
                           } 
                 in
@@ -166,7 +165,8 @@ type FlexClientHello =
         let cfg = defaultArg cfg defaultConfig in
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
-        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
+        let exts = clientExtensionsBytes fch.ext in
+        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid exts in
         let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
         let nsc = { FlexConstants.nullNextSecurityContext with
                         si = si;
@@ -190,8 +190,8 @@ type FlexClientHello =
         
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
-
-        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid fch.ext in
+        let exts = clientExtensionsBytes fch.ext in
+        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid exts in
         let st = FlexHandshake.send(st,payload,fp) in
         // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
         let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in

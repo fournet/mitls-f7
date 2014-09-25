@@ -38,7 +38,7 @@ type Attack_EarlyCCS =
             suites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
 
@@ -82,7 +82,7 @@ type Attack_EarlyCCS =
         let cst     = FlexHandshake.send(cst,sch.payload) in
         
         // Forward server hello
-        let cst,nsc,csh   = FlexServerHello.receive(cst,nsc) in
+        let cst,nsc,csh   = FlexServerHello.receive(cst,sch,nsc) in
         if not (TLSConstants.isRSACipherSuite (TLSConstants.cipherSuite_of_name csh.suite)) then
             failwith "Early CCS attack demo only implemented for RSA key exchange"
         else

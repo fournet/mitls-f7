@@ -42,7 +42,7 @@ type Handshake_full_RSA =
             suites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
@@ -92,7 +92,7 @@ type Handshake_full_RSA =
         let fsh = { FlexConstants.nullFServerHello with 
             suite = TLS_RSA_WITH_AES_128_CBC_SHA} in
 
-        let st,nsc,fsh   = FlexServerHello.send(st,nsc,fsh) in
+        let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc,fsh) in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
         let st,fshd      = FlexServerHelloDone.send(st) in
         let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=sk) in
@@ -140,7 +140,7 @@ type Handshake_full_RSA =
             suites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,nsc) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
@@ -200,7 +200,7 @@ type Handshake_full_RSA =
             pv = TLS_1p2; 
             suite = TLS_RSA_WITH_AES_128_CBC_SHA } in
 
-        let st,nsc,fsh   = FlexServerHello.send(st,nsc) in
+        let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
         let st,fcreq     = FlexCertificateRequest.send(st,nsc) in
         let st,fshd      = FlexServerHelloDone.send(st) in
