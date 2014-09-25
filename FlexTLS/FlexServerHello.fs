@@ -28,7 +28,7 @@ let fillFServerHelloANDSi (fsh:FServerHello) (si:SessionInfo) : FServerHello * S
     let rand =
         match fsh.rand = FlexConstants.nullFServerHello.rand with
         | false -> fsh.rand
-        | true -> Nonce.mkHelloRandom()
+        | true -> Nonce.mkHelloRandom si.protocol_version
     in
 
     (* Update fch with correct informations and sets payload to empty bytes *)
@@ -218,4 +218,39 @@ type FlexServerHello =
         in
         st,si,fsh
 
+    end
+
+type FlexServerHelloTLS13 = 
+    class
+    
+    /// <summary>
+    /// EXPERIMENTAL TLS 1.3 Receive a ServerHello message from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fch"> FClientHello containing the client extensions </param>
+    /// <param name="nsc"> Optional Next security context being negociated </param>
+    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
+    static member receive (st:state, fch:FClientHello, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let st,fsh,negExts = FlexServerHello.receive(st,fch.ext) in
+        let si  = { nsc.si with 
+                    init_srand = fsh.rand;
+                    protocol_version = fsh.pv;
+                    sessionID = fsh.sid;
+                    cipher_suite = cipherSuite_of_name fsh.suite;
+                    compression = fsh.comp;
+                    extensions = negExts;
+                  } 
+        in
+        let group =
+            if TLSExtensions.hasDHgroup negExts then DHE4096 else failwith "dh_group extension is mandatory in TLS 1.3"
+        in
+        let keys = { nsc.keys with kex = DH13(DHE(group,empty_bytes))} in
+        let nsc = { nsc with
+                    si = si;
+                    srand = fsh.rand;
+                    keys = keys;
+                  }
+        in
+        st,nsc,fsh
     end

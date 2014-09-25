@@ -16,6 +16,9 @@ open FlexTypes
 type FlexConstants =
     class
 
+    /// <summary> EXPERIMENTAL TLS 1.3 Diffie Hellman default group </summary>
+    static member defaultTLS13group = TLSInfo.defaultConfig.negotiableDHGroups.Head
+
     /// <summary> Default TCP port to connect to </summary>
     static member defaultTCPPort = 443
 

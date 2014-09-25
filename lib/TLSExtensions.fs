@@ -447,6 +447,14 @@ let isExtendedMS e =
 let hasExtendedMS extL =
     List.exists isExtendedMS extL
 
+let isDHgroup e =
+    match e with
+    | NE_negotiated_dh_group(group) -> true
+    | _ -> false
+
+let hasDHgroup extL =
+    List.exists isDHgroup extL
+
 let isExtendedPadding e =
     match e with
     | NE_extended_padding -> true

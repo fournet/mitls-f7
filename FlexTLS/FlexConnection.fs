@@ -5,6 +5,7 @@ module FlexConnection
 open Bytes
 open Tcp
 open TLSInfo
+open TLSConstants
 
 open FlexTypes
 open FlexConstants
@@ -20,9 +21,11 @@ type FlexConnection =
     /// </summary>
     /// <param name="role"> Behaviour set as Client or Server </param>
     /// <param name="ns"> Network stream </param>
+    /// <param name="pv"> Optional protocol version required to generate randomness </param>
     /// <returns> Global state of the handshake </returns>
-    static member init (role:Role, ns:NetworkStream) : state =
-        let rand = Nonce.mkHelloRandom() in
+    static member init (role:Role, ns:NetworkStream, ?pv:ProtocolVersion) : state =
+        let pv = defaultArg pv defaultConfig.maxVer in
+        let rand = Nonce.mkHelloRandom pv in
         let ci = TLSInfo.initConnection role rand in
         let record_s_in  = Record.nullConnState ci.id_in Reader in
         let record_s_out = Record.nullConnState ci.id_out Writer in
@@ -49,8 +52,10 @@ type FlexConnection =
     /// <param name="address"> Binding address or domain name </param>
     /// <param name="cn"> Optional common name </param>
     /// <param name="port"> Optional port number </param>
+    /// <param name="pv"> Optional protocol version required to generate randomness </param>
     /// <returns> Updated state * Updated config </returns>
-    static member serverOpenTcpConnection (address:string, ?cn:string, ?port:int) : state * config =
+    static member serverOpenTcpConnection (address:string, ?cn:string, ?port:int, ?pv:ProtocolVersion) : state * config =
+        let pv = defaultArg pv defaultConfig.maxVer in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
         let cfg = {
@@ -60,7 +65,7 @@ type FlexConnection =
 
         let l    = Tcp.listen address port in
         let ns   = Tcp.accept l in
-        let st = FlexConnection.init (Server, ns) in
+        let st = FlexConnection.init (Server,ns,pv) in
         (st,cfg)
 
  
@@ -70,8 +75,10 @@ type FlexConnection =
     /// <param name="address"> Binding address or domain name </param>
     /// <param name="cn"> Optional common name </param>
     /// <param name="port"> Optional port number </param>
+    /// <param name="pv"> Optional protocol version required to generate randomness </param>
     /// <returns> Updated state * Updated config </returns> 
-    static member clientOpenTcpConnection (address:string, ?cn:string, ?port:int) :  state * config =
+    static member clientOpenTcpConnection (address:string, ?cn:string, ?port:int, ?pv:ProtocolVersion) :  state * config =
+        let pv = defaultArg pv defaultConfig.maxVer in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
         let cfg = {

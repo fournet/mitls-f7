@@ -382,7 +382,7 @@ type FlexClientKeyExchangeTLS13 =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * FClientKeyExchangeTLS13 message record </returns>
-    static member receiveDHE (st:state) : state * FClientKeyExchangeTLS13 =
+    static member receive (st:state) : state * FClientKeyExchangeTLS13 =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_key_exchange  ->
@@ -394,7 +394,6 @@ type FlexClientKeyExchangeTLS13 =
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
 
-
     /// <summary>
     /// EXPERIMENTAL TLS 1.3 Send DHE ClientKeyExchange to the network stream
     /// </summary>
@@ -402,8 +401,10 @@ type FlexClientKeyExchangeTLS13 =
     /// <param name="kexl"> Key Exchange record containing necessary Diffie-Hellman parameters </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FClientKeyExchangeTLS13 message record </returns>
-    static member send (st:state, kexl:list<tls13kex>, ?fp:fragmentationPolicy) : state * FClientKeyExchangeTLS13 =
+    static member send (st:state, ?kexl:list<tls13kex>, ?fp:fragmentationPolicy) : state * FClientKeyExchangeTLS13 =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        // FIXME BB : default group and bytes should not be empty !!!!
+        let kexl = defaultArg kexl [DHE(FlexConstants.defaultTLS13group, empty_bytes)] in
         let payload = HandshakeMessages.tls13CKEOffersBytes kexl in
         let st = FlexHandshake.send(st,payload,fp) in
         let fcke = { offers = kexl ; payload = payload } in

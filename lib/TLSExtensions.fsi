@@ -30,6 +30,7 @@ val checkClientResumptionInfoExtension:    config -> list<clientExtension> -> se
 val checkServerResumptionInfoExtension:    config -> list<serverExtension> -> sessionHash -> bool
 
 val hasExtendedMS: negotiatedExtensions -> bool
+val hasDHgroup: negotiatedExtensions -> bool
 val hasExtendedPadding: id -> bool
 
 // type extensionType

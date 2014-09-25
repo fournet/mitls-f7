@@ -35,7 +35,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     let rand =
         match fch.rand = FlexConstants.nullFClientHello.rand with
         | false -> fch.rand
-        | true -> Nonce.mkHelloRandom()
+        | true -> Nonce.mkHelloRandom(pv)
     in
 
     (* sid = Is there a sid ? If no, get the default empty one *)
