@@ -14,6 +14,7 @@ type clientExtension =
     | CE_resumption_info of sessionHash
     | CE_extended_ms
     | CE_extended_padding
+    | CE_negotiated_dh_group of list<dhGroup>
 
 let sameClientExt a b =
     match a,b with
@@ -21,6 +22,7 @@ let sameClientExt a b =
     | CE_resumption_info (_), CE_resumption_info(_) -> true
     | CE_extended_ms, CE_extended_ms -> true
     | CE_extended_padding, CE_extended_padding -> true
+    | CE_negotiated_dh_group _, CE_negotiated_dh_group _ -> true
     | _,_ -> false
 
 type serverExtension =
@@ -29,6 +31,7 @@ type serverExtension =
     | SE_resumption_info of sessionHash
     | SE_extended_ms
     | SE_extended_padding
+    | SE_negotiated_dh_group of dhGroup
 
 let sameServerExt a b =
     match a,b with
@@ -36,6 +39,7 @@ let sameServerExt a b =
     | SE_resumption_info (_), SE_resumption_info (_) -> true
     | SE_extended_ms, SE_extended_ms -> true
     | SE_extended_padding, SE_extended_padding -> true
+    | SE_negotiated_dh_group _, SE_negotiated_dh_group _ -> true
     | _,_ -> false
 
 let sameServerClientExt a b =
@@ -44,6 +48,7 @@ let sameServerClientExt a b =
     | SE_resumption_info (_), CE_resumption_info (_) -> true
     | SE_extended_ms, CE_extended_ms -> true
     | SE_extended_padding, CE_extended_padding -> true
+    | SE_negotiated_dh_group _, CE_negotiated_dh_group _ -> true
     | _,_ -> false
 
 let clientExtensionHeaderBytes ext =
@@ -53,6 +58,7 @@ let clientExtensionHeaderBytes ext =
     | CE_resumption_info (_)   -> abyte2 (0xFFuy, 0xAAuy)
     | CE_extended_ms           -> abyte2 (0xFFuy, 0xABuy)
     | CE_extended_padding      -> abyte2 (0xBBuy, 0x8Fuy)
+    | CE_negotiated_dh_group _ -> abyte2 (0xAAuy, 0xAAuy)
 
 let clientExtensionPayloadBytes ext =
     match ext with
@@ -60,6 +66,10 @@ let clientExtensionPayloadBytes ext =
     | CE_resumption_info(sh) -> vlbytes 2 sh
     | CE_extended_ms -> empty_bytes
     | CE_extended_padding -> empty_bytes
+    | CE_negotiated_dh_group gl ->
+        // TODO: add function to serialize dhGroup list
+        let gb = dhGroupsBytes gl in
+        vlbytes 1 gb
 
 let clientExtensionBytes ext =
     let head = clientExtensionHeaderBytes ext in
@@ -101,6 +111,11 @@ let parseClientExtension head payload =
             Some(correct (CE_extended_padding))
         else
             Some(Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension"))
+    | (0xAAuy, 0xAAuy) -> // negotiated_dh_group
+        (match vlparse 1 payload with
+        | Error (x,y) -> Some(Error(x,y))
+        | Correct(sdhg) -> Some(correct(CE_negotiated_dh_group (parseDHGroups sdhg)))
+        )
     | (_,_) -> None
 
 let addOnceClient ext extList =
@@ -155,6 +170,12 @@ let parseClientExtensions data ch_ciphers =
 let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD (resumeSHOpt:option<sessionHash>) =
     (* Always send supported extensions. The configuration options will influence how strict the tests will be *)
     let res = [CE_renegotiation_info(renegoCVD); CE_extended_ms; CE_extended_padding] in
+    let res =
+        if cfg.negotiableDHGroups.IsEmpty then
+            res
+        else
+            CE_negotiated_dh_group cfg.negotiableDHGroups :: res
+    in
     match resumeSHOpt with
         | None -> res
         | Some(resumeSH) -> CE_resumption_info(resumeSH) :: res
@@ -184,6 +205,17 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
                         Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided extended padding for a MAC only ciphersuite")
                     else
                         correct(NE_extended_padding::l)
+            | SE_negotiated_dh_group sdhg ->
+                let picker x =
+                    match x with
+                    | CE_negotiated_dh_group (cdhgs) -> Some(cdhgs)
+                    | _ -> None
+                in
+                let cdhgs = List.pick picker cExtL in
+                if List.exists (fun x -> x = sdhg) cdhgs then
+                    correct(NE_negotiated_dh_group sdhg::l)
+                else
+                    Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Server provided DH group that was not offered by client")
         else
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
@@ -202,6 +234,7 @@ let serverExtensionHeaderBytes ext =
     | SE_resumption_info (_)      -> abyte2 (0xFFuy, 0xAAuy)
     | SE_extended_ms              -> abyte2 (0xFFuy, 0xABuy)
     | SE_extended_padding         -> abyte2 (0xBBuy, 0x8Fuy)
+    | SE_negotiated_dh_group (_)  -> abyte2 (0xAAuy, 0xAAuy)
 
 let serverExtensionPayloadBytes ext =
     match ext with
@@ -212,6 +245,8 @@ let serverExtensionPayloadBytes ext =
         vlbytes 2 sh
     | SE_extended_ms -> empty_bytes
     | SE_extended_padding -> empty_bytes
+    | SE_negotiated_dh_group dhg ->
+        dhGroupBytes dhg
 
 let serverExtensionBytes ext =
     let head = serverExtensionHeaderBytes ext in
@@ -253,6 +288,10 @@ let parseServerExtension head payload =
             correct(SE_extended_padding)
         else
             Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension")
+    | (0xAAuy, 0xAAuy) -> // negotiated DH group
+        (match parseDHGroup payload with
+        | Error(x,y) -> Error(AD_illegal_parameter,y) // we never sent a group we don't support
+        | Correct(dhg) -> correct(SE_negotiated_dh_group dhg))
     | (_,_) ->
         // A server can never send an extension the client doesn't support
         Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extesion")
@@ -292,6 +331,15 @@ let parseServerExtensions data =
         | Error(x,y)    -> Error(x,y)
         | Correct(exts) -> parseServerExtensionList exts []
 
+let preferredDHGroup pref allowed =
+    List.tryPick (
+        fun x ->
+            if List.exists (fun y -> x = y) allowed then
+                Some(x)
+            else
+                None
+        ) pref
+
 let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resumeSHOpt:option<sessionHash>) cExt : option<serverExtension>=
     match cExt with
     | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (renegoCVD,renegoSVD))
@@ -311,6 +359,14 @@ let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:
             else
                 Some(SE_extended_padding)
         | Some(_) -> None)
+    | CE_negotiated_dh_group dhgl ->
+        if isDHECipherSuite cs then
+            match preferredDHGroup dhgl cfg.negotiableDHGroups with
+            | None -> None
+            | Some(dhg) -> Some(SE_negotiated_dh_group dhg)
+        else
+            // don't negotiate any group for non DHE ciphersuites
+            None
 
 let ClientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resumeSHOpt:option<sessionHash>) cExt : option<negotiatedExtension> =
     match cExt with
@@ -328,6 +384,13 @@ let ClientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyD
             else
                 Some(NE_extended_padding)
         | Some(_) -> None)
+    | CE_negotiated_dh_group dhgl ->
+        if isDHECipherSuite cs then
+            match preferredDHGroup dhgl cfg.negotiableDHGroups with
+            | None -> None
+            | Some(dhg) -> Some(NE_negotiated_dh_group dhg)
+        else
+            None
 
 let negotiateServerExtensions cExtL cfg cs (cvd,svd) resumeSHOpt =
     let server = List.choose (ClientToServerExtension cfg cs (cvd,svd) resumeSHOpt) cExtL in

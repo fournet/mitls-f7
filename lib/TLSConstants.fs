@@ -182,6 +182,29 @@ let parseDHGroup b =
     | [|4uy|] -> correct DHE8192
     |   _     -> Error(AD_decode_error,perror __SOURCE_FILE__ __LINE__ "")
 
+let dhGroupsBytes dhgl =
+    let b = List.map dhGroupBytes dhgl in
+    List.fold (fun st x -> x @| st) empty_bytes b
+
+let rec parseDHGroups dhglb =
+    if length dhglb = 0 then
+        []
+    else
+        let b,dhglb = split dhglb 1 in
+        match parseDHGroup b with
+        | Error(x,y) -> // ignore this entry
+            parseDHGroups dhglb
+        | Correct(g) ->
+            g :: (parseDHGroups dhglb)
+
+let dhgroup_to_dhparams g =
+    match g with
+    | DHE2432 -> CoreDH.dhe2432
+    | DHE3072 -> CoreDH.dhe3072
+    | DHE4096 -> CoreDH.dhe4096
+    | DHE6144 -> CoreDH.dhe6144
+    | DHE8192 -> CoreDH.dhe8192
+
 (* Cipher Suites *)
 
 // For now we only support one SCSV, but there exist others.

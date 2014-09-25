@@ -51,6 +51,7 @@ let config (servname : string) = {
     TLSInfo.dhDBFileName = "dhparams-db.bin"
     dhDefaultGroupFileName = "defaultDH.pem"
     dhPQMinLength = TLSInfo.defaultConfig.dhPQMinLength
+    negotiableDHGroups = TLSInfo.defaultConfig.negotiableDHGroups
 }
 
 // ------------------------------------------------------------------------
