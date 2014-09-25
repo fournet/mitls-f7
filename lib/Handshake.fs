@@ -133,7 +133,7 @@ type nextState = hs_state
 let init (role:Role) poptions =
     (* Start a new session without resumption, as the first epoch on this connection. *)
     let sid = empty_bytes in
-    let rand = Nonce.mkHelloRandom() in
+    let rand = Nonce.mkHelloRandom poptions.maxVer in
     match role with
     | Client -> 
         let ci = initConnection role rand in
@@ -176,7 +176,7 @@ let resume next_sid poptions =
     match retrievedSinfo.sessionID with
     | xx when length xx = 0 -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
-    let rand = Nonce.mkHelloRandom () in
+    let rand = Nonce.mkHelloRandom poptions.maxVer in
     let ci = initConnection Client rand in
     Pi.assume (Configure(Client,ci.id_in,poptions)); // ``The user resumes a client in this config''
     let extL = prepareClientExtensions poptions ci empty_bytes (Some(retrievedSinfo.session_hash)) in
@@ -199,7 +199,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     | PSClient (cstate) ->
         (match cstate with
         | ClientIdle(cvd,svd) ->
-            (let rand = Nonce.mkHelloRandom () in
+            (let rand = Nonce.mkHelloRandom ops.maxVer in
             let sid = empty_bytes in
             let extL = prepareClientExtensions ops ci cvd None in
             let ext = clientExtensionsBytes extL in
@@ -243,7 +243,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) : bool * hs_state =
             | PSClient (cstate) ->
                 (match cstate with
                 | ClientIdle(cvd,svd) ->
-                    (let rand = Nonce.mkHelloRandom () in
+                    (let rand = Nonce.mkHelloRandom ops.maxVer in
                     let extL = prepareClientExtensions ops ci cvd (Some(retrievedSinfo.session_hash)) in
                     let ext = clientExtensionsBytes extL in
                     Pi.assume (Configure(Client,ci.id_in,ops)); // ``The user rekeys a client in this config''
@@ -1369,7 +1369,7 @@ let negotiate cList sList =
 
 let prepare_server_output_resumption ci state crand cExtL (sid:sessionID) storedSession cvd svd log =
     let (si,ms) = storedSession in
-    let srand = Nonce.mkHelloRandom () in
+    let srand = Nonce.mkHelloRandom si.protocol_version in
     let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions si.cipher_suite (cvd,svd) (Some(si.session_hash)) in
     let ext = serverExtensionsBytes sExtL in
     let sHelloB = serverHelloBytes si srand ext in
@@ -1400,7 +1400,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
             (match negotiate ch_compression_methods cfg.compressions with
             | Some(cm) ->
                 let sid = Nonce.random 32 in
-                let srand = Nonce.mkHelloRandom () in
+                let srand = Nonce.mkHelloRandom version in
                 let (sExtL, nExtL) = negotiateServerExtensions cExtL cfg cs (cvd, svd) None in
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = [];

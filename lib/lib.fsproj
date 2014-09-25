@@ -152,12 +152,12 @@
     <None Include="TLSError.fs7" />
     <Compile Include="TLSError.fsi" />
     <Compile Include="TLSError.fs" />
-    <None Include="Nonce.fs7" />
-    <Compile Include="Nonce.fsi" />
-    <Compile Include="Nonce.fs" />
     <None Include="TLSConstants.fs7" />
     <Compile Include="TLSConstants.fsi" />
     <Compile Include="TLSConstants.fs" />
+    <None Include="Nonce.fs7" />
+    <Compile Include="Nonce.fsi" />
+    <Compile Include="Nonce.fs" />
     <None Include="RSAKey.fs7" />
     <Compile Include="RSAKey.fsi" />
     <Compile Include="RSAKey.fs" />

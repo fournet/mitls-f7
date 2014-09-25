@@ -4,6 +4,7 @@ module Nonce
 
 open Bytes
 open Error
+open TLSConstants
 
 let timestamp () = bytes_of_int 4 (Date.secondsFromDawn ())
 
@@ -20,8 +21,14 @@ let noCsr = random 64 // a constant value, with negligible probability of being 
 let log = ref []
 #endif
 
-let rec mkHelloRandom(): bytes =
-    let Cr = timestamp() @| random 28 in
+let mkHelloRandom_int pv =
+    match pv with
+    | TLS_1p3 -> random 32
+    | TLS_1p2 | TLS_1p1
+    | TLS_1p0 | SSL_3p0 -> timestamp() @| random 28
+
+let rec mkHelloRandom pv: bytes =
+    let Cr = mkHelloRandom_int pv in
     //#begin-idealization
     #if ideal
     if List.memr !log Cr then 

@@ -3,8 +3,9 @@
 module Nonce
 
 open Bytes
+open TLSConstants
 
 val random: nat -> bytes
-val mkHelloRandom: unit -> bytes
+val mkHelloRandom: ProtocolVersion -> bytes
 
 val noCsr: bytes
