@@ -43,7 +43,7 @@ type Handshake_tls13 =
         let st,nsc,fch   = FlexClientHello.send(st,fch,cfg) in
         let st,fcke      = FlexClientKeyExchangeTLS13.send(st) in
 
-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+        let st,nsc,fsh   = FlexServerHelloTLS13.receive(st,fch,nsc) in
         let st,nsc,fske  = FlexServerKeyExchangeTLS13.receive(st,nsc) in
 
         // Peer advertize that it will encrypt the traffic
@@ -71,7 +71,7 @@ type Handshake_tls13 =
         let st,nsc,fch   = FlexClientHello.receive(st) in
         let st,fcke      = FlexClientKeyExchangeTLS13.receive(st) in
 
-        let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc) in
+        let st,nsc,fsh   = FlexServerHelloTLS13.send(st,fch,nsc) in
         let st,nsc,fske  = FlexServerKeyExchangeTLS13.send(st,nsc) in
 
         // We advertize that we will encrypt the traffic
