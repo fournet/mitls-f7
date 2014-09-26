@@ -60,7 +60,6 @@ let clientExtensionPayloadBytes ext =
     | CE_extended_ms -> empty_bytes
     | CE_extended_padding -> empty_bytes
     | CE_negotiated_dh_group gl ->
-        // TODO: add function to serialize dhGroup list
         let gb = dhGroupsBytes gl in
         vlbytes 1 gb
 
