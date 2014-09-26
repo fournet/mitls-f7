@@ -9,6 +9,7 @@ open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
+open FlexSecrets
 open FlexConstants
 open FlexHandshake
 
@@ -186,29 +187,39 @@ type FlexServerKeyExchangeTLS13 =
     /// <returns> Updated state * FServerKeyExchange message record </returns>
     // TODO BB : Min DH size ?
     static member receive (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchangeTLS13 =
-        let group = 
+        let nsckex13 = 
             match nsc.keys.kex with
-            | DH13(DHE(group,gx)) -> group
+            | DH13(dh13) -> dh13
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
         in
-        let st,fske = FlexServerKeyExchangeTLS13.receive(st,group) in
-        let epk = {nsc.keys with kex = fske.kex} in
+        let st,fske = FlexServerKeyExchangeTLS13.receive(st,nsckex13.group) in
+        let fskekex13 = 
+            match fske.kex with
+            | DH13(kex) -> kex
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
+        in 
+        let kex13 = { nsckex13 with gy = fskekex13.gy } in
+        let epk = {nsc.keys with kex = DH13(kex13) } in
         let nsc = {nsc with keys = epk} in
+        let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fske
 
     /// <summary>
     /// EXPERIMENTAL TLS 1.3 Receive DHE ServerKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
+    /// <param name="group"> DH group negociated and received in ServerHello </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
-    // TODO BB : Min DH size ?
+    //BB TODO : The spec is not sure that we should resend the group with the public exponent so we ignore it
     static member receive (st:state, group:dhGroup) : state * FServerKeyExchangeTLS13 =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_key_exchange  ->
             (match HandshakeMessages.parseTLS13SKEDHE group payload with
             | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct (kex13) ->
+            | Correct (DHE(_,gy)) ->
+                // We do not care about the group which is already set into nsc
+                let kex13 = { group = group; x = empty_bytes; gx = empty_bytes; gy = gy } in
                 let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex13); payload = to_log } in
                 st,fske 
             )
@@ -223,14 +234,19 @@ type FlexServerKeyExchangeTLS13 =
     /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
     static member send (st:state, nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyExchangeTLS13 =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let kex = match nsc.keys.kex with
+        let kex = 
+            match nsc.keys.kex with
             | DH13(kex) -> kex
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
         in
-        let payload = HandshakeMessages.tls13SKEBytes kex in
-        let st = FlexHandshake.send(st,payload,fp) in
-        let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex) ; payload = payload } in
-        let epk = {nsc.keys with kex = fske.kex} in
+        let st,fske = FlexServerKeyExchangeTLS13.send(st,kex.group,fp) in
+        let fskekex13 = 
+            match fske.kex with
+            | DH13(kex) -> kex
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
+        in 
+        let kex13 = { kex with x = fskekex13.x; gx = fskekex13.gx } in
+        let epk = {nsc.keys with kex = DH13(kex13) } in
         let nsc = {nsc with keys = epk} in
         st,nsc,fske
 
@@ -238,15 +254,21 @@ type FlexServerKeyExchangeTLS13 =
     /// EXPERIMENTAL TLS 1.3 Send a DHE ServerKeyExchange message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="kex"> Key Exchange record containing Diffie-Hellman parameters </param>
+    /// <param name="dhgroup"> Diffie-Hellman negociated group </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
-    static member send (st:state, kex:tls13kex, ?fp:fragmentationPolicy) : state * FServerKeyExchangeTLS13 =
+    static member send (st:state, dhgroup:dhGroup, ?fp:fragmentationPolicy) : state * FServerKeyExchangeTLS13 =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
 
-        let payload = HandshakeMessages.tls13SKEBytes kex in
+        let dhp = dhgroup_to_dhparams dhgroup in
+        let x,gx = CoreDH.gen_key_pg dhp.dhp dhp.dhg in
+        let dhggx = DHE(dhgroup,gx) in
+        let payload = HandshakeMessages.tls13SKEBytes dhggx in
+
         let st = FlexHandshake.send(st,payload,fp) in
-        let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex) ; payload = payload } in
+        // We do not care about the group and the peer public exponant which are already set into nsc
+        let kex13 = { group = dhgroup; x = x; gx = gx; gy = empty_bytes } in
+        let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex13) ; payload = payload } in
         st,fske
 
     end

@@ -35,6 +35,21 @@ type kexDH = {
 }
 
 /// <summary>
+/// DH key exchange parameters record,
+/// Contains both public and secret values associated of Diffie Hellman parameters
+/// </summary>
+/// <param name="group"> DH group negociated </param>
+/// <param name="x"> Local secret value of the DH exchange </param>
+/// <param name="gx"> Local public value (g^x mod p) of the DH exchange </param>
+/// <param name="gy"> Local public value (g^y mod p) of the DH exchange </param>
+type kexDHTLS13 = { 
+    group: dhGroup;
+    x:  bytes;
+    gx: bytes;
+    gy: bytes;
+}
+
+/// <summary>
 /// Key exchange union type,
 /// The constructor represents the type of Key Exchange Mechanism used in the Handshake
 /// The value for RSA is a PreMasterSecret as bytes
@@ -43,7 +58,7 @@ type kexDH = {
 type kex =
     | RSA of bytes
     | DH of kexDH
-    | DH13 of HandshakeMessages.tls13kex
+    | DH13 of kexDHTLS13
  // | ECDH of kexECDH // TODO
 
 (* ------------------------------------------------------------------------------------- *)
@@ -134,6 +149,7 @@ type nextSecurityContext = {
     crand: bytes;
     srand: bytes;
     keys: keys;
+    offers: list<kex>;
 }
 
 /// <summary>

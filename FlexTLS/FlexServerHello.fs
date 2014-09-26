@@ -252,7 +252,9 @@ type FlexServerHelloTLS13 =
                 | NE_negotiated_dh_group(group) -> group
                 | _ -> failwith "dh_group extension is mandatory for TLS 1.3"
         in
-        let keys = { nsc.keys with kex = DH13(DHE(group,empty_bytes))} in
+        //BB FIXME : pick a x,gx from offers !!
+        let kex13 = {group = group; x = empty_bytes; gx = empty_bytes; gy = empty_bytes} in
+        let keys = { nsc.keys with kex = DH13(kex13)} in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;

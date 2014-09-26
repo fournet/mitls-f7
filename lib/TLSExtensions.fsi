@@ -31,6 +31,7 @@ val checkServerResumptionInfoExtension:    config -> list<serverExtension> -> se
 
 val hasExtendedMS: negotiatedExtensions -> bool
 val hasDHgroup: negotiatedExtensions -> bool
+val getOfferedDHGroups: list<clientExtension> -> option<list<dhGroup>>
 val hasExtendedPadding: id -> bool
 
 // type extensionType

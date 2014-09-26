@@ -41,7 +41,7 @@ type Handshake_tls13 =
         let cfg = {defaultConfig with negotiableDHGroups = [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]} in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch,cfg) in
-        let st,fcke      = FlexClientKeyExchangeTLS13.send(st) in
+        let st,nsc,fcke  = FlexClientKeyExchangeTLS13.send(st,nsc) in
 
         let st,nsc,fsh   = FlexServerHelloTLS13.receive(st,fch,nsc) in
         let st,nsc,fske  = FlexServerKeyExchangeTLS13.receive(st,nsc) in

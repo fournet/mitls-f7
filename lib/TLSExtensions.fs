@@ -455,6 +455,14 @@ let isDHgroup e =
 let hasDHgroup extL =
     List.exists isDHgroup extL
 
+let getOfferedDHGroups extL =
+    let getGroup ext =
+        match ext with
+        | CE_negotiated_dh_group (gl) -> Some(gl)
+        | _ -> None
+    in
+    List.tryPick getGroup extL
+
 let isExtendedPadding e =
     match e with
     | NE_extended_padding -> true

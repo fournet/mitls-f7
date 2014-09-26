@@ -192,6 +192,7 @@ type FlexConstants =
         crand = empty_bytes;
         srand = empty_bytes;
         keys = FlexConstants.nullKeys;
+        offers = [];
     }
 
     end

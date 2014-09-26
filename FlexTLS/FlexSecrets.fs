@@ -3,7 +3,9 @@
 module FlexSecrets
 
 open Bytes
+open Error
 open TLSInfo
+open TLSConstants
 
 open FlexTypes
 open FlexConstants
@@ -46,7 +48,9 @@ type FlexSecrets =
             let p,_ = dhp.pg in
             let x,gy = dhp.x, dhp.gy in
             CoreDH.agreement p x gy
-        | DH13(HandshakeMessages.tls13kex.DHE(group,gx)) -> failwith "TODO"
+        | DH13(dh13) -> 
+            let dhparams = dhgroup_to_dhparams dh13.group in
+            CoreDH.agreement dhparams.dhp dh13.x dh13.gy
 
     /// <summary>
     /// Generate the MasterSecret from the PreMasterSecret

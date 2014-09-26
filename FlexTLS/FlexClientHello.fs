@@ -191,13 +191,23 @@ type FlexClientHello =
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
         let exts = clientExtensionsBytes fch.ext in
+        let offers = 
+            match TLSExtensions.getOfferedDHGroups fch.ext with
+            | None -> []
+            | Some(gl) ->
+                let dh13 g =
+                    DH13({group = g; x = empty_bytes; gx = empty_bytes; gy = empty_bytes})
+                in
+                List.map dh13 gl
+        in
         let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid exts in
         let st = FlexHandshake.send(st,payload,fp) in
         // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
         let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
         let nsc = { FlexConstants.nullNextSecurityContext with
                     si = si;
-                    crand = fch.rand } in
+                    crand = fch.rand; 
+                    offers = offers; } in
         let fch = { fch with payload = payload } in
         st,nsc,fch
     
