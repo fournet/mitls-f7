@@ -46,8 +46,7 @@ type FlexSecrets =
         | RSA(pms) -> pms
         | DH(dhp) ->
             let p,_ = dhp.pg in
-            let x,gy = dhp.x, dhp.gy in
-            CoreDH.agreement p x gy
+            CoreDH.agreement p dhp.x dhp.gy
         | DH13(dh13) -> 
             let dhparams = dhgroup_to_dhparams dh13.group in
             CoreDH.agreement dhparams.dhp dh13.x dh13.gy

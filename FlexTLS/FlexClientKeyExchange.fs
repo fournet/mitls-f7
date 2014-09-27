@@ -361,6 +361,7 @@ type FlexClientKeyExchange =
         
         let p,g = kexdh.pg in
         let dhp = { FlexConstants.nullDHParams with dhp = p; dhg = g } in
+        // FIXME: we overwrite user-provided parameters!
         let x,gx = CoreDH.gen_key_pg p g in
 
         let payload = clientKEXExplicitBytes_DH gx in
@@ -382,7 +383,7 @@ type FlexClientKeyExchangeTLS13 =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * FClientKeyExchangeTLS13 message record </returns>
-    static member receive (st:state) : state * FClientKeyExchangeTLS13 =
+    static member receive (st:state,nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchangeTLS13 =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_key_exchange  ->
@@ -390,7 +391,15 @@ type FlexClientKeyExchangeTLS13 =
             | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(kexl) ->
                 let fcke = { offers = kexl ; payload = to_log } in
-                st,fcke
+                let offers =
+                    List.map (fun x ->
+                        match x with
+                        | DHE(g,gy) ->
+                            DH13({group = g; x = empty_bytes; gx = empty_bytes; gy = gy})
+                    ) kexl
+                in
+                let nsc = {nsc with offers = offers} in
+                st,nsc,fcke
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
 
@@ -447,18 +456,25 @@ type FlexClientKeyExchangeTLS13 =
     static member send (st:state, kex13l:list<tls13kex>, ?fp:fragmentationPolicy) : state * list<kex> * FClientKeyExchangeTLS13 =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
 
-        let payload = HandshakeMessages.tls13CKEOffersBytes kex13l in
+        let sampleDH kex =
+            match kex with
+            | DHE(g,gx) ->
+                if gx = empty_bytes then
+                    let x,gx = CoreDH.gen_key (dhgroup_to_dhparams g) in
+                    x,DHE(g,gx)
+                else
+                    empty_bytes, kex
+        in
+        let kex13l = List.map sampleDH kex13l in
+        let _,pubkex = List.unzip kex13l in
+        let payload = HandshakeMessages.tls13CKEOffersBytes pubkex in
         let st = FlexHandshake.send(st,payload,fp) in
-        let fcke = { offers = kex13l ; payload = payload } in
+        let fcke = { offers = pubkex ; payload = payload } in
         //BB TODO : this function could go to FlexSecrets because it does secret generation
-        let kexify (e:tls13kex) : kex =
+        let kexify e =
             match e with
-            | DHE(group,gx) ->
-                let dhp = dhgroup_to_dhparams group in
-                let x,gx =
-                    if gx = empty_bytes then CoreDH.gen_key_pg dhp.dhp dhp.dhg else empty_bytes,gx 
-                in
-                let kex13 = {group = group; x = x; gx = gx; gy = empty_bytes } in
+            | sec,DHE(group,gx) ->
+                let kex13 = {group = group; x = sec; gx = gx; gy = empty_bytes } in
                 DH13(kex13)
         in
         let kexl = List.map kexify kex13l in

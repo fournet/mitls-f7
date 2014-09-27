@@ -88,9 +88,24 @@ type FlexServerHello =
                     extensions = negExts;
                   } 
         in
+        let keys = 
+            match getNegotiatedDHGroup negExts with
+            | None -> nsc.keys
+            | Some(group) ->
+                let kex = 
+                    match List.tryFind
+                        (fun x -> match x with
+                        | DH13(off) -> off.group = group
+                        | _ -> false) nsc.offers with
+                    | None -> DH13 ({group = group; x = empty_bytes; gx = empty_bytes; gy = empty_bytes})
+                    | Some(kex) -> kex
+                in
+                {nsc.keys with kex = kex}
+        in
         let nsc = { nsc with
                     si = si;
-                    srand = fsh.rand; 
+                    srand = fsh.rand;
+                    keys = keys;
                   }
         in
         st,nsc,fsh
@@ -220,63 +235,3 @@ type FlexServerHello =
 
     end
 
-type FlexServerHelloTLS13 = 
-    class
-    
-    /// <summary>
-    /// EXPERIMENTAL TLS 1.3 Receive a ServerHello message from the network stream
-    /// </summary>
-    /// <param name="st"> State of the current Handshake </param>
-    /// <param name="fch"> FClientHello containing the client extensions </param>
-    /// <param name="nsc"> Optional Next security context being negociated </param>
-    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member receive (st:state, fch:FClientHello, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let st,fsh,negExts = FlexServerHello.receive(st,fch.ext) in
-        let si  = { nsc.si with 
-                    init_srand = fsh.rand;
-                    protocol_version = fsh.pv;
-                    sessionID = fsh.sid;
-                    cipher_suite = cipherSuite_of_name fsh.suite;
-                    compression = fsh.comp;
-                    extensions = negExts;
-                  } 
-        in
-        let group =
-            let isDHgroup e =
-                match e with
-                | NE_negotiated_dh_group(group) -> true
-                | _ -> false
-            in
-            match List.find isDHgroup negExts with
-                | NE_negotiated_dh_group(group) -> group
-                | _ -> failwith "dh_group extension is mandatory for TLS 1.3"
-        in
-        //BB FIXME : pick a x,gx from offers !!
-        let kex13 = {group = group; x = empty_bytes; gx = empty_bytes; gy = empty_bytes} in
-        let keys = { nsc.keys with kex = DH13(kex13)} in
-        let nsc = { nsc with
-                    si = si;
-                    srand = fsh.rand;
-                    keys = keys;
-                  }
-        in
-        st,nsc,fsh
-
-
-    /// <summary>
-    /// EXPERIMENTAL TLS 1.3 Send a ServerHello message to the network stream (Copy of the TLS 1.3 version)
-    /// </summary>
-    /// <param name="st"> State of the current Handshake </param>
-    /// <param name="fch"> FClientHello message record containing client extensions </param>
-    /// <param name="nsc"> Optional Next security context being negociated </param>
-    /// <param name="fsh"> Optional FServerHello message record </param>
-    /// <param name="fp"> Optional fragmentation policy at the record level </param>
-    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
-        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        FlexServerHello.send(st,fch,nsc,fsh,fp)
-
-    end

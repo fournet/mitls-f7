@@ -9,6 +9,7 @@ open Attack_EarlyCCS
 open Handshake_full_RSA
 open Handshake_full_DHE
 open Handshake_resumption
+open Handshake_tls13
 
 
 [<EntryPoint>]
@@ -25,9 +26,13 @@ let main argv =
     //Attack_EarlyCCS.runMITM("0.0.0.0","128.93.62.11",4433);
     //printf "Early CCS attack finished\n";
 
+    (* Experimental TLS 1.3 full handshake as Server *)
+    let st = Handshake_tls13.server("0.0.0.0","rsa.cert-01.mitls.org",4433) in
+    printf "TLS 1.3 server finished\n";
+
     (* Standard RSA full handshake as Client*)
-    let st = Handshake_full_RSA.client("www.inria.fr") in
-    printf "RSA client finished\n";
+    //let st = Handshake_full_RSA.client("www.inria.fr") in
+    //printf "RSA client finished\n";
 
     (* Standard RSA handshake with resumption as Client*)
     //let st = Handshake_full_RSA.client("www.inria.fr") in

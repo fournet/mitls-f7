@@ -6,6 +6,7 @@ open Bytes
 open Error
 open TLSInfo
 open TLSConstants
+open TLSExtensions
 open HandshakeMessages
 
 open FlexTypes
@@ -185,7 +186,7 @@ type FlexServerKeyExchangeTLS13 =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="nsc"> Next security context that embbed the kex to be sent </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
-    // TODO BB : Min DH size ?
+    // TODO BB : Min DH size ? AP: Not needed, as we only used named groups.
     static member receive (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchangeTLS13 =
         let nsckex13 = 
             match nsc.keys.kex with
@@ -193,12 +194,11 @@ type FlexServerKeyExchangeTLS13 =
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
         in
         let st,fske = FlexServerKeyExchangeTLS13.receive(st,nsckex13.group) in
-        let fskekex13 = 
+        let gy =
             match fske.kex with
-            | DH13(kex) -> kex
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
-        in 
-        let kex13 = { nsckex13 with gy = fskekex13.gy } in
+            | DHE(_,gy) -> gy
+        in
+        let kex13 = { nsckex13 with gy = gy } in
         let epk = {nsc.keys with kex = DH13(kex13) } in
         let nsc = {nsc with keys = epk} in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
@@ -217,10 +217,8 @@ type FlexServerKeyExchangeTLS13 =
         | HT_server_key_exchange  ->
             (match HandshakeMessages.parseTLS13SKEDHE group payload with
             | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct (DHE(_,gy)) ->
-                // We do not care about the group which is already set into nsc
-                let kex13 = { group = group; x = empty_bytes; gx = empty_bytes; gy = gy } in
-                let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex13); payload = to_log } in
+            | Correct (kex) ->
+                let fske : FServerKeyExchangeTLS13 = { kex = kex; payload = to_log } in
                 st,fske 
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
@@ -236,18 +234,41 @@ type FlexServerKeyExchangeTLS13 =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let kex = 
             match nsc.keys.kex with
-            | DH13(kex) -> kex
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
+            | DH13(kex) when not (kex.gx = empty_bytes) ->
+                // User-provided kex; don't alter it
+                nsc.keys.kex
+            | _ ->
+                // User didn't provide any useful default:
+                // We sample DH paramters, and get client share from its offers
+                let group =
+                    match getNegotiatedDHGroup nsc.si.extensions with
+                    | None -> failwith (perror __SOURCE_FILE__ __LINE__ "TLS 1.3 requires a negotiated DH group")
+                    | Some(group) -> group
+                in
+                // pick client offer
+                match List.tryFind
+                    (fun x -> match x with
+                        | DH13(x) -> x.group = group
+                        | _ -> false ) nsc.offers with
+                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Client provided no suitable offer")
+                | Some(offer) ->
+                    match offer with
+                    | DH13(offer) ->
+                        let x,gx = CoreDH.gen_key (dhgroup_to_dhparams offer.group) in
+                        DH13({offer with x = x; gx = gx})
+                    | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unimplemented or unsupported key exchange")
         in
-        let st,fske = FlexServerKeyExchangeTLS13.send(st,kex.group,fp) in
-        let fskekex13 = 
-            match fske.kex with
-            | DH13(kex) -> kex
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
-        in 
-        let kex13 = { kex with x = fskekex13.x; gx = fskekex13.gx } in
-        let epk = {nsc.keys with kex = DH13(kex13) } in
+        
+        let kex13 =
+            match kex with
+            | DH13(offer) ->
+                DHE(offer.group,offer.gx)
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unimplemented or unsupported key exchange")
+        in
+        let st,fske = FlexServerKeyExchangeTLS13.send(st,kex13,fp) in
+        let epk = {nsc.keys with kex = kex } in
         let nsc = {nsc with keys = epk} in
+        let nsc = FlexSecrets.fillSecrets (st,Server,nsc) in
         st,nsc,fske
 
     /// <summary>
@@ -257,18 +278,13 @@ type FlexServerKeyExchangeTLS13 =
     /// <param name="dhgroup"> Diffie-Hellman negociated group </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
-    static member send (st:state, dhgroup:dhGroup, ?fp:fragmentationPolicy) : state * FServerKeyExchangeTLS13 =
+    static member send (st:state, kex:tls13kex, ?fp:fragmentationPolicy) : state * FServerKeyExchangeTLS13 =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-
-        let dhp = dhgroup_to_dhparams dhgroup in
-        let x,gx = CoreDH.gen_key_pg dhp.dhp dhp.dhg in
-        let dhggx = DHE(dhgroup,gx) in
-        let payload = HandshakeMessages.tls13SKEBytes dhggx in
+        
+        let payload = HandshakeMessages.tls13SKEBytes kex in
 
         let st = FlexHandshake.send(st,payload,fp) in
-        // We do not care about the group and the peer public exponant which are already set into nsc
-        let kex13 = { group = dhgroup; x = x; gx = gx; gy = empty_bytes } in
-        let fske : FServerKeyExchangeTLS13 = { kex = DH13(kex13) ; payload = payload } in
+        let fske : FServerKeyExchangeTLS13 = { kex = kex ; payload = payload } in
         st,fske
 
     end

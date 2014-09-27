@@ -80,7 +80,7 @@ type FClientKeyExchangeTLS13 = {
 /// <param name="kex"> Key Exchange mechanism information </param>
 /// <param name="payload"> Real message bytes </param>
 type FServerKeyExchangeTLS13 = {
-    kex:kex;
+    kex:HandshakeMessages.tls13kex;
     payload:bytes;
 }
 

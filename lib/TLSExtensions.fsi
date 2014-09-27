@@ -30,7 +30,7 @@ val checkClientResumptionInfoExtension:    config -> list<clientExtension> -> se
 val checkServerResumptionInfoExtension:    config -> list<serverExtension> -> sessionHash -> bool
 
 val hasExtendedMS: negotiatedExtensions -> bool
-val hasDHgroup: negotiatedExtensions -> bool
+val getNegotiatedDHGroup: negotiatedExtensions -> option<dhGroup>
 val getOfferedDHGroups: list<clientExtension> -> option<list<dhGroup>>
 val hasExtendedPadding: id -> bool
 

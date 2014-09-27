@@ -447,13 +447,13 @@ let isExtendedMS e =
 let hasExtendedMS extL =
     List.exists isExtendedMS extL
 
-let isDHgroup e =
+let getDHGroup e =
     match e with
-    | NE_negotiated_dh_group(group) -> true
-    | _ -> false
+    | NE_negotiated_dh_group(group) -> Some(group)
+    | _ -> None
 
-let hasDHgroup extL =
-    List.exists isDHgroup extL
+let getNegotiatedDHGroup extL =
+    List.tryPick getDHGroup extL
 
 let getOfferedDHGroups extL =
     let getGroup ext =
