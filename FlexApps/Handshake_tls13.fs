@@ -28,17 +28,18 @@ open FlexSecrets
 type Handshake_tls13 =
     class
 
-    static member client (server_name:string, ?port:int) : state =
+    static member client (address:string, ?cn:string, ?port:int) : state =
+        let cn = defaultArg cn address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         // Start TCP connection with the server
-        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port,TLS_1p3) in
+        let st,_ = FlexConnection.clientOpenTcpConnection(address,cn,port,TLS_1p3) in
 
         // We want to ensure a ciphersuite
         let fch = {FlexConstants.nullFClientHello with
             suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256] } in
 
-        // We need to use the negociable groups extension for TLS 1.3
+        // We need to use the negotiable groups extension for TLS 1.3
         let cfg = {defaultConfig with negotiableDHGroups = [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]} in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch,cfg) in
@@ -87,7 +88,10 @@ type Handshake_tls13 =
 
         let st,nsc,fcke  = FlexClientKeyExchangeTLS13.receive(st,nsc) in
 
-        let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc) in
+        // We need to use the negotiable groups extension for TLS 1.3
+        let cfg = {defaultConfig with negotiableDHGroups = [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]} in
+
+        let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,cfg=cfg) in
         let st,nsc,fske  = FlexServerKeyExchangeTLS13.send(st,nsc) in
 
         // We advertize that we will encrypt the traffic

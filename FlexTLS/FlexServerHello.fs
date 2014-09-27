@@ -188,13 +188,14 @@ type FlexServerHello =
     /// <param name="fsh"> Optional FServerHello message record </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
+    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let cfg = defaultArg cfg defaultConfig in
 
         let fsh,si = fillFServerHelloANDSi fsh nsc.si in
-        let st,si,fsh = FlexServerHello.send(st,si,fch.ext,fp=fp) in
+        let st,si,fsh = FlexServerHello.send(st,si,fch.ext,cfg=cfg,fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;
@@ -212,7 +213,8 @@ type FlexServerHello =
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    // TODO BB : Possibility to override the negociatedExtensions 
+    // TODO BB : Possibility to override the negociatedExtensions
+    // TODO: This needs to be aligned with the overload above.
     static member send (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
