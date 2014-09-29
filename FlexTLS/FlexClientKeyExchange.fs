@@ -360,10 +360,10 @@ type FlexClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         
         let p,g = kexdh.pg in
-        let dhp = { FlexConstants.nullDHParams with dhp = p; dhg = g } in
-        // FIXME: we overwrite user-provided parameters!
-        let x,gx = CoreDH.gen_key_pg p g in
-
+        // We override the public and secret exponent if one of the two is empty
+        let x,gx = 
+            if (kexdh.x = empty_bytes) || (kexdh.gx = empty_bytes) then CoreDH.gen_key_pg p g else kexdh.x,kexdh.gx
+        in
         let payload = clientKEXExplicitBytes_DH gx in
         let st = FlexHandshake.send(st,payload,fp) in
         let kexdh = { kexdh with x = x; gx = gx } in
