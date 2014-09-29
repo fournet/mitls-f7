@@ -294,7 +294,7 @@ let parseServerExtension head payload =
         | Correct(dhg) -> correct(SE_negotiated_dh_group dhg))
     | (_,_) ->
         // A server can never send an extension the client doesn't support
-        Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extesion")
+        Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extension")
 
 let addOnceServer ext extList =
     if List.exists (sameServerExt ext) extList then
