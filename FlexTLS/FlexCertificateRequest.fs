@@ -87,7 +87,7 @@ type FlexCertificateRequest =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let payload = HandshakeMessages.certificateRequestBytes true cs pv in
         let st = FlexHandshake.send (st,payload,fp) in
-        // FIXME : miTLS doesn't allow to get back the list of signature algorithms infered from ciphersuite and pv
+        //BB FIXME : miTLS doesn't allow to get back the list of signature algorithms infered from ciphersuite and pv
         // We return dummy values in the FCertificateRequest sigAlgs so it can be used later by FCertificateVerify functions
         let fcreq = { FlexConstants.nullFCertificateRequest with sigAlgs = FlexConstants.sigAlgs_ALL ; payload = payload } in
         st,fcreq

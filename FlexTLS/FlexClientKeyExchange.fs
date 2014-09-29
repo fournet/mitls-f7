@@ -243,7 +243,7 @@ type FlexClientKeyExchange =
 
 
     (*----------------------------------------------------------------------------------------------------------------------------------------------*)
-    // TODO BB : The RSA and DHE methods should be fixed to all use the kex record instead of pms and kexDH
+    //BB : should RSA and DHE methods be fixed to all use the kex record instead of pms and kexDH ?
 
     /// <summary>
     /// Receive DHE ClientKeyExchange fromthe network stream
@@ -252,7 +252,7 @@ type FlexClientKeyExchange =
     /// <param name="fske"> Previously sent Server Key exchange containing kex record and DH parameters </param>
     /// <param name="nsc"> Next security context being negociated and containing the key exchange mechanism retreived from a previous server key exchange</param>
     /// <returns> Updated state * Next security context * FClientKeyExchange message record </returns>
-    // FIXME BB : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH
+    //BB FIXME : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH
     static member receiveDHE (st:state, fske:FServerKeyExchange, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let epk = {nsc.keys with kex = fske.kex} in
@@ -321,7 +321,7 @@ type FlexClientKeyExchange =
     /// <param name="fske"> Server key exchange data necessary or a modified version </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Next security context * FClientKeyExchange message record </returns>
-    // FIXME BB : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH ?
+    //BB FIXME : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH ?
     static member sendDHE (st:state, fske:FServerKeyExchange, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
@@ -421,7 +421,7 @@ type FlexClientKeyExchangeTLS13 =
         in
         let kex13l = List.map kex13ify nsc.offers in
         let st,kexl,fcke = FlexClientKeyExchangeTLS13.send(st,kex13l,fp) in
-        //BB TODO : Maybe this function should be put somewhere else
+        //BB : Maybe this function should be put somewhere else 
         let choose (uo:kex) (fo:kex) : kex =
             let ukex13 = 
                 match uo with
@@ -467,10 +467,11 @@ type FlexClientKeyExchangeTLS13 =
         in
         let kex13l = List.map sampleDH kex13l in
         let _,pubkex = List.unzip kex13l in
+
         let payload = HandshakeMessages.tls13CKEOffersBytes pubkex in
         let st = FlexHandshake.send(st,payload,fp) in
+
         let fcke = { offers = pubkex ; payload = payload } in
-        //BB TODO : this function could go to FlexSecrets because it does secret generation
         let kexify e =
             match e with
             | sec,DHE(group,gx) ->

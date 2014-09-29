@@ -186,7 +186,7 @@ type FlexServerKeyExchangeTLS13 =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="nsc"> Next security context that embbed the kex to be sent </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
-    // TODO BB : Min DH size ? AP: Not needed, as we only used named groups.
+    //BB : No need to have minimal DH params as for TLS < 1.3 because we only used named groups
     static member receive (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyExchangeTLS13 =
         let nsckex13 = 
             match nsc.keys.kex with
@@ -210,7 +210,7 @@ type FlexServerKeyExchangeTLS13 =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="group"> DH group negociated and received in ServerHello </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
-    //BB TODO : The spec is not sure that we should resend the group with the public exponent so we ignore it
+    //BB : The spec is not sure that we should resend the group with the public exponent so we ignore it for now
     static member receive (st:state, group:dhGroup) : state * FServerKeyExchangeTLS13 =
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with

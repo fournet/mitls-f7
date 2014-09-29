@@ -167,7 +167,6 @@ type FlexServerHello =
         let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
         let sextL,negExts = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas sessionHash in
         let exts = serverExtensionsBytes sextL in
-        // TODO BB : Check this is put at the right place ?
         let fsh,si = fillFServerHelloANDSi FlexConstants.nullFServerHello si in
         let si = {si with extensions = negExts } in
         let st = fillStateEpochInitPvIFIsEpochInit st fsh in
@@ -213,8 +212,8 @@ type FlexServerHello =
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    // TODO BB : Possibility to override the negociatedExtensions
-    // TODO: This needs to be aligned with the overload above.
+    //BB TODO : Possibility to override the negociatedExtensions; the fill functions are called multiple times when calling the overloaded function
+    //AP TODO: This needs to be aligned with the overload above.
     static member send (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
@@ -222,7 +221,6 @@ type FlexServerHello =
         let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
         let sextL,negExts = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas sessionHash in
         let exts = serverExtensionsBytes sextL in
-        // TODO BB : Check this is put at the right place ?
         let fsh,si = fillFServerHelloANDSi FlexConstants.nullFServerHello si in
         let si = {si with extensions = negExts } in
         let st = fillStateEpochInitPvIFIsEpochInit st fsh in

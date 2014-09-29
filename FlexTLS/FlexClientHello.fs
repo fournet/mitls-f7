@@ -202,7 +202,7 @@ type FlexClientHello =
         in
         let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid exts in
         let st = FlexHandshake.send(st,payload,fp) in
-        // TODO : How should we deal with nextSecurityContext depending on IsInitEpoch ?
+
         let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
         let nsc = { FlexConstants.nullNextSecurityContext with
                     si = si;
