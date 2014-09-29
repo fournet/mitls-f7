@@ -45,7 +45,7 @@ let clientExtensionHeaderBytes ext =
     match ext with
     | CE_renegotiation_info(_) -> abyte2 (0xFFuy, 0x01uy)
 //    | CE_server_name (_)     -> abyte2 (0x00uy, 0x00uy)
-    | CE_extended_ms           -> abyte2 (0xFFuy, 0xABuy)
+    | CE_extended_ms           -> abyte2 (0x00uy, 0x17uy)
     | CE_extended_padding      -> abyte2 (0xBBuy, 0x8Fuy)
 
 let clientExtensionPayloadBytes ext =
@@ -77,7 +77,7 @@ let parseClientExtension head payload =
             let res = CE_renegotiation_info (cvd) in
             let res = correct res in
             Some(res))
-    | (0xFFuy, 0xABuy) -> // extended_ms
+    | (0x00uy, 0x17uy) -> // extended_ms
         if equalBytes payload empty_bytes then
             Some(correct (CE_extended_ms))
         else
@@ -177,7 +177,7 @@ let serverExtensionHeaderBytes ext =
     match ext with
     | SE_renegotiation_info (_,_) -> abyte2 (0xFFuy, 0x01uy)
  //   | SE_server_name (_)        -> abyte2 (0x00uy, 0x00uy)
-    | SE_extended_ms              -> abyte2 (0xFFuy, 0xABuy)
+    | SE_extended_ms              -> abyte2 (0x00uy, 0x17uy)
     | SE_extended_padding         -> abyte2 (0xBBuy, 0x8Fuy)
 
 let serverExtensionPayloadBytes ext =
@@ -212,7 +212,7 @@ let parseServerExtension head payload =
             let (cvd,svd) = split vd (vdL/2) in
             let res = SE_renegotiation_info (cvd,svd) in
             correct(res))
-    | (0xFFuy, 0xABuy) -> // extended master secret
+    | (0x00uy, 0x17uy) -> // extended master secret
         if equalBytes payload empty_bytes then
             correct(SE_extended_ms)
         else
