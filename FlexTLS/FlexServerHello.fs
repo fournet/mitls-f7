@@ -234,4 +234,3 @@ type FlexServerHello =
         st,si,fsh
 
     end
-
