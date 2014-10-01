@@ -17,6 +17,8 @@ tls.sln
 
 easycrypt/*.ec
 
+find:packages:*
+
 find:3rdparty:*.dll
 find:DB/lib:*.dll
 

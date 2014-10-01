@@ -105,8 +105,6 @@
       <HintPath>..\packages\FSPowerPack.Core.Community.3.0.0.0\Lib\Net40\FSharp.PowerPack.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="..\3rdparty\FSharp.PowerPack.dll" Condition="'$(OS)' != 'Windows_NT'" />
-    <Reference Include="..\3rdparty\FSharp.PowerPack.Compatibility.dll" Condition="'$(OS)' != 'Windows_NT'" />
     <Reference Include="FSharp.PowerPack.Linq">
       <HintPath>..\packages\FSPowerPack.Linq.Community.3.0.0.0\Lib\Net40\FSharp.PowerPack.Linq.dll</HintPath>
       <Private>True</Private>
