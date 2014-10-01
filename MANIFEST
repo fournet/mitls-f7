@@ -9,6 +9,8 @@ Makefile.config
 
 scripts/distribution
 
+data/dh/*
+
 licenses/*.txt
 
 tls.sln
