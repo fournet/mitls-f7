@@ -259,7 +259,8 @@ let private verifyData si ms role data =
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
-  //if safeVD si then  //MK rename predicate and function
+  //MK rename predicate and function
+  //if safeVD si then
   let i = msi si in
   let msdataoption = assoc role tag !log in
   let msdata = (i,data) in
