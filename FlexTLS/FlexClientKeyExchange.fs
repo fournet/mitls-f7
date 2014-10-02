@@ -2,6 +2,8 @@
 
 module FlexClientKeyExchange
 
+open NLog
+
 open Bytes
 open Error
 open TLSConstants
@@ -217,6 +219,7 @@ type FlexClientKeyExchange =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FClientKeyExchange message record </returns>
     static member sendRSA (st:state, certl:list<Cert.cert>, pv:ProtocolVersion, ?pms:bytes, ?fp:fragmentationPolicy) : state * FClientKeyExchange =
+        LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE : FlexClientKeyExchange.sendRSA");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         if certl.IsEmpty then
             failwith (perror __SOURCE_FILE__ __LINE__  "Server certificate should always be present with a RSA signing cipher suite.")
@@ -239,6 +242,8 @@ type FlexClientKeyExchange =
                 let st = FlexHandshake.send(st,payload,fp) in
                 let kex = RSA(pmsb) in
                 let fcke : FClientKeyExchange = {kex = kex; payload = payload } in
+                LogManager.GetLogger("file").Debug(sprintf "--- Pre Master Secret : %A" (Bytes.hexString(pmsb)));
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
                 st,fcke
 
 

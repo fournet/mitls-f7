@@ -2,6 +2,8 @@
 
 module FlexRecord
 
+open NLog
+
 open Tcp
 open Bytes
 open Error
@@ -153,6 +155,7 @@ type FlexRecord =
                 si.protocol_version
         in
         let msgb,rem = splitCTPayloadFP payload fp in
+        LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(msgb)));
         let k,b = FlexRecord.encrypt (e,pv,k,ct,msgb) in
         match Tcp.write ns b with
         | Error x -> failwith x

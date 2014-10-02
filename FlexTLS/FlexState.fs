@@ -2,6 +2,8 @@
 
 module FlexState
 
+open NLog
+
 open Bytes
 open TLSInfo
 
@@ -63,6 +65,7 @@ type FlexState =
     /// <param name="nsc"> Next security context being negociated </param>
     /// <returns> Updated state </returns>
     static member installReadKeys (st:state) (nsc:nextSecurityContext): state =
+        LogManager.GetLogger("file").Debug("@ Install Read Keys");
         let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.crand nsc.srand nsc.si in
         let rk,_ = nsc.keys.epoch_keys in
         let ark = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Reader rk in
@@ -122,6 +125,7 @@ type FlexState =
     /// <param name="nsc"> Next security context being negociated </param>
     /// <returns> Updated state </returns>
     static member installWriteKeys (st:state) (nsc:nextSecurityContext) : state =
+        LogManager.GetLogger("file").Debug("@ Install Write Keys");
         let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
         let _,wk = nsc.keys.epoch_keys in
         let awk = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Writer wk in

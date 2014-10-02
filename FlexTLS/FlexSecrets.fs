@@ -2,6 +2,8 @@
 
 module FlexSecrets
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -102,7 +104,7 @@ type FlexSecrets =
     /// <param name="nsc"> Next security context being negociated </param>
     /// <returns> Updated next security context </returns>
     static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext) : nextSecurityContext =
-
+        LogManager.GetLogger("file").Debug("@ Fill Secrets");
         let er = TLSInfo.nextEpoch st.read.epoch  nsc.crand nsc.srand nsc.si in
         let ew = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
         
@@ -115,7 +117,12 @@ type FlexSecrets =
 
         let ms = if nsc.keys.ms = empty_bytes then FlexSecrets.pms_to_ms nsc.si pms else nsc.keys.ms in
         let keys = if nsc.keys.epoch_keys = (empty_bytes,empty_bytes) then FlexSecrets.ms_to_keys er ew role ms else nsc.keys.epoch_keys in
+        let rkeys,wkeys = keys in
         let epk = {nsc.keys with pms = pms; ms = ms; epoch_keys = keys} in
+        LogManager.GetLogger("file").Debug(sprintf "--- Pre Master Secret : %A" (Bytes.hexString(pms)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Master Secret : %A" (Bytes.hexString(ms)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Reading Keys : %A" (Bytes.hexString(rkeys)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Writing Keys : %A" (Bytes.hexString(wkeys)));
         { nsc with keys = epk }
 
     end

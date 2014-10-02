@@ -2,6 +2,8 @@
 
 module FlexConnection
 
+open NLog
+
 open Bytes
 open Tcp
 open TLSInfo
@@ -78,6 +80,7 @@ type FlexConnection =
     /// <param name="pv"> Optional protocol version required to generate randomness </param>
     /// <returns> Updated state * Updated config </returns> 
     static member clientOpenTcpConnection (address:string, ?cn:string, ?port:int, ?pv:ProtocolVersion) :  state * config =
+        LogManager.GetLogger("file").Info("TCP : FlexConnection.clientOpenTcpConnection");
         let pv = defaultArg pv defaultConfig.maxVer in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
@@ -88,6 +91,8 @@ type FlexConnection =
 
         let ns = Tcp.connect address port in
         let st = FlexConnection.init (Client, ns) in
+        LogManager.GetLogger("file").Debug(sprintf "--- Address : %s" address);
+        LogManager.GetLogger("file").Debug(sprintf "--- Port : %d" port);
         (st,cfg)
 
     end

@@ -2,6 +2,8 @@
 
 module FlexFinished
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -27,6 +29,7 @@ type FlexFinished =
     /// <param name="verify_data"> Optional verify_data that will be checked if provided </param>
     /// <returns> Updated state * FFinished message record </returns>
     static member receive (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext) : state * FFinished = 
+        LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.receive");
         let verify_data =
             match logRoleNSC with
             | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
@@ -39,13 +42,17 @@ type FlexFinished =
         match hstype with
         | HT_finished  -> 
             if length payload <> 12 then
-                failwith (perror __SOURCE_FILE__ __LINE__ "unexpected payload length")
+                (LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(payload)));
+                failwith (perror __SOURCE_FILE__ __LINE__ "unexpected payload length"))
             else
                 // Check the verify data value
                 if not (verify_data = payload) then failwith "Log message received doesn't match" else
                 let ff = {  verify_data = payload; 
                             payload = to_log;
                 } in
+                LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));
                 st,ff
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
 
@@ -92,6 +99,7 @@ type FlexFinished =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FFinished message record </returns>
     static member send (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext, ?fp:fragmentationPolicy) : state * FFinished =
+        LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let verify_data =
             match logRoleNSC with
@@ -106,6 +114,8 @@ type FlexFinished =
         let ff = { verify_data = verify_data;
                    payload = payload;
                  } in
+        LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));
         st,ff
 
     end

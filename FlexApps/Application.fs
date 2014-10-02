@@ -2,6 +2,8 @@
 
 module Application
 
+open NLog
+
 open FlexTypes
 open Attack_Alert
 open Attack_FragmentClientHello
@@ -16,6 +18,9 @@ open Handshake_tls13
 [<EntryPoint>]
 let main argv = 
     
+    (* Log facility*)
+    let log = LogManager.GetLogger("file") in
+    log.Info("START Running FlexTLS scenario");
     (* Alert attack *)
 //    Attack_Alert.run "www.google.com";
     
@@ -28,8 +33,8 @@ let main argv =
 //    printf "Early CCS attack finished\n";
 
     (* Triple handshake attack *)
-    Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"128.93.189.207",4433);
-    printf "Triple handshake attack finished\n";
+//    Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"128.93.189.207",4433);
+//    printf "Triple handshake attack finished\n";
 
     (* Experimental TLS 1.3 full handshake as Client *)
 //    printf "Starting TLS 1.3 client\n";
@@ -41,9 +46,8 @@ let main argv =
 //    let st = Handshake_tls13.server("0.0.0.0","rsa.cert-01.mitls.org",4433) in
 //    printf "TLS 1.3 server finished\n";
 
-    (* Standard RSA full handshake as Client*)
-//    let st = Handshake_full_RSA.client("www.inria.fr") in
-//    printf "RSA client finished\n";
+    (* Standard RSA full handshake as Client *)
+    let st = Handshake_full_RSA.client("www.inria.fr") in
 
     (* Standard RSA handshake with resumption as Client*)
 //    let st = Handshake_full_RSA.client("www.inria.fr") in
@@ -83,5 +87,6 @@ let main argv =
 //    let st = Handshake_full_DHE.server_with_client_auth("127.0.0.1","rsa.cert-01.mitls.org",44204) in
 //    printf "DHE server_with_client_auth finished\n";
 
+    log.Info("STOP Running FlexTLS scenario");
     ignore (System.Console.ReadLine());
     0

@@ -2,6 +2,8 @@
 
 module FlexCertificate
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -25,6 +27,7 @@ type FlexCertificate =
     /// <param name="nsc"> Optional Next security context object updated with new data </param>
     /// <returns> Updated state * next security context * FCertificate message </returns>
     static member receive (st:state, role:Role, ?nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
+        LogManager.GetLogger("file").Info("# CERTIFICATE : FlexCertificate.reveive");
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
@@ -34,24 +37,22 @@ type FlexCertificate =
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (chain) -> 
                 let cert : FCertificate = { chain = chain; payload = to_log } in
-                match role with
-                | Server ->
-                    let si  = { si with 
-                                client_auth = true;
-                                clientID = chain;
-                    } in
-                    let nsc = { nsc with si = si } in
-                    (st,nsc,cert)
-                | Client ->
-                    let si  = { si with 
-                                serverID = chain;
-                    } in
-                    let nsc = { nsc with si = si } in
-                    (st,nsc,cert)
+                let si =
+                    match role with
+                    | Server ->
+                        { si with 
+                          client_auth = true;
+                          clientID = chain;
+                        }
+                    | Client ->
+                        { si with serverID = chain; }
+                in
+                let nsc = { nsc with si = si } in
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
+                (st,nsc,cert)
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate")
-
-
+        
     /// <summary>
     /// Prepare a Certificate message bytes but doesn't send it
     /// </summary>

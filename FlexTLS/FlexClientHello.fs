@@ -2,6 +2,8 @@
 
 module FlexClientHello
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -183,6 +185,7 @@ type FlexClientHello =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
     static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
+        LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.send");
         let ns = st.ns in
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fch = defaultArg fch FlexConstants.nullFClientHello in
@@ -209,6 +212,9 @@ type FlexClientHello =
                     crand = fch.rand; 
                     offers = offers; } in
         let fch = { fch with payload = payload } in
+        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,nsc,fch
     
     end

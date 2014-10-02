@@ -2,6 +2,8 @@
 
 module FlexServerHelloDone
 
+open NLog
+
 open Bytes
 open Error
 open HandshakeMessages
@@ -22,6 +24,7 @@ type FlexServerHelloDone =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * FServerHelloDone message record </returns>
     static member receive (st:state) : state * FServerHelloDone =
+        LogManager.GetLogger("file").Info("# SERVER HELLO DONE : FlexServerHelloDone.reveive");
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_hello_done  -> 
@@ -29,6 +32,7 @@ type FlexServerHelloDone =
                 failwith (perror __SOURCE_FILE__ __LINE__ "payload has not length zero")
             else
                 let fshd: FServerHelloDone = {payload = to_log} in
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
                 st,fshd
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_server_hello_done")
 

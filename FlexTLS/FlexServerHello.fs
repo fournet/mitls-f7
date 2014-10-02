@@ -2,6 +2,8 @@
 
 module FlexServerHello
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -117,6 +119,7 @@ type FlexServerHello =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record * Negociated extensions </returns>
     static member receive (st:state, cextL:list<clientExtension>) : state * FServerHello * negotiatedExtensions =
+        LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.reveive");
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_hello  ->    
@@ -148,6 +151,12 @@ type FlexServerHello =
                           } 
                 in
                 let st = fillStateEpochInitPvIFIsEpochInit st fsh in
+                LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
+                LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" fsh.suite);
+                LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
+                LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fsh,negExts
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_hello")
