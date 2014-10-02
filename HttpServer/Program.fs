@@ -123,7 +123,7 @@ let cmdparse = fun () ->
     let specs = [
         "--root-dir"     , ArgType.String o_rootdir   , sprintf "\t\tHTTP root directory (default `pwd`/%s)" defaultRoot
         "--sessionDB-dir", ArgType.String o_certdir   , sprintf "\tsession database directory (default `pwd`/%s)" defaultCert
-        "--dhDB-dir"     , ArgType.String o_dhdir     , sprintf "\tdh database directory (default `pwd` /%s" defaultDHDB
+        "--dhDB-dir"     , ArgType.String o_dhdir     , sprintf "\t\tdh database directory (default `pwd`/%s)" defaultDHDB
         "--bind-port"    , ArgType.Int    o_port      , sprintf "\t\tlocal port (default %d)" defaultPort
         "--bind-address" , ArgType.String o_address   , "\tlocal address (default localhost)"
         "--local-name"   , ArgType.String o_localname , sprintf "\t\tlocal host name (default %s)" defaultName
