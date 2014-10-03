@@ -141,7 +141,7 @@ let parse_cmd () =
     let specs =
         let specs = [
             "--sessionDB-dir", ArgType.String o_certdir    , sprintf "\tsession database directory (default: `pwd`/%s)" defaultDB
-            "--dhDB-dir"     , ArgType.String o_dhdir      , sprintf "\t\tdh database directory (default: `pwd` /%s)" defaultDH
+            "--dhDB-dir"     , ArgType.String o_dhdir      , sprintf "\t\tdh database directory (default: `pwd`/%s)" defaultDH
             "--port"         , ArgType.Int    o_port       , sprintf "\t\t\tserver port (default: %d)" defaultPort
             "--address"      , ArgType.String o_address    , "\t\tserver address (default: localhost)"
             "--ciphers"      , ArgType.String o_ciphers    , sprintf "\t\t,-separated ciphers list (default: %s)" (String.Join(",", List.map (sprintf "%A") defaultCS))
