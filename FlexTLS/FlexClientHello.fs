@@ -116,6 +116,7 @@ type FlexClientHello =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
     static member receive (st:state) : state * nextSecurityContext * FClientHello =
+        LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.receive");
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_hello  ->    
@@ -151,6 +152,13 @@ type FlexClientHello =
                           } 
                 in
                 let st = fillStateEpochInitPvIFIsEpochInit st fch in
+                LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fch.pv);
+                LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
+                LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
+                LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fch.ext);
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 (st,nsc,fch)
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "Message type should be HT_client_hello")
@@ -212,8 +220,12 @@ type FlexClientHello =
                     crand = fch.rand; 
                     offers = offers; } in
         let fch = { fch with payload = payload } in
+        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fch.pv);
         LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
         LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
+        LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
+        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fch.ext);
         LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,nsc,fch
     

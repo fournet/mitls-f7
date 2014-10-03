@@ -151,6 +151,7 @@ type FlexServerHello =
                           } 
                 in
                 let st = fillStateEpochInitPvIFIsEpochInit st fsh in
+                LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
                 LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
                 LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
                 LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" fsh.suite);
@@ -224,6 +225,7 @@ type FlexServerHello =
     //BB TODO : Possibility to override the negociatedExtensions; the fill functions are called multiple times when calling the overloaded function
     //AP TODO: This needs to be aligned with the overload above.
     static member send (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
+        LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
         let sessionHash = defaultArg sessionHash None in
@@ -240,6 +242,13 @@ type FlexServerHello =
                     payload = payload 
                   } 
         in
+        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
+        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
+        LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" fsh.suite);
+        LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
+        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,si,fsh
 
     end

@@ -38,14 +38,14 @@ let main argv =
 //    printf "Triple handshake attack finished\n";
 
     (* Experimental TLS 1.3 full handshake as Client *)
-    printf "Starting TLS 1.3 client\n";
-    let st = Handshake_tls13.client("127.0.0.1","rsa.cert-01.mitls.org",4433) in
-    printf "TLS 1.3 server finished\n";
+//    printf "Starting TLS 1.3 client\n";
+//    let st = Handshake_tls13.client("127.0.0.1","rsa.cert-01.mitls.org",4433) in
+//    printf "TLS 1.3 server finished\n";
 
     (* Experimental TLS 1.3 full handshake as Server *)
-//    printf "Starting TLS 1.3 server\n";
-//    let st = Handshake_tls13.server("0.0.0.0","rsa.cert-01.mitls.org",4433) in
-//    printf "TLS 1.3 server finished\n";
+    printf "Starting TLS 1.3 server\n";
+    let st = Handshake_tls13.server("0.0.0.0","rsa.cert-01.mitls.org",4433) in
+    printf "TLS 1.3 server finished\n";
 
     (* Standard RSA full handshake as Client *)
 //    let st = Handshake_full_RSA.client("www.inria.fr") in
