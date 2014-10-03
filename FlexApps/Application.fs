@@ -21,6 +21,7 @@ let main argv =
     (* Log facility*)
     let log = LogManager.GetLogger("file") in
     log.Info("START Running FlexTLS scenario");
+
     (* Alert attack *)
 //    Attack_Alert.run "www.google.com";
     
@@ -47,7 +48,8 @@ let main argv =
 //    printf "TLS 1.3 server finished\n";
 
     (* Standard RSA full handshake as Client *)
-    let st = Handshake_full_RSA.client("www.inria.fr") in
+//    let st = Handshake_full_RSA.client("www.inria.fr") in
+//    printf "RSA client finished\n";
 
     (* Standard RSA handshake with resumption as Client*)
 //    let st = Handshake_full_RSA.client("www.inria.fr") in
