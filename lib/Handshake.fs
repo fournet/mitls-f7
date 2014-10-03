@@ -175,8 +175,10 @@ let resume next_sid poptions =
     match retrievedSinfo.sessionID with
     | xx when length xx = 0 -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
+#if TLSExt_sessionHash
     if hasExtendedMS retrievedSinfo.extensions then
         // we try to resume
+#endif
         let rand = Nonce.mkHelloRandom () in
         let ci = initConnection Client rand in
         Pi.assume (Configure(Client,ci.id_in,poptions)); // ``The user resumes a client in this config''
@@ -192,9 +194,11 @@ let resume next_sid poptions =
              dhdb = dhdb;
              pstate = PSClient (ServerHello (rand, sid, extL, empty_bytes, empty_bytes, cHelloBytes))
             })
+#if TLSExt_sessionHash
     else
         // The session we're trying to resume doesn't support extended master secret, hence we don't resume it
         init Client poptions
+#endif
 
 let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     (* Start a non-resuming handshake, over an existing epoch.
@@ -238,12 +242,14 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) : bool * hs_state =
     | sid ->
         let sDB = SessionDB.create ops in
         (* Ensure the sid is in the SessionDB *)
-        (match SessionDB.select sDB sid Client ops.server_name with
+        match SessionDB.select sDB sid Client ops.server_name with
         | None -> (* Maybe session expired, or was never stored. Let's not resume *)
             rehandshake ci state ops
         | Some s ->
             let (retrievedSinfo,retrievedMS) = s in
+#if TLSExt_sessionHash
             if hasExtendedMS retrievedSinfo.extensions then
+#endif
                 match state.pstate with
                 | PSClient (cstate) ->
                     (match cstate with
@@ -264,9 +270,11 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) : bool * hs_state =
                     | _ -> (* Handshake already ongoing, ignore this request *)
                         (false,state))
                 | PSServer (_) -> unexpected "[rekey] should only be invoked on client side connections."
+#if TLSExt_sessionHash
             else
                 // Don't resume a non extended-master-secret session
-                rehandshake ci state ops)
+                rehandshake ci state ops
+#endif
 #endif 
 
 let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
