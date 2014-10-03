@@ -340,7 +340,3 @@ let _ =
         with _ ->
             eprintfn "Some error";
             exit 1
-
-    | _ -> 
-        eprintfn "Nothing to do...";
-        exit 1
