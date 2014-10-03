@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-version    ?= 0.8.0
+version    ?= 0.8.1
 name        = miTLS
 distname    = $(name)-$(version)
 f7distname  = $(name)-f7-$(version)
