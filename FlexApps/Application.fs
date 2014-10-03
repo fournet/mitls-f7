@@ -38,9 +38,9 @@ let main argv =
 //    printf "Triple handshake attack finished\n";
 
     (* Experimental TLS 1.3 full handshake as Client *)
-//    printf "Starting TLS 1.3 client\n";
-//    let st = Handshake_tls13.client("127.0.0.1","rsa.cert-01.mitls.org",4433) in
-//    printf "TLS 1.3 server finished\n";
+    printf "Starting TLS 1.3 client\n";
+    let st = Handshake_tls13.client("127.0.0.1","rsa.cert-01.mitls.org",4433) in
+    printf "TLS 1.3 server finished\n";
 
     (* Experimental TLS 1.3 full handshake as Server *)
 //    printf "Starting TLS 1.3 server\n";
@@ -62,8 +62,8 @@ let main argv =
 //    printf "RSA client_auth finished\n";
     
     (* Standard DHE full handshake as Client *)
-    let st = Handshake_full_DHE.client("www.inria.fr") in
-    printf "DHE client finished\n";
+//    let st = Handshake_full_DHE.client("www.inria.fr") in
+//    printf "DHE client finished\n";
 
     (* Standard DHE full handshake with client authentication as Client *)
 //    let st = Handshake_full_DHE.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44102) in

@@ -399,6 +399,7 @@ type FlexClientKeyExchangeTLS13 =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * FClientKeyExchangeTLS13 message record </returns>
     static member receive (st:state,nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchangeTLS13 =
+        LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE TLS13 : FlexClientKeyExchangeTLS13.receive");
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_client_key_exchange  ->
@@ -410,10 +411,13 @@ type FlexClientKeyExchangeTLS13 =
                     List.map (fun x ->
                         match x with
                         | DHE(g,gy) ->
+                            LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %A" g);
+                            LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gy)));
                             DH13({group = g; x = empty_bytes; gx = empty_bytes; gy = gy})
                     ) kexl
                 in
                 let nsc = {nsc with offers = offers} in
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,nsc,fcke
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
@@ -469,6 +473,7 @@ type FlexClientKeyExchangeTLS13 =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Key Exchange offer list * FClientKeyExchangeTLS13 message record </returns>
     static member send (st:state, kex13l:list<tls13kex>, ?fp:fragmentationPolicy) : state * list<kex> * FClientKeyExchangeTLS13 =
+        LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE TLS13 : FlexClientKeyExchangeTLS13.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
 
         let sampleDH kex =
@@ -491,9 +496,13 @@ type FlexClientKeyExchangeTLS13 =
             match e with
             | sec,DHE(group,gx) ->
                 let kex13 = {group = group; x = sec; gx = gx; gy = empty_bytes } in
+                LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %A" group);
+                LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gx)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Secret Value : %s" (Bytes.hexString(sec)));
                 DH13(kex13)
         in
         let kexl = List.map kexify kex13l in
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,kexl,fcke
 
     end

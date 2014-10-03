@@ -224,6 +224,7 @@ type FlexServerKeyExchangeTLS13 =
     /// <returns> Updated state * FServerKeyExchange message record </returns>
     //BB : The spec is not sure that we should resend the group with the public exponent so we ignore it for now
     static member receive (st:state, group:dhGroup) : state * FServerKeyExchangeTLS13 =
+        LogManager.GetLogger("file").Info("# SERVER KEY EXCHANGE TLS13 : FlexServerKeyExchangeTLS13.receive");
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_key_exchange  ->
@@ -231,6 +232,14 @@ type FlexServerKeyExchangeTLS13 =
             | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (kex) ->
                 let fske : FServerKeyExchangeTLS13 = { kex = kex; payload = to_log } in
+                //BB : This step is only needed to be able to log the values
+                let group,gy =
+                    match kex with
+                    | DHE(group,gy) -> group,gy
+                in
+                LogManager.GetLogger("file").Debug(sprintf "--- Public group : %A" group);
+                LogManager.GetLogger("file").Debug(sprintf "--- Public DHE Exponent : %s" (Bytes.hexString(gy)));
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fske 
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
@@ -291,12 +300,21 @@ type FlexServerKeyExchangeTLS13 =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
     static member send (st:state, kex:tls13kex, ?fp:fragmentationPolicy) : state * FServerKeyExchangeTLS13 =
+        LogManager.GetLogger("file").Info("# SERVER KEY EXCHANGE TLS13 : FlexServerKeyExchangeTLS13.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         
         let payload = HandshakeMessages.tls13SKEBytes kex in
 
         let st = FlexHandshake.send(st,payload,fp) in
         let fske : FServerKeyExchangeTLS13 = { kex = kex ; payload = payload } in
+        //BB : This step is only needed to be able to log the values
+        let group,gx =
+            match kex with
+            | DHE(group,gx) -> group,gx
+        in
+        LogManager.GetLogger("file").Debug(sprintf "--- Public group : %A" group);
+        LogManager.GetLogger("file").Debug(sprintf "--- Public DHE Exponent : %s" (Bytes.hexString(gx)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,fske
 
     end
