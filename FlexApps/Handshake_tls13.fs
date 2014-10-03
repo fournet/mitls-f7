@@ -37,6 +37,7 @@ type Handshake_tls13 =
 
         // We want to ensure a ciphersuite
         let fch = {FlexConstants.nullFClientHello with
+            pv = TLS_1p3;
             suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256] } in
 
         // We need to use the negotiable groups extension for TLS 1.3
