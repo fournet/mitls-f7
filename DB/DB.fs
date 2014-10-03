@@ -39,6 +39,15 @@ module Internal =
     let closedb (DB db : db) =
         use db = db in ()
 
+    let attach (DB db : db) (filename : string) (alias : string) =
+        let request = sprintf "ATTACH :filename AS :alias" 
+        use command = db.CreateCommand() in
+            command.CommandText <- request;
+            command.Parameters.Add("filename", DbType.String).Value <- filename;
+            command.Parameters.Add("alias", DbType.String).Value <- alias;
+            ignore (command.ExecuteNonQuery() : int);
+            DB db
+
     let put (DB db : db) (k : byte[]) (v : byte[]) =
         let request = "INSERT OR REPLACE INTO map (key, value) VALUES (:k, :v)" in
         use command = db.CreateCommand() in
@@ -116,6 +125,14 @@ module Internal =
                 finally
                     reader.Close()
 
+    let merge (DB db : db) (alias : string) =
+        // Only used internally, alias is trusted    
+        let request = sprintf "INSERT OR IGNORE INTO map (key, value) SELECT key, value FROM %s.map" alias in
+        use command = db.CreateCommand() in         
+            command.Parameters.Add("alias", DbType.String).Value <- alias;
+            command.CommandText <- request;
+            ignore (command.ExecuteNonQuery() : int)
+
     let tx (DB db : db) (f : db -> 'a) : 'a =
         lock (_db_lock) (fun () ->
             use tx = db.BeginTransaction (IsolationLevel.ReadCommitted) in
@@ -127,6 +144,9 @@ let opendb (filename : string) =
 
 let closedb (db : db) =
     Internal.wrap (fun () -> Internal.closedb db)
+
+let attach (db : db) (filename : string) (alias : string) =
+    Internal.wrap (fun () -> Internal.attach db filename alias)
 
 let put (db : db) (k : byte[]) (v : byte[]) =
     Internal.wrap (fun () -> Internal.put db k v)
@@ -142,6 +162,9 @@ let all (db : db) =
 
 let keys (db : db) =
     Internal.wrap (fun () -> Internal.keys db)
+
+let merge (db : db) (alias : string) =
+    Internal.wrap (fun () -> Internal.merge db alias)
 
 let tx (db : db) (f : db -> 'a) =
     Internal.wrap (fun () -> Internal.tx db f)

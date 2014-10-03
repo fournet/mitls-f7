@@ -99,3 +99,13 @@ let keys self =
             DB.closedb db
     in
         List.map key_of_bytes aout
+
+(* ------------------------------------------------------------------------------- *)
+let merge self db1 =
+    let db = DB.opendb self.filename in
+    
+    try
+        let db = DB.attach db db1 "db" in
+        DB.tx db (fun db -> DB.merge db "db"); self
+    finally
+        DB.closedb db
