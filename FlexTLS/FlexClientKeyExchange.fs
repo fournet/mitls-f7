@@ -85,6 +85,7 @@ type FlexClientKeyExchange =
     /// <param name="sk"> Optional secret key to be used for decrypting in place of the current one </param>
     /// <returns> Updated state * FClientKeyExchange message record </returns>
     static member receiveRSA (st:state, certl:list<Cert.cert>, pv:ProtocolVersion, ?checkPV:bool, ?sk:RSAKey.sk): state * FClientKeyExchange =
+        LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE : FlexClientKeyExchange.receiveRSA");
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk certl in
         let pk = 
@@ -103,6 +104,8 @@ type FlexClientKeyExchange =
                     let pmsb = PMS.leakRSA pk si.protocol_version pmsa in
                     let kex = RSA(pmsb) in
                     let fcke : FClientKeyExchange = {kex = kex; payload = to_log } in
+                    LogManager.GetLogger("file").Debug(sprintf "--- Pre Master Secret : %A" (Bytes.hexString(pmsb)));
+                    LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
                     st,fcke
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
@@ -289,6 +292,7 @@ type FlexClientKeyExchange =
     /// <param name="kexdh"> Key Exchange record containing Diffie-Hellman parameters </param>
     /// <returns> Updated state * FClientKeyExchange message record </returns>
     static member receiveDHE (st:state, kexdh:kexDH) : state * FClientKeyExchange =
+        LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE : FlexClientKeyExchange.receiveDHE");
         let (p,g),gx = kexdh.pg,kexdh.gx in
         let dhp = {FlexConstants.nullDHParams with dhp = p; dhg = g} in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
@@ -299,6 +303,8 @@ type FlexClientKeyExchange =
             | Correct(gy) ->
                 let kexdh = { kexdh with gy = gy } in
                 let fcke = { kex = DH(kexdh); payload = to_log } in
+                LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gy)));
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fcke
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
@@ -362,6 +368,7 @@ type FlexClientKeyExchange =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FClientKeyExchange message record </returns>
     static member sendDHE (st:state, kexdh:kexDH, ?fp:fragmentationPolicy) : state * FClientKeyExchange =
+        LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE : FlexClientKeyExchange.sendDHE");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         
         let p,g = kexdh.pg in
@@ -373,6 +380,9 @@ type FlexClientKeyExchange =
         let st = FlexHandshake.send(st,payload,fp) in
         let kexdh = { kexdh with x = x; gx = gx } in
         let fcke = { kex = DH(kexdh); payload = payload } in
+        LogManager.GetLogger("file").Debug(sprintf "--- SECRET Value : %s" (Bytes.hexString(x)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gx)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,fcke
 
     end

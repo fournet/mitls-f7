@@ -2,6 +2,8 @@
 
 module FlexServerKeyExchange
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -78,6 +80,7 @@ type FlexServerKeyExchange =
     /// <param name="minDHsize"> Optional Minimal sizes for DH parameters </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
     static member receiveDHE (st:state, pv:ProtocolVersion, cs:cipherSuite, ?minDHsize:nat*nat) : state * FServerKeyExchange =
+        LogManager.GetLogger("file").Info("# SERVER KEY EXCHANGE : FlexServerKeyExchange.receiveDHE");
         let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
@@ -87,6 +90,10 @@ type FlexServerKeyExchange =
             | Correct (_,dhp,gy,alg,signature) ->
                 let kexdh = {pg = (dhp.dhp,dhp.dhg); x = empty_bytes; gx = empty_bytes; gy = gy} in
                 let fske : FServerKeyExchange = { kex = DH(kexdh); payload = to_log; sigAlg = alg; signature = signature } in
+                LogManager.GetLogger("file").Debug(sprintf "--- Public Prime : %s" (Bytes.hexString(dhp.dhp)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %s" (Bytes.hexString(dhp.dhg)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gy)));
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fske 
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
@@ -158,6 +165,7 @@ type FlexServerKeyExchange =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
     static member sendDHE (st:state, kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey, ?fp:fragmentationPolicy) : state * FServerKeyExchange =
+        LogManager.GetLogger("file").Info("# SERVER KEY EXCHANGE : FlexServerKeyExchange.sendDHE");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let kexdh = filldh kexdh in
 
@@ -170,6 +178,10 @@ type FlexServerKeyExchange =
         let payload = HandshakeMessages.serverKeyExchangeBytes_DHE dheB sigAlg sign pv in
         let st = FlexHandshake.send(st,payload,fp) in
         let fske = { sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
+        LogManager.GetLogger("file").Debug(sprintf "--- Public Prime : %s" (Bytes.hexString(p)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %s" (Bytes.hexString(g)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gx)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,fske
     
     end

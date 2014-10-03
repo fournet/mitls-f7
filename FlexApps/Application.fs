@@ -62,8 +62,8 @@ let main argv =
 //    printf "RSA client_auth finished\n";
     
     (* Standard DHE full handshake as Client *)
-//    let st = Handshake_full_DHE.client("www.inria.fr") in
-//    printf "DHE client finished\n";
+    let st = Handshake_full_DHE.client("www.inria.fr") in
+    printf "DHE client finished\n";
 
     (* Standard DHE full handshake with client authentication as Client *)
 //    let st = Handshake_full_DHE.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44102) in

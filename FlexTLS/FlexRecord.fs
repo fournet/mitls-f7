@@ -87,6 +87,7 @@ type FlexRecord =
                 let st = FlexState.updateIncomingRecord st rec_in in
                 let id = TLSInfo.id st.read.epoch in
                 let fragb = TLSFragment.reprFragment id ct rg frag in
+                LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
                 (st,fragb)
 
     /// <summary>
