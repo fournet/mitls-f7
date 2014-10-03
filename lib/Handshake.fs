@@ -18,7 +18,6 @@ open HandshakeMessages
 // CF could be improved later, eg to securely ignore them
 
 // CF ``#if avoid'' should disappear.
-// CF ``#if TLSExt_sessionHash'' and similar extension stull will be *erased* from v1 (and not documented)
 
 type events = 
     | Authorize of Role * SessionInfo
@@ -138,7 +137,7 @@ let init (role:Role) poptions =
     | Client -> 
         let ci = initConnection role rand in
         Pi.assume (Configure(Client,ci.id_in,poptions)); // ``The user starts a client in this config''
-        let extL = prepareClientExtensions poptions ci empty_bytes None in
+        let extL = prepareClientExtensions poptions ci empty_bytes in
         let ext = clientExtensionsBytes extL in
         let cHelloBytes = clientHelloBytes poptions rand sid ext in
         let sdb = SessionDB.create poptions in
@@ -176,21 +175,30 @@ let resume next_sid poptions =
     match retrievedSinfo.sessionID with
     | xx when length xx = 0 -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
-    let rand = Nonce.mkHelloRandom () in
-    let ci = initConnection Client rand in
-    Pi.assume (Configure(Client,ci.id_in,poptions)); // ``The user resumes a client in this config''
-    let extL = prepareClientExtensions poptions ci empty_bytes (Some(retrievedSinfo.session_hash)) in
-    let ext = clientExtensionsBytes extL in
-    let cHelloBytes = clientHelloBytes poptions rand sid ext in
-    let sdb = SessionDB.create poptions in
-    let dhdb = DHDB.create poptions.dhDBFileName in
-    (ci,{hs_outgoing = cHelloBytes;
-         hs_incoming = empty_bytes;
-         poptions = poptions;
-         sDB = sdb;
-         dhdb = dhdb;
-         pstate = PSClient (ServerHello (rand, sid, extL, empty_bytes, empty_bytes, cHelloBytes))
-        })
+#if TLSExt_sessionHash
+    if hasExtendedMS retrievedSinfo.extensions then
+        // we try to resume
+#endif
+        let rand = Nonce.mkHelloRandom () in
+        let ci = initConnection Client rand in
+        Pi.assume (Configure(Client,ci.id_in,poptions)); // ``The user resumes a client in this config''
+        let extL = prepareClientExtensions poptions ci empty_bytes in
+        let ext = clientExtensionsBytes extL in
+        let cHelloBytes = clientHelloBytes poptions rand sid ext in
+        let sdb = SessionDB.create poptions in
+        let dhdb = DHDB.create poptions.dhDBFileName in
+        (ci,{hs_outgoing = cHelloBytes;
+             hs_incoming = empty_bytes;
+             poptions = poptions;
+             sDB = sdb;
+             dhdb = dhdb;
+             pstate = PSClient (ServerHello (rand, sid, extL, empty_bytes, empty_bytes, cHelloBytes))
+            })
+#if TLSExt_sessionHash
+    else
+        // The session we're trying to resume doesn't support extended master secret, hence we don't resume it
+        init Client poptions
+#endif
 
 let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
     (* Start a non-resuming handshake, over an existing epoch.
@@ -201,7 +209,7 @@ let rehandshake (ci:ConnectionInfo) (state:hs_state) (ops:config) =
         | ClientIdle(cvd,svd) ->
             (let rand = Nonce.mkHelloRandom () in
             let sid = empty_bytes in
-            let extL = prepareClientExtensions ops ci cvd None in
+            let extL = prepareClientExtensions ops ci cvd in
             let ext = clientExtensionsBytes extL in
             let cHelloBytes = clientHelloBytes ops rand sid ext in
             Pi.assume (Configure(Client,ci.id_in,ops)); // ``The user renegotiates a client in this config''
@@ -234,31 +242,39 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) : bool * hs_state =
     | sid ->
         let sDB = SessionDB.create ops in
         (* Ensure the sid is in the SessionDB *)
-        (match SessionDB.select sDB sid Client ops.server_name with
+        match SessionDB.select sDB sid Client ops.server_name with
         | None -> (* Maybe session expired, or was never stored. Let's not resume *)
             rehandshake ci state ops
         | Some s ->
             let (retrievedSinfo,retrievedMS) = s in
-            (match state.pstate with
-            | PSClient (cstate) ->
-                (match cstate with
-                | ClientIdle(cvd,svd) ->
-                    (let rand = Nonce.mkHelloRandom () in
-                    let extL = prepareClientExtensions ops ci cvd (Some(retrievedSinfo.session_hash)) in
-                    let ext = clientExtensionsBytes extL in
-                    Pi.assume (Configure(Client,ci.id_in,ops)); // ``The user rekeys a client in this config''
-                    let cHelloBytes = clientHelloBytes ops rand sid ext in
-                    let dhdb = DHDB.create ops.dhDBFileName in
-                    (true,{hs_outgoing = cHelloBytes;
-                           hs_incoming = empty_bytes;
-                           poptions = ops;
-                           sDB = sDB;
-                           dhdb = dhdb;
-                           pstate = PSClient (ServerHello (rand, sid, extL, cvd, svd, cHelloBytes))
-                           }))
-                | _ -> (* Handshake already ongoing, ignore this request *)
-                    (false,state))
-            | PSServer (_) -> unexpected "[rekey] should only be invoked on client side connections."))
+#if TLSExt_sessionHash
+            if hasExtendedMS retrievedSinfo.extensions then
+#endif
+                match state.pstate with
+                | PSClient (cstate) ->
+                    (match cstate with
+                    | ClientIdle(cvd,svd) ->
+                        (let rand = Nonce.mkHelloRandom () in
+                        let extL = prepareClientExtensions ops ci cvd in
+                        let ext = clientExtensionsBytes extL in
+                        Pi.assume (Configure(Client,ci.id_in,ops)); // ``The user rekeys a client in this config''
+                        let cHelloBytes = clientHelloBytes ops rand sid ext in
+                        let dhdb = DHDB.create ops.dhDBFileName in
+                        (true,{hs_outgoing = cHelloBytes;
+                               hs_incoming = empty_bytes;
+                               poptions = ops;
+                               sDB = sDB;
+                               dhdb = dhdb;
+                               pstate = PSClient (ServerHello (rand, sid, extL, cvd, svd, cHelloBytes))
+                               }))
+                    | _ -> (* Handshake already ongoing, ignore this request *)
+                        (false,state))
+                | PSServer (_) -> unexpected "[rekey] should only be invoked on client side connections."
+#if TLSExt_sessionHash
+            else
+                // Don't resume a non extended-master-secret session
+                rehandshake ci state ops
+#endif
 #endif 
 
 let request (ci:ConnectionInfo) (state:hs_state) (ops:config) =
@@ -910,27 +926,25 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         let (si,ms) = storable in
                         let log = log @| to_log in
                         (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
+                        (* We know statically that this session supports extended master secret, because we never ask to
+                           resume sessions for which the extension was not negotiated *)
                         (* AP if si.sessionID = sh_session_id then This should come as a post-condition from SessionDB.select *)
                           if si.protocol_version = sh_server_version then
                             if si.cipher_suite = sh_cipher_suite then
                                 if si.compression = sh_compression_method then
-                                    (* Also check for resumption extension information *)
-                                    if checkServerResumptionInfoExtension pop sExtL si.session_hash then
-                                        let next_ci = getNextEpochs ci si crand sh_random in
-                                        let nki_in = id next_ci.id_in in
-                                        let nki_out = id next_ci.id_out in
-                                        let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
-                                        let nout = next_ci.id_out in
-                                        let nin = next_ci.id_in in
-                                        (* KB: the following should come from the sessiondb *)
-                                        Pi.expect (Authorize(Client,si)); // annotation 
-                                        recv_fragment_client ci 
-                                            {state with pstate = PSClient(ServerCCSResume(nout,writer,
-                                                                                        nin,reader,
-                                                                                        ms,log))} 
-                                            (somePV sh_server_version)
-                                    else
-                                        InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong resumption extension information provided",state)
+                                    let next_ci = getNextEpochs ci si crand sh_random in
+                                    let nki_in = id next_ci.id_in in
+                                    let nki_out = id next_ci.id_out in
+                                    let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
+                                    let nout = next_ci.id_out in
+                                    let nin = next_ci.id_in in
+                                    (* KB: the following should come from the sessiondb *)
+                                    Pi.expect (Authorize(Client,si)); // annotation 
+                                    recv_fragment_client ci 
+                                        {state with pstate = PSClient(ServerCCSResume(nout,writer,
+                                                                                    nin,reader,
+                                                                                    ms,log))} 
+                                        (somePV sh_server_version)
                                 else 
                                     InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Compression method negotiation",state)
                             else 
@@ -1370,7 +1384,7 @@ let negotiate cList sList =
 let prepare_server_output_resumption ci state crand cExtL (sid:sessionID) storedSession cvd svd log =
     let (si,ms) = storedSession in
     let srand = Nonce.mkHelloRandom () in
-    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions si.cipher_suite (cvd,svd) (Some(si.session_hash)) in
+    let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions si.cipher_suite (cvd,svd) true in
     let ext = serverExtensionsBytes sExtL in
     let sHelloB = serverHelloBytes si srand ext in
 
@@ -1401,7 +1415,7 @@ let startServerFull (ci:ConnectionInfo) state (cHello:ProtocolVersion * crand * 
             | Some(cm) ->
                 let sid = Nonce.random 32 in
                 let srand = Nonce.mkHelloRandom () in
-                let (sExtL, nExtL) = negotiateServerExtensions cExtL cfg cs (cvd, svd) None in
+                let (sExtL, nExtL) = negotiateServerExtensions cExtL cfg cs (cvd, svd) false in
                 (* Fill in the session info we're establishing *)
                 let si = { clientID         = [];
                            clientSigAlg = (SA_RSA,SHA);
@@ -1475,22 +1489,20 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                   && List.memr ch_cipher_suites storedSinfo.cipher_suite
                                   && List.memr ch_compression_methods storedSinfo.compression 
                                 then
-                                    // Check extended resumption information
 #if TLSExt_sessionHash
-                                    match checkClientResumptionInfoExtension state.poptions cExtL storedSinfo.session_hash with
-                                    | None ->
+                                    // we only resume sessions for which the extended master secret was negotiated
+                                    if hasExtendedMS storedSinfo.extensions
+                                    then
 #endif
-                                        // Resumption extension not supported by client. Proceed with full handshake
+                                        (* Proceed with resumption *)
+                                        let state = prepare_server_output_resumption ci state ch_random cExtL ch_session_id sentry cvd svd log in
+                                        recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
+#if TLSExt_sessionHash
+                                    else
+                                        // Proceed with full handshake
                                         (match startServerFull ci state cHello cExtL cvd svd log with
                                         | Correct(v) -> let (state,pv) = v in recv_fragment_server ci state (somePV (pv))
                                         | Error(z) -> let (x,y) = z in InError(x,y,state))
-#if TLSExt_sessionHash
-                                    | Some(true) ->
-                                      (* Proceed with resumption *)
-                                      let state = prepare_server_output_resumption ci state ch_random cExtL ch_session_id sentry cvd svd log in
-                                      recv_fragment_server ci state (somePV(storedSinfo.protocol_version))
-                                    | Some(false) ->
-                                        InError(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Wrong safe resumption data received", state)
 #endif
                                 else 
                                   match startServerFull ci state cHello cExtL cvd svd log with

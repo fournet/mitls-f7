@@ -110,7 +110,8 @@ val ENC: ki:id -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain ->
 private val lastblock:  alg:blockCipher -> c:cipher {Length(c)>=BlockSize(alg)} -> bytes
 
 // internal function declarations 
-//private val GENOne: i:id -> 'a //(;i) state //TODO state should also have a role, but GENOne returns the state for both roles.
+//TODO state should also have a role, but GENOne returns the state for both roles.
+//private val GENOne: i:id -> 'a //(;i) state
 private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes 
 private val cbcdec: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes
 
@@ -121,8 +122,6 @@ val ENC_int: i:id -> s:(;i)encryptor -> tlen:nat{!enc,mac. i.aeAlg = MtE(CBC_Sta
   )  
 )
 
-//{Length(c) <= max_TLSCipher_fragment_length (*MK doesn't seem to have an effect *) 
-//		   /\ (!enc,mac. ki.aeAlg = MtE(CBC_Stale(enc),mac) => Length(c)>=BlockSize(enc) ) }
 private val DEC_int: ki:id -> s:(;ki) decryptor -> 
 					 c:cipher {Length(c) >= MinTlen(ki) /\ Length(c) <= max_TLSCipher_fragment_length /\ (!enc,mac. ki.aeAlg = MtE(CBC_Stale(enc),mac) \/ ki.aeAlg = MtE(CBC_Fresh(enc),mac) => Length(c)>=BlockSize(enc)) } -> 
 					 (;ki) decryptor * (;PlainLength(ki,Length(c)))lbytes //MK removed: ad:(;ki)LHAEPlain.adata

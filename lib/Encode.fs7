@@ -68,16 +68,40 @@ private ask !i,r,ad,b,p.
 
 predicate val Decoded: 'e * 'a * 'b -> bool
 
+// We define a MACOnly log exclusively for MACOnly ciphersuites
+// that behaves like a bijection with what we learn from the MAC.Msg predicate. Hence,
+// - Items are inserted only for honest macs, that is when AuthId && MAC.Msg hold
+// - Items can be retrieved only for verified macs, that is when AuthId holds, and when we have learnt
+//   sufficient information from the MAC.Msg predicate -- namely that an LHAEPlain.plain with the expected payload exists.
+type maconly_entry =
+	(i:id * ad:(;i)LHAEPlain.adata *
+	 rg:range * tlen:nat *
+	 payload:bytes * text:bytes *
+	 p:(;i,ad,rg)LHAEPlain.plain * (;i)MAC.tag)
+	{AuthId(i) /\ (?mac. i.aeAlg = MACOnly(mac)) /\
+	 MAC.Msg(i,text) /\ B(text) = MACPlain(i,rg,B(ad),p) /\
+	 B(payload) = LHAEPlain.Payload(i,B(ad),rg,p) /\
+	 tlen <= max_TLSCipher_fragment_length /\ tlen = TargetLength(i,rg)}
+private val maconly_log: maconly_entry list ref
+private val maconly_mem:
+	i:id{AuthId(i) /\ (?mac. i.aeAlg = MACOnly(mac))} ->
+	ad:(;i)LHAEPlain.adata -> tlen:nat{tlen <= max_TLSCipher_fragment_length} ->
+	pl:bytes -> t:bytes{B(t) = B(ad) @| VLBytes(2,B(pl)) /\
+		(?rg,p. B(pl) = LHAEPlain.Payload(i,B(ad),rg,p) )} ->
+	(;i)MAC.tag -> xs:maconly_entry list ->
+	((rg:range * p:(;i,ad,rg)LHAEPlain.plain){tlen = TargetLength(i,rg) /\ B(pl) = LHAEPlain.Payload(i,B(ad),rg,p)}) option
+
 val mac: e:id -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata -> rg:range ->
   p:(;e,ad,rg)LHAEPlain.plain ->
   (;e,ad,rg) plain
 
-val verify_MACOnly: e:id{not SafeId(e)} -> k:(;e) MAC.key ->
+val verify_MACOnly: e:id{not SafeId(e) /\ ?mac. e.aeAlg = MACOnly(mac)} -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata ->
   rg:range ->
+  tlen:nat{tlen <= max_TLSCipher_fragment_length /\ rg = CipherRangeClass(e,tlen)} ->
   b:(;rg)rbytes -> t:(;e)MAC.tag ->
-  (;e,ad,rg)LHAEPlain.plain Result
+  ((rg':range*(;e,ad,rg')LHAEPlain.plain){rg' = CipherRangeClass(e,tlen)}) Result
 
 val verify: e:id -> k:(;e) MAC.key ->
   ad:(;e)LHAEPlain.adata -> 
@@ -131,7 +155,7 @@ val decodeNoPad_bytes: e:id{?mac. e.aeAlg  = MACOnly(mac) \/
 	ad:(;e) LHAEPlain.adata -> rg:range ->
 	tlen:nat{tlen >= MacKeySize(MacAlg(e)) /\
 	rg = CipherRangeClass(e,tlen)} -> (;PlainLength(e,tlen))lbytes ->
-	(;rg)rbytes * (;e)MAC.tag
+	(;CipherRangeClass(e,tlen))rbytes * (;e)MAC.tag
 	
 val decodeNoPad: e:id{not AuthId(e) /\ (?mac. e.aeAlg = MtE(Stream_RC4_128,mac))} ->
 	ad:(;e) LHAEPlain.adata -> rg:range ->
