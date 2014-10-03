@@ -32,16 +32,16 @@ type Handshake_tls13 =
         let cn = defaultArg cn address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
+        // We need to use the negotiable groups extension for TLS 1.3
+        let cfg = {defaultConfig with maxVer = TLS_1p3; negotiableDHGroups = [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]} in
+
         // Start TCP connection with the server
-        let st,_ = FlexConnection.clientOpenTcpConnection(address,cn,port,TLS_1p3) in
+        let st,_ = FlexConnection.clientOpenTcpConnection(address,cn,port,cfg.maxVer) in
 
         // We want to ensure a ciphersuite
         let fch = {FlexConstants.nullFClientHello with
-            pv = TLS_1p3;
+            pv = cfg.maxVer;
             suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256] } in
-
-        // We need to use the negotiable groups extension for TLS 1.3
-        let cfg = {defaultConfig with negotiableDHGroups = [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]} in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch,cfg) in
         let st,nsc,fcke  = FlexClientKeyExchangeTLS13.send(st,nsc) in
@@ -73,6 +73,9 @@ type Handshake_tls13 =
         let cn = defaultArg cn address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         
+        // We need to use the negotiable groups extension for TLS 1.3
+        let cfg = {defaultConfig with maxVer = TLS_1p3; negotiableDHGroups = [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]} in
+
         // Resolve cn to a cert and key pair
         // TODO: May go in a different overload
         match Cert.for_signing FlexConstants.sigAlgs_ALL cn FlexConstants.sigAlgs_RSA with
@@ -80,7 +83,7 @@ type Handshake_tls13 =
         | Some(chain,sigAlg,skey) ->
 
         // Start TCP connection listening to a client
-        let st,_ = FlexConnection.serverOpenTcpConnection(address,cn,port,TLS_1p3) in
+        let st,_ = FlexConnection.serverOpenTcpConnection(address,cn,port,cfg.maxVer) in
 
         let st,nsc,fch   = FlexClientHello.receive(st) in
         if not ( List.exists (fun x -> x = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) fch.suites ) then
@@ -88,9 +91,6 @@ type Handshake_tls13 =
         else
 
         let st,nsc,fcke  = FlexClientKeyExchangeTLS13.receive(st,nsc) in
-
-        // We need to use the negotiable groups extension for TLS 1.3
-        let cfg = {defaultConfig with negotiableDHGroups = [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]} in
 
         let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,cfg=cfg) in
         let st,nsc,fske  = FlexServerKeyExchangeTLS13.send(st,nsc) in
