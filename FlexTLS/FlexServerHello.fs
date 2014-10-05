@@ -188,29 +188,29 @@ type FlexServerHello =
         in
         st,si,fsh
 
-//    /// <summary>
-//    /// Send a ServerHello message to the network stream
-//    /// </summary>
-//    /// <param name="st"> State of the current Handshake </param>
-//    /// <param name="fch"> FClientHello message record containing client extensions </param>
-//    /// <param name="nsc"> Optional Next security context being negociated </param>
-//    /// <param name="fsh"> Optional FServerHello message record </param>
-//    /// <param name="fp"> Optional fragmentation policy at the record level </param>
-//    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-//    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
-//        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-//        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
-//        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-//        let cfg = defaultArg cfg defaultConfig in
-//
-//        let fsh,si = fillFServerHelloANDSi fsh nsc.si in
-//        let st,si,fsh = FlexServerHello.send(st,si,fch.ext,cfg=cfg,fp=fp) in
-//        let nsc = { nsc with
-//                    si = si;
-//                    srand = fsh.rand;
-//                  }
-//        in
-//        st,nsc,fsh
+    /// <summary>
+    /// Send a ServerHello message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fch"> FClientHello message record containing client extensions </param>
+    /// <param name="nsc"> Optional Next security context being negociated </param>
+    /// <param name="fsh"> Optional FServerHello message record </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
+    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
+        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
+        let cfg = defaultArg cfg defaultConfig in
+
+        let fsh,si = fillFServerHelloANDSi fsh nsc.si in
+        let st,si,fsh = FlexServerHello.send(st,si,fch.pv,fch.suites,fch.comps,fch.ext,cfg=cfg,fp=fp) in
+        let nsc = { nsc with
+                    si = si;
+                    srand = fsh.rand;
+                  }
+        in
+        st,nsc,fsh
 
     /// <summary>
     /// Send a ServerHello message to the network stream
@@ -222,10 +222,8 @@ type FlexServerHello =
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    //BB TODO : Possibility to override the negociatedExtensions; the fill functions are called multiple times when calling the overloaded function
     //AP TODO: This needs to be aligned with the overload above.
-    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csuites:list<cipherSuite>, ccomps:list<Compression>, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
-        LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.send");
+    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
 
@@ -245,7 +243,7 @@ type FlexServerHello =
             failwith (perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation")
         else
         // Ciphersuite
-        match negotiate csuites cfg.ciphersuites with
+        match negotiate (cipherSuites_of_nameList csuites) cfg.ciphersuites with
         | Some(nCs) ->
             // Compression
             (match negotiate ccomps cfg.compressions with
@@ -256,8 +254,7 @@ type FlexServerHello =
                 let exts = serverExtensionsBytes sExtL in
                 let si = { si with 
                            client_auth      = cfg.request_client_certificate;
-                           serverID         = [];
-                           sessionID        = sid;
+                           //sessionID        = sid;
                            protocol_version = nPv;
                            cipher_suite     = nCs;
                            compression      = nCm;
@@ -265,20 +262,7 @@ type FlexServerHello =
                            init_srand       = srand;
                          }
                 in
-                let payload = HandshakeMessages.serverHelloBytes si srand exts in
-                let st = FlexHandshake.send(st,payload,fp) in
-
-                let fsh,si = fillFServerHelloANDSi FlexConstants.nullFServerHello si in
-                let st = fillStateEpochInitPvIFIsEpochInit st fsh in
-                let fsh = { fsh with payload = payload } in
-
-                LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
-                LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
-                LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
-                LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" fsh.suite);
-                LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
-                LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
-                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+                let st,fsh = FlexServerHello.send(st,si,sExtL,fp) in
                 st,si,fsh
 
             | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Compression method negotiation"))
@@ -289,15 +273,38 @@ type FlexServerHello =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="si"> Session Info of the currently negociated next security context </param>
-    /// <param name="cextL"> Client extensions list </param>
-    /// <param name="cfg"> Optional Configuration of the server </param>
-    /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
-    /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    //BB TODO : Possibility to override the negociatedExtensions; the fill functions are called multiple times when calling the overloaded function
-    //AP TODO: This needs to be aligned with the overload above.
-    static member send (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
-        st,si,FlexConstants.nullFServerHello
+    /// <returns> Updated state * FServerHello message record </returns>
+    static member send (st:state, si:SessionInfo, sExtL:list<serverExtension>, ?fp:fragmentationPolicy) : state * FServerHello =
+        LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.send");
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
 
+        let ext = serverExtensionsBytes sExtL in
+        let payload = HandshakeMessages.serverHelloBytes si si.init_srand ext in
+        let st = FlexHandshake.send(st,payload,fp) in
+
+        let csname = match TLSConstants.name_of_cipherSuite si.cipher_suite with
+            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct(cs) -> cs
+        in
+        let fsh = { FlexConstants.nullFServerHello with 
+                    pv = si.protocol_version;
+                    rand = si.init_srand;
+                    sid = si.sessionID;
+                    suite = csname;
+                    comp = si.compression;
+                    ext = sExtL;
+                    payload = payload;
+                  }
+        in
+        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" si.protocol_version);
+        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(si.sessionID)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(si.init_srand)));
+        LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" si.cipher_suite);
+        LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" si.compression);
+        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" si.extensions);
+        LogManager.GetLogger("file").Info(sprintf  "--- Payload : %s" (Bytes.hexString(payload)));
+
+        st,fsh
 
     end
