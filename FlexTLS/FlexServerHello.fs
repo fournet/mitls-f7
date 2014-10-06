@@ -195,6 +195,7 @@ type FlexServerHello =
     /// <param name="fch"> FClientHello message record containing client extensions </param>
     /// <param name="nsc"> Optional Next security context being negociated </param>
     /// <param name="fsh"> Optional FServerHello message record </param>
+    /// <param name="cfg"> Optional Server configuration if differs from default </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
     static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
@@ -204,7 +205,7 @@ type FlexServerHello =
         let cfg = defaultArg cfg defaultConfig in
 
         let fsh,si = fillFServerHelloANDSi fsh nsc.si in
-        let st,si,fsh = FlexServerHello.send(st,si,fch.pv,fch.suites,fch.comps,fch.ext,cfg=cfg,fp=fp) in
+        let st,si,fsh = FlexServerHello.send(st,si,fch.pv,fch.sid,fch.suites,fch.comps,fch.ext,cfg=cfg,fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;
@@ -222,8 +223,7 @@ type FlexServerHello =
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    //AP TODO: This needs to be aligned with the overload above.
-    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
+    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csid:bytes, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
 
@@ -252,9 +252,10 @@ type FlexServerHello =
                 // Extensions
                 let (sExtL, nExtL) = negotiateServerExtensions cextL cfg nCs verify_datas sessionHash in
                 let exts = serverExtensionsBytes sExtL in
+                //BB FIXME : We have to handle resumption 
                 let si = { si with 
                            client_auth      = cfg.request_client_certificate;
-                           //sessionID        = sid;
+                           sessionID        = sid;
                            protocol_version = nPv;
                            cipher_suite     = nCs;
                            compression      = nCm;
