@@ -161,8 +161,7 @@ assume !i,ad,h,h',r,f. (AuthId(i) /\ StAEHistory(i,h) /\ StAEHistory(i,h') /\ HL
 
 
 
-(*
-// CF 14-07-15 ??
+(* CF 14-07-15 ??
 private assume !e,e',ad,sh,r,d. 
        (Id(e) = Id(e') /\ 
        (AuthId(Id(e)) => TLSFragment.RecordSent(e',ad,Multiplexed(e',sh),r,d))) =>
