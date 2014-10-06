@@ -110,7 +110,8 @@ val ENC: ki:id -> s:(;ki) encryptor -> tlen:int -> p:(;ki,tlen) plain ->
 private val lastblock:  alg:blockCipher -> c:cipher {Length(c)>=BlockSize(alg)} -> bytes
 
 // internal function declarations 
-//private val GENOne: i:id -> 'a //(;i) state //TODO state should also have a role, but GENOne returns the state for both roles.
+//TODO state should also have a role, but GENOne returns the state for both roles.
+//private val GENOne: i:id -> 'a //(;i) state
 private val cbcenc: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes 
 private val cbcdec: blockCipher -> CoreCiphers.key -> CoreCiphers.iv -> bytes -> bytes
 
