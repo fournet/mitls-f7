@@ -571,8 +571,8 @@ let sessionHashAlg pv cs =
 let tlsMacAlg alg pv = 
     match pv with
     | SSL_3p0 -> MA_SSLKHASH(alg)
-    | TLS_1p0 | TLS_1p1 | TLS_1p2 -> MA_HMAC(alg)
-    | TLS_1p3 -> unexpected "[tlsMacAlg] TLS 1.3 should only use AEAD ciphers"
+    | TLS_1p0 | TLS_1p1
+    | TLS_1p2 | TLS_1p3 -> MA_HMAC(alg)
         
 let tlsEncAlg alg pv = 
     match pv with
