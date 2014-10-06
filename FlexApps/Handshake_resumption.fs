@@ -81,4 +81,47 @@ type Handshake_resumption =
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
         st
 
+    static member server (server_name:string, ?sDB:SessionDB.t, ?port:int) : state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        let sDB  = defaultArg sDB (SessionDB.create defaultConfig) in
+
+        // Start TCP connection with the server
+        let st,_ = FlexConnection.serverOpenTcpConnection(server_name,server_name,port) in
+
+        // Start the handshake
+        let st,nsc,fch   = FlexClientHello.receive(st) in
+
+        // Retreive session information and master secret if resumption is possible
+        let si,ms =
+            match SessionDB.select sDB fch.sid Client server_name with
+            | None -> failwith "Unable to resume a requested session"
+            | Some(si,ams) -> si,(PRF.leak (msi si) ams)
+        in
+        //BB FIXME : Here the list of the server extensions is not correct
+        // Server Hello should be reconstructed from the retreived session info
+        let st,fsh   = FlexServerHello.send(st,si,[]) in
+
+        // Install the new keys according to the previous master secret
+        let keys         = { nsc.keys with ms = ms } in
+        let nsc          = { nsc with keys = keys; si = si } in
+        let nsc          = FlexSecrets.fillSecrets(st,Server,nsc) in
+
+        let st,_         = FlexCCS.send(st) in
+
+        // Start encrypting
+        let st           = FlexState.installWriteKeys st nsc in
+
+        let log          = fch.payload @| fsh.payload in
+        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
+        let st,ffS       = FlexFinished.send(st,verify_data) in
+
+         let st,_,_      = FlexCCS.receive(st) in
+            
+        // Start decrypting
+        let st           = FlexState.installReadKeys st nsc in
+
+        let log          = log @| ffS.payload in
+        let st,ffC       = FlexFinished.receive(st,logRoleNSC=(log,Client,nsc)) in
+        st
+
     end
