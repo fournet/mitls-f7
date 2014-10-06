@@ -171,9 +171,9 @@ type FlexServerHello =
     /// <param name="cfg"> Optional Configuration of the server </param>
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    static member prepare (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>) : state * SessionInfo * FServerHello =
+    static member prepare (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:bool) : state * SessionInfo * FServerHello =
         let cfg = defaultArg cfg defaultConfig in
-        let sessionHash = defaultArg sessionHash None in
+        let sessionHash = defaultArg sessionHash false in
         let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
         let sextL,negExts = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas sessionHash in
         let exts = serverExtensionsBytes sextL in
@@ -223,11 +223,11 @@ type FlexServerHello =
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csid:bytes, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:option<sessionHash>, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
+    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csid:bytes, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:bool, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
 
-        let sessionHash = defaultArg sessionHash None in
+        let sessionHash = defaultArg sessionHash false in
         let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
 
         // Check that randomness has been generated

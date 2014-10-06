@@ -75,7 +75,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
         | false -> fch.ext
         | true -> 
             let ci = initConnection Client rand in
-            prepareClientExtensions cfg ci empty_bytes None
+            prepareClientExtensions cfg ci empty_bytes
     in
 
     (* Update fch with correct informations and sets payload to empty bytes *)
