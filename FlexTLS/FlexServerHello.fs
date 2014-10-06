@@ -118,15 +118,15 @@ type FlexServerHello =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record * Negociated extensions </returns>
-    static member receive (st:state, cextL:list<clientExtension>) : state * FServerHello * negotiatedExtensions =
+    static member receive (st:state, cextL:list<clientExtension>, ?IsResuming:bool) : state * FServerHello * negotiatedExtensions =
         LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.reveive");
+        let IsResuming = defaultArg IsResuming false in
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_hello  ->    
             (match parseServerHello payload with
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (pv,sr,sid,cs,cm,sexts) ->
-                let IsResuming = (not (sid = empty_bytes)) in
                 let csname = match TLSConstants.name_of_cipherSuite cs with
                     | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                     | Correct(cs) -> cs
