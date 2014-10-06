@@ -60,7 +60,7 @@ let load_params (stream : Stream) : dh_params =
         else
             DHX (abytes (DerInteger.GetInstance(obj.Item(0)).PositiveValue.ToByteArrayUnsigned()),
                  abytes (DerInteger.GetInstance(obj.Item(1)).PositiveValue.ToByteArrayUnsigned()),
-                 abytes (DerInteger.GetInstance(obj.Item(1)).PositiveValue.ToByteArrayUnsigned()))
+                 abytes (DerInteger.GetInstance(obj.Item(2)).PositiveValue.ToByteArrayUnsigned()))
     
     else
         raise (InvalidPEMFile(sprintf "Unrecognized PEM header: %s" obj.Type))
@@ -139,7 +139,7 @@ let insert_safe_prime dhdb pbytes gbytes : DHDB.dhdb =
         DHDB.insert dhdb (pbytes, gbytes) (qbytes, true)
 
 (* ------------------------------------------------------------------------ *)
-let insert_known_q dhdb pbytes gbytes qbytes db : DHDB.dhdb =
+let insert_known_q dhdb pbytes gbytes qbytes : DHDB.dhdb =
     let p   = new BigInteger(1, cbytes pbytes)
     let q   = new BigInteger(1, cbytes qbytes)    
     let pm1 = p.Subtract(BigInteger.One)        
