@@ -24,7 +24,7 @@ type FlexServerHelloDone =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * FServerHelloDone message record </returns>
     static member receive (st:state) : state * FServerHelloDone =
-        LogManager.GetLogger("file").Info("# SERVER HELLO DONE : FlexServerHelloDone.reveive");
+        LogManager.GetLogger("file").Info("# SERVER HELLO DONE : FlexServerHelloDone.receive");
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_server_hello_done  -> 
@@ -32,7 +32,7 @@ type FlexServerHelloDone =
                 failwith (perror __SOURCE_FILE__ __LINE__ "payload has not length zero")
             else
                 let fshd: FServerHelloDone = {payload = to_log} in
-                LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fshd
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_server_hello_done")
 
@@ -53,9 +53,11 @@ type FlexServerHelloDone =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerHelloDone message record </returns>
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =
+        LogManager.GetLogger("file").Info("# SERVER HELLO DONE : FlexServerHelloDone.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let st = FlexHandshake.send(st,HandshakeMessages.serverHelloDoneBytes,fp) in
         let fshd: FServerHelloDone = {payload = HandshakeMessages.serverHelloDoneBytes} in
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fshd.payload)));
         st,fshd
 
     end

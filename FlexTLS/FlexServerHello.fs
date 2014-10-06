@@ -298,12 +298,12 @@ type FlexServerHello =
                     payload = payload;
                   }
         in
-        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" si.protocol_version);
-        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(si.sessionID)));
-        LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(si.init_srand)));
-        LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" si.cipher_suite);
-        LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" si.compression);
-        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" si.extensions);
+        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
+        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
+        LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" fsh.suite);
+        LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
+        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
         LogManager.GetLogger("file").Info(sprintf  "--- Payload : %s" (Bytes.hexString(payload)));
 
         st,fsh

@@ -2,6 +2,8 @@
 
 module FlexCertificateRequest
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -25,6 +27,7 @@ type FlexCertificateRequest =
     /// <param name="nsc"> Optional Next security context object updated with new data </param>
     /// <returns> Updated state * next security context * FCertificateRequest message record </returns>
     static member receive (st:state, ?nsc:nextSecurityContext) : state * nextSecurityContext * FCertificateRequest =
+        LogManager.GetLogger("file").Info("# CERTIFICATE REQUEST : FlexCertificateRequest.receive");
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
         let pv = si.protocol_version in
@@ -42,7 +45,8 @@ type FlexCertificateRequest =
                 } in
                 let si  = { si with client_auth = true} in
                 let nsc = { nsc with si = si } in
-                    (st,nsc,certReq)
+                LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+                (st,nsc,certReq)
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate_request")
 
@@ -84,11 +88,13 @@ type FlexCertificateRequest =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FCertificateRequest message record </returns>
     static member send (st:state, cs:cipherSuite, pv:ProtocolVersion, ?fp:fragmentationPolicy): state * FCertificateRequest =
+        LogManager.GetLogger("file").Info("# CERTIFICATE REQUEST : FlexCertificateRequest.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let payload = HandshakeMessages.certificateRequestBytes true cs pv in
         let st = FlexHandshake.send (st,payload,fp) in
         //BB FIXME : miTLS doesn't allow to get back the list of signature algorithms infered from ciphersuite and pv
         // We return dummy values in the FCertificateRequest sigAlgs so it can be used later by FCertificateVerify functions
         let fcreq = { FlexConstants.nullFCertificateRequest with sigAlgs = FlexConstants.sigAlgs_ALL ; payload = payload } in
+        LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,fcreq
     end

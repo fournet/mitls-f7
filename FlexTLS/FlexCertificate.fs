@@ -92,6 +92,7 @@ type FlexCertificate =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * next security context * FCertificate message </returns>
     static member send (st:state, role:Role, ?nsc:nextSecurityContext, ?fcrt:FCertificate, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
+        LogManager.GetLogger("file").Info("# CERTIFICATE : FlexCertificate.send");
         let ns = st.ns in
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fcrt = defaultArg fcrt FlexConstants.nullFCertificate in
@@ -116,6 +117,7 @@ type FlexCertificate =
                         chain = chain;
                         payload = payload
         } in
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
         st,nsc,fcrt
 
     /// <summary>

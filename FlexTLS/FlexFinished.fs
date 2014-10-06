@@ -51,6 +51,7 @@ type FlexFinished =
                 let ff = {  verify_data = payload; 
                             payload = to_log;
                 } in
+                LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
                 LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));
                 st,ff
@@ -114,6 +115,7 @@ type FlexFinished =
         let ff = { verify_data = verify_data;
                    payload = payload;
                  } in
+        LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
         LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
         LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));
         st,ff

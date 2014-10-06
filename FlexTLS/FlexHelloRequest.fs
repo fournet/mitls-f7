@@ -2,6 +2,8 @@
 
 module FlexHelloRequest
 
+open NLog
+
 open Bytes
 open Error
 open HandshakeMessages
@@ -22,6 +24,7 @@ type FlexHelloRequest =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * FHelloRequest message record </returns>
     static member receive (st:state) : state * FHelloRequest = 
+        LogManager.GetLogger("file").Info("# HELLO REQUEST : FlexHelloRequest.receive");
         let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
         match hstype with
         | HT_hello_request  ->         
@@ -29,6 +32,7 @@ type FlexHelloRequest =
                 failwith (perror __SOURCE_FILE__ __LINE__ "payload has not length zero")
             else
                 let fhr = {FlexConstants.nullFHelloRequest with payload = to_log} in
+                LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fhr
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message is not of type HelloRequest")
 
@@ -49,10 +53,12 @@ type FlexHelloRequest =
     /// <param name="fp"> Optional fragmentation policy applied to the message </param>
     /// <returns> Updated state * next security context * FHelloRequest message record </returns>
     static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
+        LogManager.GetLogger("file").Info("# HELLO REQUEST : FlexHelloRequest.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ns = st.ns in
         let payload = HandshakeMessages.messageBytes HT_hello_request empty_bytes in
         let st = FlexHandshake.send(st,payload,fp) in
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,{payload = payload}
 
     end

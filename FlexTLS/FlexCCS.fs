@@ -33,7 +33,7 @@ type FlexCCS =
             | 1 ->
                 let st,payload = FlexRecord.getFragmentContent(st,Change_cipher_spec,1) in
                 if payload = HandshakeMessages.CCSBytes then
-                    (LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+                    (LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                     st,{payload = payload },payload)
                 else
                     failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected CCS content")
@@ -47,9 +47,10 @@ type FlexCCS =
     /// <param name="stout"> State of the current Handshake on the outgoing side </param>
     /// <returns> Updated incoming state * Updated outgoing state * forwarded CCS byte </returns>
     static member forward (stin:state, stout:state) : state * state * bytes =
+        LogManager.GetLogger("file").Info("# CCS : FlexCCS.forward");
         let stin,ccs,msgb  = FlexCCS.receive(stin) in
         let stout,_ = FlexCCS.send(stout) in
-        let msgb = ccs.payload in
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(msgb)));
         stin,stout,msgb
 
     /// <summary>
@@ -66,7 +67,7 @@ type FlexCCS =
                 Change_cipher_spec, fccs.payload,
                 st.write.epoch_init_pv) in
         let st = FlexState.updateOutgoingRecord st record_write in
-        LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(fccs.payload)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fccs.payload)));
         st,fccs
 
     end
