@@ -1,26 +1,26 @@
 ﻿#light "off"
 
-module Handshake_full_RSA
+module FlexApps.Handshake_full_RSA
 
 open Bytes
 open Error
 open TLSInfo
 open TLSConstants
 
-open FlexTypes
-open FlexConstants
-open FlexConnection
-open FlexClientHello
-open FlexServerHello
-open FlexCertificate
-open FlexCertificateRequest
-open FlexCertificateVerify
-open FlexServerHelloDone
-open FlexClientKeyExchange
-open FlexCCS
-open FlexFinished
-open FlexState
-open FlexSecrets
+open FlexTLS.FlexTypes
+open FlexTLS.FlexConstants
+open FlexTLS.FlexConnection
+open FlexTLS.FlexClientHello
+open FlexTLS.FlexServerHello
+open FlexTLS.FlexCertificate
+open FlexTLS.FlexCertificateRequest
+open FlexTLS.FlexCertificateVerify
+open FlexTLS.FlexServerHelloDone
+open FlexTLS.FlexClientKeyExchange
+open FlexTLS.FlexCCS
+open FlexTLS.FlexFinished
+open FlexTLS.FlexState
+open FlexTLS.FlexSecrets
 
 
 

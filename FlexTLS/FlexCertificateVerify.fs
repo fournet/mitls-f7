@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexCertificateVerify
+module FlexTLS.FlexCertificateVerify
 
 open Bytes
 open Error

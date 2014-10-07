@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexRecord
+module FlexTLS.FlexRecord
 
 open NLog
 

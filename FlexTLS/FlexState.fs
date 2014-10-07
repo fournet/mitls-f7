@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexState
+module FlexTLS.FlexState
 
 open NLog
 

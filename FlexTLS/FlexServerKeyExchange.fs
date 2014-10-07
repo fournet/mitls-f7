@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexServerKeyExchange
+module FlexTLS.FlexServerKeyExchange
 
 open NLog
 

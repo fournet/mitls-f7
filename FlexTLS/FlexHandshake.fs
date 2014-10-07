@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexHandshake
+module FlexTLS.FlexHandshake
 
 open Bytes
 open Error

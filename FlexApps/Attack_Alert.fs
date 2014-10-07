@@ -1,23 +1,23 @@
 ﻿#light "off"
 
-module Attack_Alert
+module FlexApps.Attack_Alert
 
 open Bytes
 open TLSInfo
 
-open FlexTypes
-open FlexConnection
-open FlexClientHello
-open FlexServerHello
-open FlexAlert
-open FlexState
-open FlexCertificate
-open FlexServerHelloDone
-open FlexClientKeyExchange
-open FlexCCS
-open FlexFinished
-open FlexAppData
-open FlexSecrets
+open FlexTLS.FlexTypes
+open FlexTLS.FlexConnection
+open FlexTLS.FlexClientHello
+open FlexTLS.FlexServerHello
+open FlexTLS.FlexAlert
+open FlexTLS.FlexState
+open FlexTLS.FlexCertificate
+open FlexTLS.FlexServerHelloDone
+open FlexTLS.FlexClientKeyExchange
+open FlexTLS.FlexCCS
+open FlexTLS.FlexFinished
+open FlexTLS.FlexAppData
+open FlexTLS.FlexSecrets
 
 
 

@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexClientHello
+module FlexTLS.FlexClientHello
 
 open NLog
 

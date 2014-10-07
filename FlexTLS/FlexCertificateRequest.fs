@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexCertificateRequest
+module FlexTLS.FlexCertificateRequest
 
 open NLog
 

@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexConstants
+module FlexTLS.FlexConstants
 
 open Bytes
 open Error

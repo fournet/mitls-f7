@@ -1,26 +1,26 @@
 ﻿#light "off"
 
-module Handshake_tls13
+module FlexApps.Handshake_tls13
 
 open Bytes
 open Error
 open TLSInfo
 open TLSConstants
 
-open FlexTypes
-open FlexConstants
-open FlexConnection
-open FlexClientHello
-open FlexServerHello
-open FlexCertificate
-open FlexServerKeyExchange
-open FlexServerHelloDone
-open FlexClientKeyExchange
-open FlexCertificateVerify
-open FlexCCS
-open FlexFinished
-open FlexState
-open FlexSecrets
+open FlexTLS.FlexTypes
+open FlexTLS.FlexConstants
+open FlexTLS.FlexConnection
+open FlexTLS.FlexClientHello
+open FlexTLS.FlexServerHello
+open FlexTLS.FlexCertificate
+open FlexTLS.FlexServerKeyExchange
+open FlexTLS.FlexServerHelloDone
+open FlexTLS.FlexClientKeyExchange
+open FlexTLS.FlexCertificateVerify
+open FlexTLS.FlexCCS
+open FlexTLS.FlexFinished
+open FlexTLS.FlexState
+open FlexTLS.FlexSecrets
 
 
 

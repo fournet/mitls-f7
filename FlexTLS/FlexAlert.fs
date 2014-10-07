@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexAlert
+module FlexTLS.FlexAlert
 
 open NLog
 

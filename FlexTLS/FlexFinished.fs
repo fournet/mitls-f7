@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexFinished
+module FlexTLS.FlexFinished
 
 open NLog
 

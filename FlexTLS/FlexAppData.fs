@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexAppData
+module FlexTLS.FlexAppData
 
 open Bytes
 open Error

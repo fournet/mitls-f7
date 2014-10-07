@@ -1,22 +1,22 @@
 ﻿#light "off"
 
-module Handshake_resumption
+module FlexApps.Handshake_resumption
 
 open Bytes
 open Error
 open TLSInfo
 open TLSConstants
 
-open FlexTypes
-open FlexConstants
-open FlexConnection
-open FlexSecrets
-open FlexClientHello
-open FlexServerHello
-open FlexCCS
-open FlexFinished
-open FlexState
-open FlexSecrets
+open FlexTLS.FlexTypes
+open FlexTLS.FlexConstants
+open FlexTLS.FlexConnection
+open FlexTLS.FlexSecrets
+open FlexTLS.FlexClientHello
+open FlexTLS.FlexServerHello
+open FlexTLS.FlexCCS
+open FlexTLS.FlexFinished
+open FlexTLS.FlexState
+open FlexTLS.FlexSecrets
 
 
 

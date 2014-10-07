@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexSecrets
+module FlexTLS.FlexSecrets
 
 open NLog
 

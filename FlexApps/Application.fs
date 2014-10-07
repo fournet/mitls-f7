@@ -1,18 +1,18 @@
 ﻿#light "off"
 
-module Application
+module FlexApps.Application
 
 open NLog
 
-open FlexTypes
-open Attack_Alert
-open Attack_FragmentClientHello
-open Attack_EarlyCCS
-open Attack_TripleHandshake
-open Handshake_full_RSA
-open Handshake_full_DHE
-open Handshake_resumption
-open Handshake_tls13
+open FlexTLS.FlexTypes
+open FlexApps.Attack_Alert
+open FlexApps.Attack_FragmentClientHello
+open FlexApps.Attack_EarlyCCS
+open FlexApps.Attack_TripleHandshake
+open FlexApps.Handshake_full_RSA
+open FlexApps.Handshake_full_DHE
+open FlexApps.Handshake_resumption
+open FlexApps.Handshake_tls13
 
 
 

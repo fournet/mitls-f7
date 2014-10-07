@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexCCS
+module FlexTLS.FlexCCS
 
 open NLog
 

@@ -1,6 +1,6 @@
 ﻿#light "off"
 
-module FlexTypes
+module FlexTLS.FlexTypes
 
 open Bytes
 open TLSInfo
