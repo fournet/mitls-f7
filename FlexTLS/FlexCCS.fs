@@ -16,6 +16,9 @@ open FlexRecord
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS ChangeCipherSpec messages.
+/// </summary>
 type FlexCCS =
     class
     

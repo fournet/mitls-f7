@@ -15,6 +15,9 @@ open FlexConstants
 
 
 
+/// <summary>
+/// Module handling of opening TCP connections and prepare for TLS connections
+/// </summary>
 type FlexConnection =
     class
 

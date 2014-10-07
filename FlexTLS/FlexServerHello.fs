@@ -68,6 +68,9 @@ let fillStateEpochInitPvIFIsEpochInit (st:state) (fsh:FServerHello) : state =
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Server Hello messages.
+/// </summary>
 type FlexServerHello = 
     class
 

@@ -35,6 +35,9 @@ let dh_leak (x:DH.secret) : bytes =
 
 
 
+/// <summary>
+/// Module dealing with computations on secret data.
+/// </summary>
 type FlexSecrets =
     class
 

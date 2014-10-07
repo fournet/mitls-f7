@@ -40,6 +40,9 @@ let defaultKey osk certl =
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Client Key Exchange messages.
+/// </summary>
 type FlexClientKeyExchange =
     class
 

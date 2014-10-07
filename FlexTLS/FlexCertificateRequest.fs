@@ -17,6 +17,9 @@ open FlexHandshake
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Certificate Request messages.
+/// </summary>
 type FlexCertificateRequest =
     class
 

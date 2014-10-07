@@ -15,6 +15,9 @@ open FlexHandshake
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Server Hello Done messages.
+/// </summary>
 type FlexServerHelloDone = 
     class
 

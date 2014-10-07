@@ -18,6 +18,9 @@ open FlexRecord
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS alerts.
+/// </summary>
 type FlexAlert = 
     class
     

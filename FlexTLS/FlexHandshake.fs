@@ -14,6 +14,9 @@ open FlexRecord
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS handshake messages.
+/// </summary>
 type FlexHandshake =
     class
 

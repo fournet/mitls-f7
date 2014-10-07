@@ -51,7 +51,9 @@ let pickCTBuffer (ch:channel) (ct:ContentType) : bytes =
 
 
 
-
+/// <summary>
+/// Module receiving, sending and forwarding and eventually encrypts TLS records.
+/// </summary>
 type FlexRecord = 
     class
 

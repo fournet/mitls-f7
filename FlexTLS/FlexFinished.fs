@@ -17,6 +17,9 @@ open FlexSecrets
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Finished messages.
+/// </summary>
 type FlexFinished = 
     class
 

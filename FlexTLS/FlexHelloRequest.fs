@@ -15,6 +15,9 @@ open FlexHandshake
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Hello Request messages.
+/// </summary>
 type FlexHelloRequest = 
     class
 

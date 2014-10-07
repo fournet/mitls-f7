@@ -14,6 +14,9 @@ open FlexState
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS application data.
+/// </summary>
 type FlexAppData =
     class
 

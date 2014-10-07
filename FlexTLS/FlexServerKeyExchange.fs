@@ -34,6 +34,9 @@ let filldh kexdh =
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Server Key Exchange messages.
+/// </summary>
 type FlexServerKeyExchange =
     class
 
