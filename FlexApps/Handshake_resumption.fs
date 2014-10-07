@@ -81,6 +81,9 @@ type Handshake_resumption =
         let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
         st
 
+//
+// WORK IN PROGRESS
+//
     static member server (server_name:string, ?sDB:SessionDB.t, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let sDB  = defaultArg sDB (SessionDB.create defaultConfig) in
