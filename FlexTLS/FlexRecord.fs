@@ -27,12 +27,12 @@ let fs_of_fp fp =
     | All(n) | One(n) -> n
 
 /// <summary>
-/// Split any CT payload data depending on the fragmentation size
+/// Split any payload depending on the fragmentation size
 /// </summary>
 /// <param name="bytes"> Data bytes to be split </param>
 /// <param name="fp"> Fragmentation policy </param>
 /// <returns> Fragment of the choosen size * remaining unsplit data bytes </returns>
-let splitCTPayloadFP (b:bytes) (fp:fragmentationPolicy) : bytes * bytes =
+let splitPayloadFP (b:bytes) (fp:fragmentationPolicy) : bytes * bytes =
     let len = System.Math.Min((length b),(fs_of_fp fp)) in
     Bytes.split b len
 
@@ -157,7 +157,7 @@ type FlexRecord =
                 let si = TLSInfo.epochSI e in
                 si.protocol_version
         in
-        let msgb,rem = splitCTPayloadFP payload fp in
+        let msgb,rem = splitPayloadFP payload fp in
         LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(msgb)));
         let k,b = FlexRecord.encrypt (e,pv,k,ct,msgb) in
         match Tcp.write ns b with
@@ -170,5 +170,30 @@ type FlexRecord =
                 else
                     FlexRecord.send(ns,e,k,ct,rem,pv,fp)
             | One(fs) -> (k,rem)
-                
+       
+
+    /// <summary>
+    /// Send raw data over the network without altering the state depending on the fragmentation policy
+    /// </summary>
+    /// <param name="ns"> Network stream </param>
+    /// <param name="ct"> Content type of the fragment </param>
+    /// <param name="pv"> Protocol Version of the fragment </param>
+    /// <param name="payload"> Data to encrypt </param>
+    /// <param name="fp"> Optional fragmentation policy applied to the message </param>
+    /// <returns> Remaining bytes </returns>
+    static member send_raw (ns:NetworkStream, ct:ContentType, pv:ProtocolVersion, payload:bytes, ?fp:fragmentationPolicy) : bytes =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let b,rem = splitPayloadFP payload fp in
+        let fragb = Record.makePacket ct pv b in
+        LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
+        match Tcp.write ns fragb with
+        | Error x -> failwith x
+        | Correct() -> 
+            match fp with
+            | All(fs) -> 
+                if rem = empty_bytes then
+                    empty_bytes
+                else
+                    FlexRecord.send_raw(ns,ct,pv,rem,fp)
+            | One(fs) -> rem
     end
