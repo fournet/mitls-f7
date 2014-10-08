@@ -11,11 +11,11 @@ open FlexTLS.FlexTypes
 open FlexTLS.FlexConstants
 open FlexTLS.FlexConnection
 open FlexTLS.FlexClientHello
+open FlexTLS.FlexClientKeyShare
 open FlexTLS.FlexServerHello
+open FlexTLS.FlexServerKeyShare
 open FlexTLS.FlexCertificate
-open FlexTLS.FlexServerKeyExchange
 open FlexTLS.FlexServerHelloDone
-open FlexTLS.FlexClientKeyExchange
 open FlexTLS.FlexCertificateVerify
 open FlexTLS.FlexCCS
 open FlexTLS.FlexFinished
@@ -44,17 +44,17 @@ type Handshake_tls13 =
             suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch,cfg) in
-        let st,nsc,fcke  = FlexClientKeyExchangeTLS13.send(st,nsc) in
+        let st,nsc,fcks  = FlexClientKeyShare.send(st,nsc) in
 
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
-        let st,nsc,fske  = FlexServerKeyExchangeTLS13.receive(st,nsc) in
+        let st,nsc,fsks  = FlexServerKeyShare.receive(st,nsc) in
 
         // Peer advertize that it will encrypt the traffic
         let st,_,_       = FlexCCS.receive(st) in
         let st           = FlexState.installReadKeys st nsc in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
 
-        let log = fch.payload @| fcke.payload @| fsh.payload @| fske.payload @| fcert.payload in
+        let log = fch.payload @| fcks.payload @| fsh.payload @| fsks.payload @| fcert.payload in
         let st,scertv    = FlexCertificateVerify.receive(st,nsc,FlexConstants.sigAlgs_ALL,log=log) in
         
         let log = log @| scertv.payload in
@@ -90,10 +90,10 @@ type Handshake_tls13 =
             failwith (perror __SOURCE_FILE__ __LINE__ "Unsuitable ciphersuite")
         else
 
-        let st,nsc,fcke  = FlexClientKeyExchangeTLS13.receive(st,nsc) in
+        let st,nsc,fcke  = FlexClientKeyShare.receive(st,nsc) in
 
         let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,cfg=cfg) in
-        let st,nsc,fske  = FlexServerKeyExchangeTLS13.send(st,nsc) in
+        let st,nsc,fske  = FlexServerKeyShare.send(st,nsc) in
 
         // We advertize that we will encrypt the traffic
         let st,_         = FlexCCS.send(st) in
