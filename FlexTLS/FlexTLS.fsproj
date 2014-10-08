@@ -60,7 +60,9 @@
     <Compile Include="FlexSecrets.fs" />
     <Compile Include="FlexHelloRequest.fs" />
     <Compile Include="FlexClientHello.fs" />
+    <Compile Include="FlexClientKeyShare.fs" />
     <Compile Include="FlexServerHello.fs" />
+    <Compile Include="FlexServerKeyShare.fs" />
     <Compile Include="FlexCertificate.fs" />
     <Compile Include="FlexServerKeyExchange.fs" />
     <Compile Include="FlexCertificateRequest.fs" />

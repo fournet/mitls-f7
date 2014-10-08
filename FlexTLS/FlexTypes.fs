@@ -65,21 +65,21 @@ type kex =
 (* EXPERIMENTAL TLS 1.3 *)
 
 /// <summary>
-/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Client Key Exchange
+/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Client Key Share
 /// </summary>
 /// <param name="offers"> List of Key Exchange mechanisms informations </param>
 /// <param name="payload"> Real message bytes </param>
-type FClientKeyExchangeTLS13 = {
+type FClientKeyShare = {
     offers:list<HandshakeMessages.tls13kex>;
     payload:bytes;
 }
 
 /// <summary>
-/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Server Key Exchange
+/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Server Key Share
 /// </summary>
 /// <param name="kex"> Key Exchange mechanism information </param>
 /// <param name="payload"> Real message bytes </param>
-type FServerKeyExchangeTLS13 = {
+type FServerKeyShare = {
     kex:HandshakeMessages.tls13kex;
     payload:bytes;
 }
