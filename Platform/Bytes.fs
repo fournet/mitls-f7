@@ -250,10 +250,4 @@ let hexString x =
     |> Array.map (fun x -> System.String.Format("{0:X2}",x))
     |> String.concat System.String.Empty
 
-let todo (s:string) : unit = 
-#if ideal
-  failwith s
-#else
-  ()
-#endif
 
