@@ -169,23 +169,19 @@ type FlexClientHello =
     /// <summary>
     /// Prepare ClientHello message bytes that will not be sent to the network stream
     /// </summary>
-    /// <param name="st"> State of the current Handshake </param>
-    /// <param name="fch"> Desired client hello </param>
     /// <param name="cfg"> Desired config </param>
-    /// <returns> FClientHello message bytes * Updated state * Next security context in negociation * FClientHello message record </returns>
-    static member prepare (st:state, ?fch:FClientHello, ?cfg:config) : bytes * state * nextSecurityContext * FClientHello =
-        let fch = defaultArg fch FlexConstants.nullFClientHello in
-        let cfg = defaultArg cfg defaultConfig in
-        let fch,cfg = fillFClientHelloANDConfig fch cfg in
-        let st = fillStateEpochInitPvIFIsEpochInit st fch in
-        let exts = clientExtensionsBytes fch.ext in
-        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid exts in
-        let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
-        let nsc = { FlexConstants.nullNextSecurityContext with
-                        si = si;
-                        crand = fch.rand } in
-        let fch = { fch with payload = payload } in
-        payload,st,nsc,fch
+    /// <param name="crand"> Client random value </param>
+    /// <param name="csid"> Client desired sid </param>
+    /// <param name="cExtL"> Client list of extension </param>
+    /// <returns> FClientHello message record </returns>
+    static member prepare (cfg:config, crand:bytes, csid:bytes, cExtL:list<clientExtension>) : FClientHello =
+        let exts = clientExtensionsBytes cExtL in
+        let fch,cfg = fillFClientHelloANDConfig  FlexConstants.nullFClientHello cfg in
+
+        let payload = HandshakeMessages.clientHelloBytes cfg crand csid exts in
+        let fch = { fch with rand = crand; sid = csid; ext = cExtL; payload = payload } in
+        fch
+
 
     /// <summary>
     /// Send ClientHello message to the network stream
@@ -196,7 +192,6 @@ type FlexClientHello =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
     static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
-        LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.send");
         let ns = st.ns in
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fch = defaultArg fch FlexConstants.nullFClientHello in
@@ -204,7 +199,9 @@ type FlexClientHello =
         
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
-        let exts = clientExtensionsBytes fch.ext in
+
+        let st,fch = FlexClientHello.send(st,cfg,fch.rand,fch.sid,fch.ext,fp) in
+        
         let offers = 
             match TLSExtensions.getOfferedDHGroups fch.ext with
             | None -> []
@@ -214,22 +211,38 @@ type FlexClientHello =
                 in
                 List.map dh13 gl
         in
-        let payload = HandshakeMessages.clientHelloBytes cfg fch.rand fch.sid exts in
-        let st = FlexHandshake.send(st,payload,fp) in
-
         let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
         let nsc = { FlexConstants.nullNextSecurityContext with
                     si = si;
                     crand = fch.rand; 
-                    offers = offers; } in
-        let fch = { fch with payload = payload } in
+                    offers = offers; 
+                  } 
+        in
+        st,nsc,fch
+    
+    /// <summary>
+    /// Send ClientHello message to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="fch"> Desired client hello </param>
+    /// <param name="cfg"> Desired config </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
+    static member send (st:state, cfg:config, crand:bytes, csid:bytes, cExtL:list<clientExtension>, ?fp:fragmentationPolicy) : state * FClientHello =
+        LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.send");
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let exts = clientExtensionsBytes cExtL in
+
+        let fch = FlexClientHello.prepare(cfg,crand,csid,cExtL) in
+        let st = FlexHandshake.send(st,fch.payload,fp) in
+
         LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fch.pv);
         LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
         LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
         LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
         LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fch.ext);
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
-        st,nsc,fch
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fch.payload)));
+        st,fch
     
     end

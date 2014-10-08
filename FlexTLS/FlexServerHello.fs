@@ -174,22 +174,24 @@ type FlexServerHello =
     /// <param name="cfg"> Optional Configuration of the server </param>
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
-    static member prepare (st:state, si:SessionInfo, cextL:list<clientExtension>, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?sessionHash:bool) : state * SessionInfo * FServerHello =
-        let cfg = defaultArg cfg defaultConfig in
-        let sessionHash = defaultArg sessionHash false in
-        let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
-        let sextL,negExts = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas sessionHash in
-        let exts = serverExtensionsBytes sextL in
-        let fsh,si = fillFServerHelloANDSi FlexConstants.nullFServerHello si in
-        let si = {si with extensions = negExts } in
-        let st = fillStateEpochInitPvIFIsEpochInit st fsh in
-        let payload = HandshakeMessages.serverHelloBytes si fsh.rand exts in
-        let fsh = { fsh with 
-                    ext = sextL;
-                    payload = payload 
-                  } 
+    static member prepare (si:SessionInfo, sExtL:list<serverExtension>) : FServerHello =
+        let ext = serverExtensionsBytes sExtL in
+        let csname = match TLSConstants.name_of_cipherSuite si.cipher_suite with
+            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Correct(cs) -> cs
         in
-        st,si,fsh
+        let payload = HandshakeMessages.serverHelloBytes si si.init_srand ext in
+        let fsh = { FlexConstants.nullFServerHello with 
+                    pv = si.protocol_version;
+                    rand = si.init_srand;
+                    sid = si.sessionID;
+                    suite = csname;
+                    comp = si.compression;
+                    ext = sExtL;
+                    payload = payload;
+                  }
+        in
+        fsh
 
     /// <summary>
     /// Send a ServerHello message to the network stream
@@ -283,31 +285,17 @@ type FlexServerHello =
         LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
 
-        let ext = serverExtensionsBytes sExtL in
-        let payload = HandshakeMessages.serverHelloBytes si si.init_srand ext in
-        let st = FlexHandshake.send(st,payload,fp) in
+        let fsh = FlexServerHello.prepare(si,sExtL) in
+        let st = FlexHandshake.send(st,fsh.payload,fp) in
 
-        let csname = match TLSConstants.name_of_cipherSuite si.cipher_suite with
-            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct(cs) -> cs
-        in
-        let fsh = { FlexConstants.nullFServerHello with 
-                    pv = si.protocol_version;
-                    rand = si.init_srand;
-                    sid = si.sessionID;
-                    suite = csname;
-                    comp = si.compression;
-                    ext = sExtL;
-                    payload = payload;
-                  }
-        in
+        let ext = serverExtensionsBytes sExtL in
         LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
         LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
         LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
         LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" fsh.suite);
         LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
-        LogManager.GetLogger("file").Info(sprintf  "--- Payload : %s" (Bytes.hexString(payload)));
+        LogManager.GetLogger("file").Info(sprintf  "--- Payload : %s" (Bytes.hexString(fsh.payload)));
 
         st,fsh
 

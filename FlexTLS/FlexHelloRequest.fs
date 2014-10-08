@@ -45,9 +45,10 @@ type FlexHelloRequest =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> FHelloRequest message bytes * Updated state * next security context * FHelloRequest message record </returns>
-    static member prepare (st:state) : bytes * state * FHelloRequest =
+    static member prepare () : FHelloRequest =
         let payload = HandshakeMessages.messageBytes HT_hello_request empty_bytes in
-        payload,st,{payload = payload}
+        let fhr : FHelloRequest = {payload = payload} in
+        fhr
 
     /// <summary>
     /// Send a HelloRequest message to the network stream
@@ -59,9 +60,11 @@ type FlexHelloRequest =
         LogManager.GetLogger("file").Info("# HELLO REQUEST : FlexHelloRequest.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ns = st.ns in
-        let payload = HandshakeMessages.messageBytes HT_hello_request empty_bytes in
-        let st = FlexHandshake.send(st,payload,fp) in
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
-        st,{payload = payload}
+
+        let fhr = FlexHelloRequest.prepare() in
+        let st = FlexHandshake.send(st,fhr.payload,fp) in
+
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fhr.payload)));
+        st,fhr
 
     end

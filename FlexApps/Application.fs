@@ -50,8 +50,8 @@ let main argv =
 //    printf "TLS 1.3 server finished\n";
 
     (* Standard RSA full handshake as Client *)
-//    let st = Handshake_full_RSA.client("127.0.0.1",44201) in
-//    printf "RSA client finished\n";
+    let st = Handshake_full_RSA.client("www.inria.fr") in
+    printf "RSA client finished\n";
 
     (* Standard RSA handshake with resumption as Client*)
 //    let st = Handshake_full_RSA.client("www.inria.fr") in

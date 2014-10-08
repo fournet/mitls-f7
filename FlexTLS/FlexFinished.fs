@@ -23,8 +23,6 @@ open FlexSecrets
 type FlexFinished = 
     class
 
-    //BB : Should we reverse priority between logRoleNSC and verify_data ?
-
     /// <summary>
     /// Receive a Finished message from the network stream and check the verify_data on demand
     /// </summary>
@@ -61,26 +59,17 @@ type FlexFinished =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
 
     /// <summary>
-    /// Prepare a Finished message from the network stream and check the verify_data on demand
+    /// Prepare a Finished message from the verify_data that will not be sent to the network
     /// </summary>
-    /// <param name="st"> State of the current Handshake </param>
-    /// <param name="verify_data"> Optional verify_data that will be checked if provided </param>
-    /// <param name="logRoleNSC"> Optional triplet that includes the log the role and the next security context and that compute the verify data if provided </param>
-    /// <returns> Finished message bytes * Updated state * FFinished message record </returns>
-    static member prepare (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext) : bytes * state * FFinished =
-        let verify_data =
-            match logRoleNSC with
-            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
-            | None ->
-                match verify_data with
-                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")
-                | Some(vd) -> vd
-        in
+    /// <param name="verify_data"> Verify_data that will be used to generate the finished message </param>
+    /// <returns> Finished message bytes *  FFinished message record </returns>
+    static member prepare (verify_data:bytes) : bytes * FFinished =
         let payload = HandshakeMessages.messageBytes HT_finished verify_data in
         let ff = { verify_data = verify_data;
                    payload = payload;
-                 } in
-        payload,st,ff
+                 } 
+        in
+        payload,ff
 
     /// <summary>
     /// Overload : Send a Finished message from the network stream and check the verify_data on demand
@@ -113,11 +102,9 @@ type FlexFinished =
                 | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")
                 | Some(vd) -> vd
         in
-        let payload = HandshakeMessages.messageBytes HT_finished verify_data in
+        let payload,ff = FlexFinished.prepare verify_data in
         let st = FlexHandshake.send(st,payload,fp) in
-        let ff = { verify_data = verify_data;
-                   payload = payload;
-                 } in
+
         LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
         LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
         LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));

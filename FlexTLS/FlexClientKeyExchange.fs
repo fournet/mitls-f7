@@ -316,17 +316,19 @@ type FlexClientKeyExchange =
     /// <summary>
     /// Prepare DHE ClientKeyExchange bytes but will not send it to the network stream
     /// </summary>
-    /// <param name="st"> State of the current Handshake </param>
     /// <param name="kexdh"> Key Exchange record containing necessary Diffie-Hellman parameters </param>
-    /// <returns> Updated state * FClientKeyExchange message record </returns>
-    static member prepareDHE (st:state, kexdh:kexDH) : bytes * state * FClientKeyExchange =        
+    /// <returns> FClientKeyExchange message bytes * FClientKeyExchange record * </returns>
+    static member prepareDHE (kexdh:kexDH) : FClientKeyExchange * kexDH =        
         let p,g = kexdh.pg in
-        let dhp = { FlexConstants.nullDHParams with dhp = p; dhg = g } in
-        let x,gx = CoreDH.gen_key_pg p g in
+        // We override the public and secret exponent if one of the two is empty
+        let x,gx = 
+            if (kexdh.x = empty_bytes) || (kexdh.gx = empty_bytes) then CoreDH.gen_key_pg p g else kexdh.x,kexdh.gx
+        in
         let payload = clientKEXExplicitBytes_DH gx in
         let kexdh = { kexdh with x = x; gx = gx } in
         let fcke = { kex = DH(kexdh); payload = payload } in
-        payload,st,fcke
+        // We redundantly return kexdh for a better log
+        fcke,kexdh
 
     /// <summary>
     /// Overload : Send DHE ClientKeyExchange to the network stream
@@ -374,18 +376,12 @@ type FlexClientKeyExchange =
         LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE : FlexClientKeyExchange.sendDHE");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         
-        let p,g = kexdh.pg in
-        // We override the public and secret exponent if one of the two is empty
-        let x,gx = 
-            if (kexdh.x = empty_bytes) || (kexdh.gx = empty_bytes) then CoreDH.gen_key_pg p g else kexdh.x,kexdh.gx
-        in
-        let payload = clientKEXExplicitBytes_DH gx in
-        let st = FlexHandshake.send(st,payload,fp) in
-        let kexdh = { kexdh with x = x; gx = gx } in
-        let fcke = { kex = DH(kexdh); payload = payload } in
-        LogManager.GetLogger("file").Debug(sprintf "--- SECRET Value : %s" (Bytes.hexString(x)));
-        LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gx)));
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+        let fcke,dh = FlexClientKeyExchange.prepareDHE(kexdh) in
+        let st = FlexHandshake.send(st,fcke.payload,fp) in
+
+        LogManager.GetLogger("file").Debug(sprintf "--- SECRET Value : %s" (Bytes.hexString(dh.x)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(dh.gx)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fcke.payload)));
         st,fcke
 
     end

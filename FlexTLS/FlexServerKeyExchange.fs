@@ -113,16 +113,19 @@ type FlexServerKeyExchange =
     /// <param name="sigAlg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
     /// <param name="sigKey"> Signature secret key associated to the algorithm </param>
     /// <returns> FServerKeyExchange message bytes * Updated state * FServerKeyExchange message record </returns>
-    static member prepareDHE (st:state, kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey) : bytes * state * FServerKeyExchange =
+    static member prepareDHE (kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey) : FServerKeyExchange * kexDH =
+        
         let kexdh = filldh kexdh in
         let p,g = kexdh.pg in
         let gx  = kexdh.gx in
         let dheB = HandshakeMessages.dheParamBytes p g gx in
         let msgb = crand @| srand @| dheB in
         let sign = Sig.sign sigAlg sigKey msgb in
+
         let payload = HandshakeMessages.serverKeyExchangeBytes_DHE dheB sigAlg sign pv in
         let fske = { sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
-        payload,st,fske
+        // We redundantly return kexdh for a better log
+        fske,kexdh
 
     /// <summary>
     /// Send a DHE ServerKeyExchange message to the network stream
@@ -170,21 +173,15 @@ type FlexServerKeyExchange =
     static member sendDHE (st:state, kexdh:kexDH, crand:bytes, srand:bytes, pv:ProtocolVersion, sigAlg:Sig.alg, sigKey:Sig.skey, ?fp:fragmentationPolicy) : state * FServerKeyExchange =
         LogManager.GetLogger("file").Info("# SERVER KEY EXCHANGE : FlexServerKeyExchange.sendDHE");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let kexdh = filldh kexdh in
 
-        let p,g = kexdh.pg in
-        let gx  = kexdh.gx in
-        let dheB = HandshakeMessages.dheParamBytes p g gx in
-        let msgb = crand @| srand @| dheB in
-        let sign = Sig.sign sigAlg sigKey msgb in
+        let fske,dh = FlexServerKeyExchange.prepareDHE(kexdh,crand,srand,pv,sigAlg,sigKey) in
+        let st = FlexHandshake.send(st,fske.payload,fp) in
 
-        let payload = HandshakeMessages.serverKeyExchangeBytes_DHE dheB sigAlg sign pv in
-        let st = FlexHandshake.send(st,payload,fp) in
-        let fske = { sigAlg = sigAlg; signature = sign; kex = DH(kexdh) ; payload = payload } in
+        let p,g = dh.pg in
         LogManager.GetLogger("file").Debug(sprintf "--- Public Prime : %s" (Bytes.hexString(p)));
         LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %s" (Bytes.hexString(g)));
-        LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gx)));
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(dh.gx)));
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fske.payload)));
         st,fske
     
     end

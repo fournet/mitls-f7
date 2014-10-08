@@ -56,14 +56,15 @@ type FlexCertificateRequest =
     /// <summary>
     /// Prepare a CertificateRequest message that won't be sent to the network stream
     /// </summary>
-    /// <param name="st"> State of the current Handshake </param>
     /// <param name="cs"> Ciphersuite used to generate the request </param>
     /// <param name="pv"> Protocol version used to generate the request </param>
-    /// <returns> Payload of the message as bytes * Updated state * FCertificateRequest message record</returns>
-    static member prepare (st:state, cs:cipherSuite, pv:ProtocolVersion): bytes * state * FCertificateRequest =
+    /// <returns> FCertificateRequest message record</returns>
+    static member prepare (cs:cipherSuite, pv:ProtocolVersion): FCertificateRequest =
         let payload = HandshakeMessages.certificateRequestBytes true cs pv in
+        //BB FIXME : miTLS doesn't allow to get back the list of signature algorithms infered from ciphersuite and pv
+        // We return dummy values in the FCertificateRequest sigAlgs so it can be used later by FCertificateVerify functions
         let fcreq = { FlexConstants.nullFCertificateRequest with sigAlgs = FlexConstants.sigAlgs_ALL ; payload = payload } in
-        payload,st,fcreq
+        fcreq
 
     /// <summary>
     /// Send a CertificateRequest message to the network stream
@@ -93,11 +94,10 @@ type FlexCertificateRequest =
     static member send (st:state, cs:cipherSuite, pv:ProtocolVersion, ?fp:fragmentationPolicy): state * FCertificateRequest =
         LogManager.GetLogger("file").Info("# CERTIFICATE REQUEST : FlexCertificateRequest.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let payload = HandshakeMessages.certificateRequestBytes true cs pv in
-        let st = FlexHandshake.send (st,payload,fp) in
-        //BB FIXME : miTLS doesn't allow to get back the list of signature algorithms infered from ciphersuite and pv
-        // We return dummy values in the FCertificateRequest sigAlgs so it can be used later by FCertificateVerify functions
-        let fcreq = { FlexConstants.nullFCertificateRequest with sigAlgs = FlexConstants.sigAlgs_ALL ; payload = payload } in
-        LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+
+        let fcreq = FlexCertificateRequest.prepare(cs,pv) in
+        let st = FlexHandshake.send (st,fcreq.payload,fp) in
+
+        LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(fcreq.payload)));
         st,fcreq
     end

@@ -44,10 +44,10 @@ type FlexServerHelloDone =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> FServerHelloDone message bytes * Updated state * FServerHelloDone message record </returns>
-    static member prepare (st:state) : bytes * state * FServerHelloDone =
+    static member prepare () : FServerHelloDone =
         let payload = HandshakeMessages.serverHelloDoneBytes in
-        let fshd: FServerHelloDone = {payload = payload} in
-        payload,st,fshd
+        let fshd: FServerHelloDone = { payload = payload } in
+        fshd
 
     /// <summary>
     /// Send a ServerHelloDone message to the network stream
@@ -58,8 +58,10 @@ type FlexServerHelloDone =
     static member send (st:state, ?fp:fragmentationPolicy) : state * FServerHelloDone =
         LogManager.GetLogger("file").Info("# SERVER HELLO DONE : FlexServerHelloDone.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let st = FlexHandshake.send(st,HandshakeMessages.serverHelloDoneBytes,fp) in
-        let fshd: FServerHelloDone = {payload = HandshakeMessages.serverHelloDoneBytes} in
+        
+        let fshd = FlexServerHelloDone.prepare() in
+        let st = FlexHandshake.send(st,fshd.payload,fp) in
+
         LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fshd.payload)));
         st,fshd
 

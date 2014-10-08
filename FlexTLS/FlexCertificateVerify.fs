@@ -2,6 +2,8 @@
 
 module FlexTLS.FlexCertificateVerify
 
+open NLog
+
 open Bytes
 open Error
 open TLSInfo
@@ -59,6 +61,7 @@ type FlexCertificateVerify =
     /// <param name="ms"> Optional master secret that has to be provided to check the log if protocol version is SSL3 </param>
     /// <returns> Updated state * Certificate Verify message </returns>
     static member receive (st:state, si:SessionInfo, algs:list<Sig.alg>, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
+        LogManager.GetLogger("file").Info("# CERTIFICATE VERIFY : FlexCertificateVerify.receive");
         let ms = defaultArg ms empty_bytes in
         let log = defaultArg log empty_bytes in 
         let checkLog = 
@@ -116,30 +119,31 @@ type FlexCertificateVerify =
                                                payload = to_log;
                                              } 
             in
+            LogManager.GetLogger("file").Info(sprintf "--- Algorithm : %A" fcver.sigAlg);
+            LogManager.GetLogger("file").Info(sprintf "--- Signature : %s" (Bytes.hexString(fcver.signature)));
+            LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
             st,fcver
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected message received: %A" hstype))
 
     /// <summary>
     /// Prepare a CertificateVerify message that will not be sent to the network stream
     /// </summary>
-    /// <param name="st"> State of the current Handshake </param>
     /// <param name="log"> Log of the current handshake </param>
     /// <param name="cs"> Ciphersuite of the current Handshake </param>
     /// <param name="pv"> Protocol version of the current Handshake </param>
     /// <param name="alg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
     /// <param name="skey"> Signature secret key associated to the algorithm </param>
-    /// <param name="ms"> Optional master secret that has to be provided to compute the log if protocol version is SSL3 </param>
-    /// <returns> Certificate Verify bytes * Updated state * Certificate Verify message </returns>
-    static member prepare (st:state, log:bytes, cs:cipherSuite, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ?ms:bytes) : bytes * state * FCertificateVerify =
+    /// <param name="ms"> Master secret that has to be provided to compute the log if protocol version is SSL3 </param>
+    /// <returns> Certificate Verify bytes * Certificate Verify record </returns>
+    static member prepare (log:bytes, cs:cipherSuite, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ms:bytes) : FCertificateVerify =
         let si = { FlexConstants.nullSessionInfo with 
             cipher_suite = cs;
             protocol_version = pv 
         } in
-        let ms = defaultArg ms empty_bytes in
         let ams = (PRF.coerce (msi si) ms) in
         let payload,tag = HandshakeMessages.makeCertificateVerifyBytes si ams alg skey log in
         let fcver = { sigAlg = alg; signature = tag; payload = payload } in
-        payload,st,fcver 
+        fcver 
 
     /// <summary>
     /// Overload : Send a CertificateVerify (signature over the current log) message to the network stream
@@ -170,16 +174,14 @@ type FlexCertificateVerify =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Certificate Verify message </returns>
     static member send (st:state, log:bytes, cs:cipherSuite, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =
+        LogManager.GetLogger("file").Info("# CERTIFICATE VERIFY : FlexCertificateVerify.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let si = { FlexConstants.nullSessionInfo with 
-            cipher_suite = cs;
-            protocol_version = pv 
-        } in
         let ms = defaultArg ms empty_bytes in
-        let ams = (PRF.coerce (msi si) ms) in
-        let payload,tag = HandshakeMessages.makeCertificateVerifyBytes si ams alg skey log in
-        let st = FlexHandshake.send (st,payload,fp) in
-        let fcver = { sigAlg = alg; signature = tag; payload = payload } in
+
+        let fcver = FlexCertificateVerify.prepare(log,cs,pv,alg,skey,ms) in
+        let st = FlexHandshake.send (st,fcver.payload,fp) in
+
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(fcver.payload)));
         st,fcver 
 
     end
