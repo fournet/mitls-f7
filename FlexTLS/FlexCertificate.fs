@@ -92,12 +92,11 @@ type FlexCertificate =
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * next security context * FCertificate message </returns>
     static member send (st:state, role:Role, ?nsc:nextSecurityContext, ?fcrt:FCertificate, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
-        let ns = st.ns in
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let fcrt = defaultArg fcrt FlexConstants.nullFCertificate in
+        let fcert = defaultArg fcrt FlexConstants.nullFCertificate in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
 
-        let st,fcert = FlexCertificate.send(st,fcrt.chain) in
+        let st,fcert = FlexCertificate.send(st,fcert.chain,fp) in
 
         let si = nsc.si in
         let si =
@@ -109,7 +108,7 @@ type FlexCertificate =
             | Server -> { si with serverID = fcert.chain }
         in
         let nsc = { nsc with si = si } in
-        st,nsc,fcrt
+        st,nsc,fcert
     
     /// <summary>
     /// Send a Certificate message to the network stream using User provided chain of certificates
