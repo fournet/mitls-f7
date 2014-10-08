@@ -295,8 +295,6 @@ type FlexServerHello =
         LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" fsh.suite);
         LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
-        LogManager.GetLogger("file").Info(sprintf  "--- Payload : %s" (Bytes.hexString(fsh.payload)));
-
         st,fsh
 
     end

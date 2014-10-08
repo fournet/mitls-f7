@@ -181,7 +181,6 @@ type FlexServerKeyExchange =
         LogManager.GetLogger("file").Debug(sprintf "--- Public Prime : %s" (Bytes.hexString(p)));
         LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %s" (Bytes.hexString(g)));
         LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(dh.gx)));
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fske.payload)));
         st,fske
     
     end
@@ -314,7 +313,6 @@ type FlexServerKeyExchangeTLS13 =
         in
         LogManager.GetLogger("file").Debug(sprintf "--- Public group : %A" group);
         LogManager.GetLogger("file").Debug(sprintf "--- Public DHE Exponent : %s" (Bytes.hexString(gx)));
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,fske
 
     end

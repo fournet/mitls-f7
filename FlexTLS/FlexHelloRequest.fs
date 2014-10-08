@@ -63,8 +63,6 @@ type FlexHelloRequest =
 
         let fhr = FlexHelloRequest.prepare() in
         let st = FlexHandshake.send(st,fhr.payload,fp) in
-
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fhr.payload)));
         st,fhr
 
     end

@@ -242,7 +242,6 @@ type FlexClientHello =
         LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
         LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fch.ext);
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fch.payload)));
         st,fch
     
     end

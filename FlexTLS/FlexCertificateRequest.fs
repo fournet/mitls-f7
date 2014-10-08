@@ -97,7 +97,5 @@ type FlexCertificateRequest =
 
         let fcreq = FlexCertificateRequest.prepare(cs,pv) in
         let st = FlexHandshake.send (st,fcreq.payload,fp) in
-
-        LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(fcreq.payload)));
         st,fcreq
     end

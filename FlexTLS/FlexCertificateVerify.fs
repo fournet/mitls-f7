@@ -180,8 +180,6 @@ type FlexCertificateVerify =
 
         let fcver = FlexCertificateVerify.prepare(log,cs,pv,alg,skey,ms) in
         let st = FlexHandshake.send (st,fcver.payload,fp) in
-
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(fcver.payload)));
         st,fcver 
 
     end

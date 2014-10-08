@@ -249,7 +249,6 @@ type FlexClientKeyExchange =
                 let kex = RSA(pmsb) in
                 let fcke : FClientKeyExchange = {kex = kex; payload = payload } in
                 LogManager.GetLogger("file").Debug(sprintf "--- Pre Master Secret : %A" (Bytes.hexString(pmsb)));
-                LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
                 st,fcke
 
 
@@ -381,7 +380,6 @@ type FlexClientKeyExchange =
 
         LogManager.GetLogger("file").Debug(sprintf "--- SECRET Value : %s" (Bytes.hexString(dh.x)));
         LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(dh.gx)));
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(fcke.payload)));
         st,fcke
 
     end
@@ -501,7 +499,6 @@ type FlexClientKeyExchangeTLS13 =
                 DH13(kex13)
         in
         let kexl = List.map kexify kex13l in
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         st,kexl,fcke
 
     end

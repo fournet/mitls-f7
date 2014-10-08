@@ -2,6 +2,8 @@
 
 module FlexTLS.FlexHandshake
 
+open NLog
+
 open Bytes
 open Error
 open TLSConstants
@@ -87,6 +89,7 @@ type FlexHandshake =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let buf = st.write.hs_buffer @| payload in
         let st = FlexState.updateOutgoingHSBuffer st buf in
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
         FlexRecord.send(st,Handshake,fp)
 
     end

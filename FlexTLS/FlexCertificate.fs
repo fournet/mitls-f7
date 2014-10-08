@@ -124,8 +124,6 @@ type FlexCertificate =
 
         let fcert = FlexCertificate.prepare(chain) in
         let st = FlexHandshake.send(st,fcert.payload,fp) in
-
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(fcert.payload)));
         st,fcert
 
     end

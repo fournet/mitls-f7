@@ -107,7 +107,6 @@ type FlexFinished =
 
         LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
         LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
-        LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));
         st,ff
 
     end
