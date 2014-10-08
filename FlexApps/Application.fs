@@ -54,10 +54,10 @@ let main argv =
 //    printf "RSA client finished\n";
 
     (* Standard RSA handshake with resumption as Client*)
-    let st = Handshake_full_RSA.client("www.inria.fr") in
-    let _  = Tcp.close st.ns in 
-    let st = Handshake_resumption.client(st,"www.inria.fr") in
-    printf "RSA client resumption finished\n";
+//    let st = Handshake_full_RSA.client("www.inria.fr") in
+//    let _  = Tcp.close st.ns in 
+//    let st = Handshake_resumption.client(st,"www.inria.fr") in
+//    printf "RSA client resumption finished\n";
 
     (* Standard RSA full handshake with client authentication as Client *)
 //    let st = Handshake_full_RSA.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44101) in
