@@ -18,6 +18,9 @@ open FlexSecrets
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Client Key Share messages.
+/// </summary>
 type FlexClientKeyShare =
     class
 

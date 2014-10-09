@@ -13,6 +13,9 @@ open FlexTypes
 
 
 
+/// <summary>
+/// Module for constant values and initialization values
+/// </summary>
 type FlexConstants =
     class
 
@@ -53,8 +56,10 @@ type FlexConstants =
                     | Error(x,y) -> Error(x,y)
                     | Correct(rem) -> correct (n::rem)
 
-    /// <summary>  Diffie Hellman defaults for size and database name </summary>
+    /// <summary>  Diffie Hellman defaults for parameters sizes </summary>
     static member minDHSize = TLSInfo.defaultConfig.dhPQMinLength
+
+    /// <summary>  Diffie Hellman default database name </summary>
     static member dhdb = DHDB.create "dhparams-db.bin"
 
     /// <summary>  Null value for CoreKeys.dhparams parameters </summary>

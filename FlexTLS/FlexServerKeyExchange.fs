@@ -19,6 +19,9 @@ open FlexHandshake
 
 
 
+/// <summary>
+/// Fill kexDH structure by eventually finishing computation of all Diffie Hellman parameters.
+/// </summary>
 let filldh kexdh =
     let (p,g) = kexdh.pg in
     let x, gx =

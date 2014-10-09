@@ -126,7 +126,14 @@ type FlexRecord =
         let stout = FlexState.updateOutgoingRecord stout k in
         stin,stout,payload
 
-    (* Send genric method based on content type and state *)
+    /// <summary>
+    /// OVERLOAD : Send data picked from a choosen CT buffer over the network after encrypting a record depending on the fragmentation policy
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="ct"> Content type of the fragment </param>
+    /// <param name="fp"> Optional fragmentation policy applied to the message </param>
+    /// <returns> Updated outgoing record state </returns>
+    /// <remarks> We leave the remainder in the buffer </remarks>
     static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let payload = pickCTBuffer st.write ct in
