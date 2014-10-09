@@ -30,6 +30,8 @@ val checkServerRenegotiationInfoExtension: config -> list<serverExtension> -> cV
 #if TLSExt_sessionHash
 val hasExtendedMS: negotiatedExtensions -> bool
 #endif
+val getNegotiatedDHGroup: negotiatedExtensions -> option<dhGroup>
+val getOfferedDHGroups: list<clientExtension> -> option<list<dhGroup>>
 
 #if TLSExt_extendedPadding
 val hasExtendedPadding: id -> bool
