@@ -35,7 +35,7 @@ xunit ?= xunit.xml
 -include Makefile.tc7
 
 # default verification targets 
-default: TLSError.tc7 Nonce.tc7 TLSConstants.tc7 RSAKey.tc7 DHGroup.tc7 PMS.tc7 HASH.tc7 HMAC.tc7 Sig.tc7 Cert.tc7 TLSInfo.tc7 Range.tc7 DataStream.tc7 AppFragment.tc7 HSFragment.tc7 TLSFragment.tc7 StatefulPlain.tc7 LHAEPlain.tc7 MAC_SHA256.tc7 MAC_SHA1.tc7 MAC.tc7 Encode.tc7 ENC.tc7 LHAE.tc7 StatefulLHAE.tc7 Record.tc7 Alert.tc7 PRF.tc7 KEF.tc7 DH.tc7 RSA.tc7 SessionDB.tc7 HandshakeMessages.tc7 Handshake.tc7 AppData.tc7 Dispatch.tc7 TLS.tc7 UTLS.tc7
+default: TLSError.tc7 Nonce.tc7 TLSConstants.tc7 RSAKey.tc7 DHGroup.tc7 PMS.tc7 HASH.tc7 HMAC.tc7 Sig.tc7 TLSInfo.tc7 Range.tc7 DataStream.tc7 AppFragment.tc7 HSFragment.tc7 TLSFragment.tc7 StatefulPlain.tc7 LHAEPlain.tc7 MAC_SHA256.tc7 MAC_SHA1.tc7 MAC.tc7 Encode.tc7 ENC.tc7 LHAE.tc7 StatefulLHAE.tc7 Record.tc7 Alert.tc7 PRF.tc7 KEF.tc7 DH.tc7 RSA.tc7 SessionDB.tc7 HandshakeMessages.tc7 Handshake.tc7 AppData.tc7 Dispatch.tc7 TLS.tc7 UTLS.tc7
 
 #==Categories of .fs7 files==
 #
