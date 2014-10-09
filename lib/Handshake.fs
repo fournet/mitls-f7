@@ -440,7 +440,11 @@ let next_fragment ci state =
 #if verify
                     Pi.assume(EvSentFinishedFirst(ci,false));
 #endif
-                    if length si.sessionID = 0 then
+                    if length si.sessionID = 0
+#if TLSExt_sessionHash
+                       || (not (hasExtendedMS si.extensions))
+#endif
+                    then
                       (check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf;
@@ -1205,7 +1209,11 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ServerFinished(si,ms,e,cvd,log) ->
                 if PRF.checkVerifyData si ms Server log payload then
                     (let sDB = 
-                        if length si.sessionID = 0 then state.sDB
+                        if length si.sessionID = 0
+#if TLSExt_sessionHash
+                           || (not (hasExtendedMS si.extensions))
+#endif
+                        then state.sDB
                         else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
                     in
                     (* Should prove from checkVerifyData above *)
