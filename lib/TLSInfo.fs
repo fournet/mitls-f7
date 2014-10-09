@@ -312,8 +312,14 @@ let defaultConfig ={
     minVer = SSL_3p0;
     maxVer = TLS_1p2;
     ciphersuites = cipherSuites_of_nameList
-                    [ TLS_RSA_WITH_AES_128_CBC_SHA;
-                      TLS_RSA_WITH_3DES_EDE_CBC_SHA ];
+                    [ TLS_RSA_WITH_AES_128_GCM_SHA256;
+                      TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+                      TLS_DHE_DSS_WITH_AES_128_GCM_SHA256;
+                      TLS_RSA_WITH_AES_128_CBC_SHA;
+                      TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
+                      TLS_DHE_DSS_WITH_AES_128_CBC_SHA;
+                      TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+                    ];
     compressions = [ NullCompression ];
 
     honourHelloReq = HRPResume;
