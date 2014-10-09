@@ -78,7 +78,6 @@
     <Compile Include="Handshake_tls13.fs" />
     <Compile Include="Application.fs" />
     <Content Include="packages.config" />
-    <None Include="NLog.xsd" />
     <Content Include="NLog.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
