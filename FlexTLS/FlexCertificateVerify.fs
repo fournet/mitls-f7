@@ -123,7 +123,7 @@ type FlexCertificateVerify =
             LogManager.GetLogger("file").Info(sprintf "--- Signature : %s" (Bytes.hexString(fcver.signature)));
             LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
             st,fcver
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected message received: %A" hstype))
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
 
     /// <summary>
     /// Prepare a CertificateVerify message that will not be sent to the network stream

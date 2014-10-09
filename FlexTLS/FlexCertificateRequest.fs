@@ -51,7 +51,7 @@ type FlexCertificateRequest =
                 LogManager.GetLogger("file").Debug(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 (st,nsc,certReq)
             )
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type should be HT_certificate_request")
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
 
     /// <summary>
     /// Prepare a CertificateRequest message that won't be sent to the network stream
