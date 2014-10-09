@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module receiving, sending and forwarding TLS Client Hello messages.
+/// </summary>
 module FlexTLS.FlexClientHello
 
 open NLog

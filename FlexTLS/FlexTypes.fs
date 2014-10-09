@@ -67,7 +67,7 @@ type kex =
  // | ECDH of kexECDH // TODO
 
 /// <summary>
-/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Client Key Share
+/// Handshake Message record type for Client Key Share
 /// </summary>
 type FClientKeyShare = {
     /// <summary> List of Key Exchange mechanisms informations </summary>
@@ -77,7 +77,7 @@ type FClientKeyShare = {
 }
 
 /// <summary>
-/// EXPERIMENTAL TLS 1.3 Handshake Message record type for Server Key Share
+/// Handshake Message record type for Server Key Share
 /// </summary>
 type FServerKeyShare = {
     /// <summary> Key Exchange mechanism information </summary>

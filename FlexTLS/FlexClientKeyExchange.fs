@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module receiving, sending and forwarding TLS Client Key Exchange messages.
+/// </summary>
 module FlexTLS.FlexClientKeyExchange
 
 open NLog

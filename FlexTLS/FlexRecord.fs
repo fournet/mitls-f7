@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module receiving, sending and forwarding and eventually encrypts TLS records.
+/// </summary>
 module FlexTLS.FlexRecord
 
 open NLog

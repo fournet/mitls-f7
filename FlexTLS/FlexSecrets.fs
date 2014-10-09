@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module dealing with computations on secret data.
+/// </summary>
 module FlexTLS.FlexSecrets
 
 open NLog

@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module receiving, sending and forwarding TLS Server Key Share messages.
+/// </summary>
 module FlexTLS.FlexServerKeyShare
 
 open NLog
@@ -18,7 +20,9 @@ open FlexHandshake
 
 
 
-
+/// <summary>
+/// Module receiving, sending and forwarding TLS Server Key Share messages.
+/// </summary>
 type FlexServerKeyShare =
     class
 
