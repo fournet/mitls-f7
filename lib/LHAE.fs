@@ -156,9 +156,9 @@ let decrypt' e key data cipher =
         else
             let rg = cipherRangeClass e cl in
             let (plain,tag) = Encode.decodeNoPad_bytes e data rg cl cipher in
-            (match Encode.verify_MACOnly e ka data rg plain tag with
+            (match Encode.verify_MACOnly e ka data rg cl plain tag with
             | Error(z) -> Error(z)
-            | Correct(aeplain) -> correct (key,rg,aeplain))
+            | Correct(x) -> let rg,aeplain = x in correct (key,rg,aeplain))
     | (AEAD(encAlg,_), GCM(gcmState)) ->
         let minLen = aeadRecordIVSize encAlg + aeadTagSize encAlg in
         if cl < minLen then

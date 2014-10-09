@@ -112,11 +112,8 @@ type (;i:id,ad:(;i)adata,h:(;i)history,r:range) plain =
 	f:(;i,B(ad),r)fragment{AuthId(i) => Sent(i,B(ad),h,r,f)}
 
 val plain:
-  i:id -> h:(;i)history -> ad:(;i)adata -> r:range -> 
-  b:(;r)rbytes{
-  not AuthId(i) \/
-  (AuthId(i) /\ (?r',p. B(b) = Payload(i,B(ad),r',p)) )
-  } -> p:(;i,ad,h,r) plain {B(b) = Payload(i,B(ad),r,p)}
+  i:id{not AuthId(i)} -> h:(;i)history -> ad:(;i)adata -> r:range -> 
+  b:(;r)rbytes -> p:(;i,ad,h,r) plain {B(b) = Payload(i,B(ad),r,p)}
 val repr:
   i:id{not SafeId(i)} -> h:(;i)history -> ad:(;i)adata -> r:range ->
   p:(;i,ad,h,r) plain -> b:(;r)rbytes {B(b) = Payload(i,B(ad),r,p)}
@@ -164,8 +161,7 @@ assume !i,ad,h,h',r,f. (AuthId(i) /\ StAEHistory(i,h) /\ StAEHistory(i,h') /\ HL
 
 
 
-(*
-// CF 14-07-15 ??
+(* CF 14-07-15 ??
 private assume !e,e',ad,sh,r,d. 
        (Id(e) = Id(e') /\ 
        (AuthId(Id(e)) => TLSFragment.RecordSent(e',ad,Multiplexed(e',sh),r,d))) =>

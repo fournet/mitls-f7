@@ -35,28 +35,55 @@ let macPlain (e:id) (rg:range) ad f =
     let b = payload e rg ad f in
     macPlain_bytes e rg ad b
 
+#if ideal
+type maconly_entry = id * LHAEPlain.adata * range * nat * bytes * bytes * LHAEPlain.plain * MAC.tag
+let maconly_log = ref ([]:list<maconly_entry>)
+let rec maconly_mem i ad cl pl text tag (xs:list<maconly_entry>) =
+    match xs with
+    | (i', ad', rg', cl', pl', text', p', tag')::_
+        when i=i' && ad=ad' && cl=cl' && pl=pl' && text=text' && tag=tag' -> let x = (rg',p') in Some x
+    | _::xs -> maconly_mem i ad cl pl text tag xs
+    | [] -> None
+#endif
+
 let mac e k ad rg plain =
     let plain = LHAEPlain.makeExtPad e ad rg plain in
     let text = macPlain e rg ad plain in
     let tag  = MAC.Mac e k text in
+#if ideal
+    (* For MACOnly ciphersuites where AuthId holds, we store the plain and
+     * the tag in the MACOnly log *)
+    let e_aealg = e.aeAlg in
+    (match (authId e, e_aealg) with
+    | (true,MACOnly(_)) ->
+        let tlen = targetLength e rg in
+        let pl = payload e rg ad plain in
+        maconly_log := (e,ad,rg,tlen,pl,text,plain,tag)::!maconly_log
+    | (_,_) -> ());
+#endif
     {plain = plain;
      tag = tag;
      ok = true
     }
 
-let verify_MACOnly (e:id) k ad rg b tag =
+let verify_MACOnly (e:id) k ad rg (cl:nat) b tag =
     let text = macPlain_bytes e rg ad b in
     if MAC.Verify e k text tag then
 #if ideal
         if authId e then
-            // Using the AuthId() /\ ?p. ... refinement of LHAEPlain.plain
-            let p = LHAEPlain.plain e ad rg b in
-            correct p
+            match maconly_mem e ad cl b text tag !maconly_log with
+            | Some(x) ->
+                let (rg',p') = x in
+                let p = LHAEPlain.widen e ad rg' p' in
+                let rg = rangeClass e rg' in
+                correct (rg,p)
+            | None ->
+                let reason = perror __SOURCE_FILE__ __LINE__ "" in
+                Error(AD_bad_record_mac,reason)
         else
-            // Using the not AuthId() refinement of LHAEPlain.plain
 #endif
             let p = LHAEPlain.plain e ad rg b in
-            correct p
+            correct (rg,p)
     else
         let reason = perror __SOURCE_FILE__ __LINE__ "" in
         Error(AD_bad_record_mac,reason)
