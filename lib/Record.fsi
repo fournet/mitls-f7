@@ -21,6 +21,7 @@ val initConnState: epoch -> rw -> StatefulLHAE.state -> ConnectionState
 val nullConnState: epoch -> rw -> ConnectionState
 
 val parseHeader: bytes -> Result<(ContentType * ProtocolVersion * nat)>
+val makePacket: ContentType -> ProtocolVersion -> bytes -> bytes
 
 //CF postV1, do some uniform renaming, e.g. s/Out/Send/
 val recordPacketOut: epoch -> sendState -> ProtocolVersion -> range -> ContentType -> TLSFragment.fragment -> (sendState * bytes)
