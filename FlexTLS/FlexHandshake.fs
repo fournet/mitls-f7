@@ -61,7 +61,7 @@ type FlexHandshake =
                 let buf = buf @| b in
                 let st = FlexState.updateIncomingHSBuffer st buf in
                 FlexHandshake.getHSMessage st
-            | Alert | Change_cipher_spec | Application_data -> 
+            | _ -> 
                 let _,b = FlexRecord.getFragmentContent (st, ct, len) in
                 failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b)))))
         | Correct(hst,payload,to_log,rem) ->

@@ -41,7 +41,7 @@ type FlexAlert =
                 let buf = buf @| b in
                 let st = FlexState.updateIncomingAlertBuffer st buf in
                 FlexAlert.receive st
-            | Handshake | Change_cipher_spec | Application_data -> 
+            | _ -> 
                 let _,b = FlexRecord.getFragmentContent (st, ct, len) in
                 failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b))))
         else

@@ -41,7 +41,7 @@ type FlexCCS =
                 else
                     failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected CCS content")
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected CCS length: %d" len)))
-        | Alert | Handshake | Application_data -> 
+        | _ -> 
             let _,b = FlexRecord.getFragmentContent (st, ct, len) in
             failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b))))
 
