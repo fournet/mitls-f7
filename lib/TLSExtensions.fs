@@ -235,7 +235,7 @@ let parseServerExtension head payload =
             Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension")
     | (_,_) ->
         // A server can never send an extension the client doesn't support
-        Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extesion")
+        Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extension")
 
 let addOnceServer ext extList =
     if List.exists (sameServerExt ext) extList then
