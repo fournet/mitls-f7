@@ -37,7 +37,7 @@ type FlexServerHelloDone =
                 let fshd: FServerHelloDone = {payload = to_log} in
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fshd
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_server_hello_done")
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
 
     /// <summary>
     /// Prepare ServerHelloDone message bytes that will not be sent to the network stream

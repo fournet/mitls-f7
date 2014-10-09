@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module receiving, sending and forwarding TLS Server Key Share messages.
+/// </summary>
 module FlexTLS.FlexServerKeyShare
 
 open NLog
@@ -18,7 +20,9 @@ open FlexHandshake
 
 
 
-
+/// <summary>
+/// Module receiving, sending and forwarding TLS Server Key Share messages.
+/// </summary>
 type FlexServerKeyShare =
     class
 
@@ -72,7 +76,7 @@ type FlexServerKeyShare =
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fsks 
             )
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_server_key_exchange")
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
 
     /// <summary>
     /// EXPERIMENTAL TLS 1.3 Overload : Send a DHE ServerKeyExchange message to the network stream

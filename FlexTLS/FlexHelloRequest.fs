@@ -37,7 +37,7 @@ type FlexHelloRequest =
                 let fhr = {FlexConstants.nullFHelloRequest with payload = to_log} in
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fhr
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message is not of type HelloRequest")
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
 
 
     /// <summary>

@@ -56,7 +56,7 @@ type FlexFinished =
                 LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));
                 st,ff
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "message type is not HT_finished")
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
 
     /// <summary>
     /// Prepare a Finished message from the verify_data that will not be sent to the network

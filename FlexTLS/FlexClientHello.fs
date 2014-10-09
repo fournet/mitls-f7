@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module receiving, sending and forwarding TLS Client Hello messages.
+/// </summary>
 module FlexTLS.FlexClientHello
 
 open NLog
@@ -164,7 +166,7 @@ type FlexClientHello =
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 (st,nsc,fch)
             )
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "Message type should be HT_client_hello")
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
  
     /// <summary>
     /// Prepare ClientHello message bytes that will not be sent to the network stream

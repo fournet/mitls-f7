@@ -18,6 +18,9 @@ open FlexSecrets
 
 
 
+/// <summary>
+/// Module receiving, sending and forwarding TLS Client Key Share messages.
+/// </summary>
 type FlexClientKeyShare =
     class
 
@@ -48,7 +51,7 @@ type FlexClientKeyShare =
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,nsc,fcks
             )
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "message type should be HT_client_key_exchange")
+        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
 
     /// <summary>
     /// EXPERIMENTAL TLS 1.3 Send DHE FClientKeyShare to the network stream

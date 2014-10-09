@@ -1,5 +1,7 @@
 ﻿#light "off"
-
+/// <summary>
+/// Module handling the application state.
+/// </summary>
 module FlexTLS.FlexState
 
 open NLog
@@ -11,7 +13,9 @@ open FlexTypes
 
 
 
-
+/// <summary>
+/// Module handling the application state.
+/// </summary>
 type FlexState =
     class
 
