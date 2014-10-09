@@ -30,7 +30,9 @@ type FlexAppData =
         match ct with
         | Application_data ->
             FlexRecord.getFragmentContent(st,ct,len)
-        | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type: %A" ct))
+        | Alert | Change_cipher_spec | Handshake -> 
+            let _,b = FlexRecord.getFragmentContent (st, ct, len) in
+            failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b))))
 
     /// <summary>
     /// Forward application data to the network stream 
