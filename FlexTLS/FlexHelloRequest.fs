@@ -59,7 +59,6 @@ type FlexHelloRequest =
     static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
         LogManager.GetLogger("file").Info("# HELLO REQUEST : FlexHelloRequest.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let ns = st.ns in
 
         let fhr = FlexHelloRequest.prepare() in
         let st = FlexHandshake.send(st,fhr.payload,fp) in

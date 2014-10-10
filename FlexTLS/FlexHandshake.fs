@@ -50,7 +50,6 @@ type FlexHandshake =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * PreHandshakeType * payload * full message * remainder of the buffer </returns>
     static member getHSMessage (st:state) : state * HandshakeMessages.PreHandshakeType * bytes * bytes =
-        let ns = st.ns in
         let buf = st.read.hs_buffer in
         match FlexHandshake.parseHSMessage buf with
         | Error(_) ->

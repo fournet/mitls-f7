@@ -31,7 +31,6 @@ type FlexAlert =
     /// <returns> Updated state * parsed alert description * alert bytes </returns>
     static member receive (st:state) : state * alertDescription * bytes =
         LogManager.GetLogger("file").Info("# ALERT : FlexAlert.receive");
-        let ns = st.ns in
         let buf = st.read.alert_buffer in
         if length buf < 2 then
             let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in

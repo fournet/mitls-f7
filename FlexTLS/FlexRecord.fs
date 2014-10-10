@@ -65,8 +65,7 @@ type FlexRecord =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> ContentType * ProtocolVersion * Length * Header bytes </returns>
     static member parseFragmentHeader (st:state) : ContentType * ProtocolVersion * nat * bytes =
-        let ns = st.ns in
-        match Tcp.read ns 5 with
+        match Tcp.read st.ns 5 with
         | Error x        -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct header ->
             match Record.parseHeader header with
@@ -81,8 +80,7 @@ type FlexRecord =
     /// <param name="len"> Length of the fragment </param>
     /// <returns> Updated (decryption) state * decrypted plaintext </returns>
     static member getFragmentContent (st:state, ct:ContentType, len:int) : state * bytes = 
-        let ns = st.ns in
-        match Tcp.read ns len with
+        match Tcp.read st.ns len with
         | Error x         -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct payload ->
             match Record.recordPacketIn st.read.epoch st.read.record ct payload with
