@@ -19,27 +19,26 @@ open FlexTypes
 type FlexConstants =
     class
 
-    /// <summary> EXPERIMENTAL TLS 1.3 Diffie Hellman default group </summary>
+    /// <summary> EXPERIMENTAL TLS 1.3 Diffie Hellman default negotiated group </summary>
     static member defaultTLS13group = TLSInfo.defaultConfig.negotiableDHGroups.Head
 
-    /// <summary> Default TCP port to connect to </summary>
+    /// <summary> Default TCP port, used to listen or to connect to </summary>
     static member defaultTCPPort = 443
 
-    /// <summary> Define a default ProtocolVersion </summary>
+    /// <summary> Default protocol version </summary>
     static member defaultProtocolVersion = TLS_1p2
 
-    /// <summary> Define a default fragmentationPolicy </summary>
+    /// <summary> Default fragmentation policy </summary>
     static member defaultFragmentationPolicy = All(fragmentLength)
 
 
-    /// <summary> All supported algorithms for signatures and HMAC </summary>
+    /// <summary> All supported signature algorithms </summary>
     static member sigAlgs_ALL = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL);(SA_DSA, SHA)]
 
-    /// <summary> Algorithms for signatures and HMAC in RSA ciphersuites </summary>
+    /// <summary> Signature algorithms suitable for RSA ciphersuites </summary>
     static member sigAlgs_RSA = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
 
-  
-    /// <summary>  Redefine TLSConstants name parsing to handle SCSV ciphersuites </summary>
+    /// <summary> Redefine TLSConstants ciphersuite name parsing to handle SCSV ciphersuites </summary>
     static member names_of_cipherSuites css =
         match css with
         | [] -> correct []
@@ -56,18 +55,18 @@ type FlexConstants =
                     | Error(x,y) -> Error(x,y)
                     | Correct(rem) -> correct (n::rem)
 
-    /// <summary>  Diffie Hellman defaults for parameters sizes </summary>
+    /// <summary> Default minimum accepted size for DH parameters </summary>
     static member minDHSize = TLSInfo.defaultConfig.dhPQMinLength
 
-    /// <summary>  Diffie Hellman default database name </summary>
+    /// <summary> Default DH database name </summary>
     static member dhdb = DHDB.create "dhparams-db.bin"
 
-    /// <summary>  Null value for CoreKeys.dhparams parameters </summary>
+    /// <summary> Default DH group </summary>
     static member nullDHParams =
         let _,dhp = CoreDH.load_default_params "default-dh.pem" FlexConstants.dhdb FlexConstants.minDHSize in
         dhp
 
-    /// <summary> Define a default DH key exchange parameters structure where x,gx are the local values and gy is the remote public value </summary>
+    /// <summary> Default DH key exchange parameters, with default DH group and empty DH shares </summary>
     static member nullKexDH = { 
         pg = (FlexConstants.nullDHParams.dhp,FlexConstants.nullDHParams.dhg);
         x  = empty_bytes;
@@ -75,12 +74,20 @@ type FlexConstants =
         gy = empty_bytes;
     }
     
-    /// <summary> Define a null FHelloRequest record </summary>
+    /// <summary> Empty HelloRequest message </summary>
     static member nullFHelloRequest : FHelloRequest = { 
         payload = empty_bytes; 
     }
 
-    /// <summary>  Define a null FClientHello record </summary>
+    /// <summary> Default ClientHello message </summary>
+    /// <remarks>
+    /// Sending this message will produce a client hello with
+    /// - Highest supported protocol version
+    /// - Fresh client randomness
+    /// - Empty session identifier
+    /// - Default ciphersuites and compression method
+    /// - All extensions enabled by the default configuration
+    /// </remarks>
     static member nullFClientHello : FClientHello = {   
         pv = defaultConfig.maxVer;
         rand = empty_bytes; 
@@ -94,7 +101,12 @@ type FlexConstants =
     }
 
 
-    /// <summary>  Define a null FServerHello record </summary>
+    /// <summary> Default ServerHello message </summary>
+    /// <remark>
+    /// Sending this message together with a filled ClientHello message
+    /// will perform some basic negotiation and send a valid ServerHello with
+    /// fresh server randomness.
+    /// </remarks>
     static member nullFServerHello : FServerHello = {   
         pv = defaultConfig.maxVer;
         rand = empty_bytes; 
@@ -107,13 +119,13 @@ type FlexConstants =
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null FCertificate record </summary>
+    /// <summary> Empty Certificate message </summary>
     static member nullFCertificate : FCertificate = {   
         chain = [];
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null FCertificateRequest record </summary>
+    /// <summary> Empry CertificateRequest message </summary>
     static member nullFCertificateRequest : FCertificateRequest = { 
         certTypes = [RSA_sign; DSA_sign];
         sigAlgs = [];
@@ -121,14 +133,14 @@ type FlexConstants =
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null FCertificateVerify record </summary>
+    /// <summary> Empty CertificateVerify message </summary>
     static member nullFCertificateVerify : FCertificateVerify = { 
         sigAlg = FlexConstants.sigAlgs_RSA.Head;
         signature = empty_bytes;
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null FServerKeyExchange record for all DH key exchange mechanisms </summary>
+    /// <summary> Empty ServerKeyExchange message, for DH key exchange </summary>
     static member nullFServerKeyExchangeDHx : FServerKeyExchange = { 
         sigAlg = FlexConstants.sigAlgs_RSA.Head;
         signature = empty_bytes;
@@ -136,35 +148,35 @@ type FlexConstants =
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null FServerHelloDone record </summary>
+    /// <summary> Empty FServerHelloDone message </summary>
     static member nullFServerHelloDone : FServerHelloDone =  { 
         payload = empty_bytes; 
     }
 
-    /// <summary>  Define a null FClientKeyExchange record for RSA </summary>
+    /// <summary> Empty ClientKeyExchange message, for RSA key exchange </summary>
     static member nullFClientKeyExchangeRSA : FClientKeyExchange = { 
         kex = RSA(empty_bytes);
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null FClientKeyExchange record for DHx </summary>
+    /// <summary> Empty ClientKeyExchange message, for DH key exchange </summary>
     static member nullFClientKeyExchangeDHx : FClientKeyExchange = { 
         kex = DH(FlexConstants.nullKexDH);
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null FChangeCipherSpecs record </summary>
+    /// <summary> Default ChangeCipherSpecs message </summary>
     static member nullFChangeCipherSpecs : FChangeCipherSpecs = { 
         payload = HandshakeMessages.CCSBytes; 
     }
 
-    /// <summary>  Define a null FFinished record </summary>
+    /// <summary> Empty Finished message </summary>
     static member nullFFinished : FFinished = {   
         verify_data = empty_bytes;
         payload = empty_bytes;
     }
 
-    /// <summary>  Define a null SessionInfo record </summary>
+    /// <summary> Null SessionInfo </summary>
     static member nullSessionInfo = {   
         clientID = [];
         clientSigAlg = (SA_RSA,SHA);
@@ -182,7 +194,7 @@ type FlexConstants =
         pmsId = noPmsId;
     }
 
-    /// <summary>  Define a null epoch_keys </summary>
+    /// <summary> Null epoch keys </summary>
     //BB TODO : Here the key exchange should probably be agnostic instead of using a RSA constructor
     static member nullKeys = {
         kex = RSA(empty_bytes);
@@ -191,7 +203,7 @@ type FlexConstants =
         epoch_keys = empty_bytes,empty_bytes;
     }
 
-    /// <summary>  Define a null nextSecurityContext record </summary>
+    /// <summary> Null next Security Context </summary>
     static member nullNextSecurityContext = {   
         si = FlexConstants.nullSessionInfo;
         crand = empty_bytes;
