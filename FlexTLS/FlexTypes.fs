@@ -16,14 +16,14 @@ open TLSExtensions
 /// The value represents the length of the fragments that will be sent
 /// </summary>
 type fragmentationPolicy =
-    /// <summary> Will send All fragments of LEN bytes of a payload </summary>
+    /// <summary> Will send All fragments, each of length LEN bytes </summary>
     | All of int
-    /// <summary> Will send One fragments of LEN bytes of a payload </summary>
+    /// <summary> Will send One fragment of length LEN bytes </summary>
     | One of int
 
 /// <summary>
 /// DH key exchange parameters record,
-/// Contains both public and secret values associated of Diffie Hellman parameters
+/// Contains both public and secret values associated to Diffie Hellman parameters
 /// </summary>
 type kexDH = { 
     /// <summary> Tuple (p,g) that contains both p and g public DH parameters </summary>
@@ -32,37 +32,35 @@ type kexDH = {
     x:  bytes;
     /// <summary> Local public value (g^x mod p) of the DH exchange </summary>
     gx: bytes;
-    /// <summary> Local public value (g^y mod p) of the DH exchange </summary>
+    /// <summary> Peer's public value (g^y mod p) of the DH exchange </summary>
     gy: bytes
 }
 
 /// <summary>
-/// DH key exchange parameters record,
+/// DH key exchange parameters record, for negotiated DH parameters
 /// Contains both public and secret values associated of Diffie Hellman parameters
 /// </summary>
 type kexDHTLS13 = { 
-    /// <summary> DH group negociated </summary>
+    /// <summary> Negotiated DH group </summary>
     group: dhGroup;
     /// <summary> Local secret value of the DH exchange </summary>
     x:  bytes;
     /// <summary> Local public value (g^x mod p) of the DH exchange </summary>
     gx: bytes;
-    /// <summary> Local public value (g^y mod p) of the DH exchange </summary>
+    /// <summary> Peer's public value (g^y mod p) of the DH exchange </summary>
     gy: bytes;
 }
 
 /// <summary>
 /// Key exchange union type,
 /// The constructor represents the type of Key Exchange Mechanism used in the Handshake
-/// The value for RSA is a PreMasterSecret as bytes
-/// The value for DH is a record containing all DH parameters known to a peer
 /// </summary>
 type kex =
-    /// <summary> Key Exchange Type is RSA and the constructor holds an Encrypted PreMasterSecret </summary>
+    /// <summary> Key Exchange Type is RSA and the constructor holds the pre-master secret </summary>
     | RSA of bytes
     /// <summary> Key Exchange Type is Diffie-Hellman and the constructor holds all DH parameters </summary>
     | DH of kexDH
-    /// <summary> Key Exchange Type is Diffie-Hellman for TLS 1.3 and the constructor holds all DH parameters </summary>
+    /// <summary> Key Exchange Type is Diffie-Hellman with negotiated group and the constructor holds all DH parameters </summary>
     | DH13 of kexDHTLS13
  // | ECDH of kexECDH // TODO
 
@@ -70,9 +68,9 @@ type kex =
 /// Handshake Message record type for Client Key Share
 /// </summary>
 type FClientKeyShare = {
-    /// <summary> List of Key Exchange mechanisms informations </summary>
+    /// <summary> List of Key Exchange offers </summary>
     offers:list<HandshakeMessages.tls13kex>;
-    /// <summary> Message bytes</summary>
+    /// <summary> Message bytes </summary>
     payload:bytes;
 }
 
@@ -80,7 +78,7 @@ type FClientKeyShare = {
 /// Handshake Message record type for Server Key Share
 /// </summary>
 type FServerKeyShare = {
-    /// <summary> Key Exchange mechanism information </summary>
+    /// <summary> Key Exchange offer </summary>
     kex:HandshakeMessages.tls13kex;
     /// <summary> Message bytes </summary>
     payload:bytes;
@@ -91,64 +89,64 @@ type FServerKeyShare = {
 /// This structure contains all secret information of a Handshake
 /// </summary>
 type keys = {
-    /// <summary> Type of Key Exchange Mechanism </summary>
+    /// <summary> Key Exchange bytes </summary>
     kex: kex;
-    /// <summary> Pre Master Secret bytes of the current session </summary>
+    /// <summary> Pre Master Secret bytes </summary>
     pms: bytes;
-    /// <summary> Master Secret bytes of the current Epoch </summary>
+    /// <summary> Master Secret bytes </summary>
     ms: bytes;
-    /// <summary> Keys bytes of the current Epoch as a tuple (reading keys, writing keys) </summary>
+    /// <summary> Keys bytes of an epoch, as a tuple (reading keys, writing keys) </summary>
     epoch_keys: bytes * bytes;
-       (* read  , write *)
+             (* read  , write *)
 }
 
 /// <summary>
 /// Channel record,
-/// Keep track of the Record state and the associated Epoch of an I/O channel
+/// Keeps track of the Record state and the associated Epoch of an I/O channel
 /// </summary>
 /// <remarks> There is no CCS buffer because those are only one byte </remarks>
 type channel = {
-    /// <summary> Record connection state that embed the encryption status, etc... </summary>
+    /// <summary> Secret and mutable state of the current epoch (keys, sequence number, etc...) </summary>
     record: Record.ConnectionState;
-    /// <summary> Epoch connection state </summary>
+    /// <summary> Public immutable data of the current epoch </summary>
     epoch:  TLSInfo.epoch;
-    /// <summary> Keys of the designated Handshake </summary>
+    /// <summary> Raw bytes of the keys currently in use. This is meant to be a read-only (informational) field: changes to this field will have no effect </summary>
     keys: keys;
-    /// <summary> Initially choosen protocol version before negociation </summary>
+    /// <summary> Initially chosen protocol version before negotiation </summary>
     epoch_init_pv: ProtocolVersion;
-    /// <summary> Buffer for packets with the Handshake content type </summary>
+    /// <summary> Buffer for messages of the Handshake content type </summary>
     hs_buffer: bytes;
-    /// <summary> Buffer for packets with the Alert content type </summary>
+    /// <summary> Buffer for messages of the Alert content type </summary>
     alert_buffer: bytes;
-    /// <summary> Buffer for packets with the ApplicationData content type </summary>
+    /// <summary> Buffer for messages of the ApplicationData content type </summary>
     appdata_buffer: bytes
 }
 
 /// <summary>
-/// Global state of the application for the designated Handshake separated as input/output channels
+/// Global state of the application
 /// </summary>
 type state = {
-    /// <summary> Reading channel state (Incoming) </summary>
+    /// <summary> Reading channel (Incoming) </summary>
     read: channel;
-    /// <summary> Writing channel state (Outcoming) </summary>
+    /// <summary> Writing channel (Outcoming) </summary>
     write: channel;
-    /// <summary> Network stream where the data is exchanged with the other peer </summary>
+    /// <summary> Network stream where the data is exchanged with the peer </summary>
     ns: Tcp.NetworkStream;
 }
 
 /// <summary>
-/// Next security context record used to generate a new channel epoch
+/// Next security context record used to generate a new epoch
 /// </summary>
 type nextSecurityContext = {
-    /// <summary> Next session informations (for the future epoch/record state) </summary>
+    /// <summary> Next session information (for the future epoch/record state) </summary>
     si: SessionInfo;
-    /// <summary> Current client random bytes that will be used to generate new keys </summary>
+    /// <summary> Most recent client random; used to generate new keys </summary>
     crand: bytes;
-    /// <summary> Current server random bytes that will be used to generate new keys </summary>
+    /// <summary> Most recent server random; used to generate new keys </summary>
     srand: bytes;
-    /// <summary> New keys associated to the next epoch, to be generated and/or installed into state </summary>
+    /// <summary> Keys to be used by the next epoch </summary>
     keys: keys;
-    /// <summary> Offers of DH groups and public keys from the client for TLS 1.3 </summary>
+    /// <summary> Offers of DH groups and public keys from the client (useful for negotiated DH groups, and hence for TLS 1.3) </summary>
     offers: list<kex>;
 }
 
@@ -166,15 +164,15 @@ type FHelloRequest = {
 type FClientHello = {
     /// <summary> Protocol version </summary>
     pv: ProtocolVersion;
-    /// <summary> Current client random bytes </summary>
+    /// <summary> Client random bytes </summary>
     rand: bytes;
-    /// <summary> Session identification number bytes that are not empty if the client wants a resumption </summary>
+    /// <summary> Session identifier. A non-empty byte array indicates that the client wants resumption </summary>
     sid: bytes;
     /// <summary> List of ciphersuite names supported by the client </summary>
     suites: list<cipherSuiteName>;
     /// <summary> List of compression mechanisms supported by the client </summary>
     comps: list<Compression>;
-    /// <summary> List of extensions supported by the client (unparsed, as bytes)</summary>
+    /// <summary> List of extensions proposed by the client </summary>
     ext: list<clientExtension>;
     /// <summary> Message Bytes </summary>
     payload: bytes;
@@ -186,15 +184,15 @@ type FClientHello = {
 type FServerHello = {
 /// <summary> Protocol version </summary>
     pv: ProtocolVersion;
-    /// <summary> Current server random bytes </summary>
+    /// <summary> Server random bytes </summary>
     rand: bytes;
-    /// <summary> Session identification number bytes that are not empty if the server grants a resumption </summary>
+    /// <summary> Session identifier. A non-empty byte array indicates that the server accepted resumption </summary>
     sid: bytes;
     /// <summary> Ciphersuite selected by the server </summary>
     suite: cipherSuiteName;
     /// <summary> Compression selected by the server </summary>
     comp: Compression;
-    /// <summary> List of extensions agreed by the client (unparsed, as bytes) </summary>
+    /// <summary> List of extensions agreed by the server </summary>
     ext: list<serverExtension>;
     /// <summary> Message bytes </summary>
     payload: bytes;
@@ -281,7 +279,7 @@ type FChangeCipherSpecs = {
 /// Handshake Message record type for Finished
 /// </summary>
 type FFinished = {
-    /// <summary> Signature over a hash of the log of the handshake </summary>
+    /// <summary> Typically PRF(ms,hash(handshake log)) </summary>
     verify_data: bytes;
     /// <summary> Message bytes </summary>
     payload: bytes;
