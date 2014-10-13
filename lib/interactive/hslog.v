@@ -87,15 +87,14 @@ Implicit Arguments bytesof_inj [T f x1 x2].
 (* -------------------------------------------------------------------- *)
 Parameter IntBytes: forall (sz : nat), nat -> bytes.
 
-Lemma IntBytes_inj (sz : nat) (n1 n2 : nat):
+Hypothesis IntBytes_inj: forall (sz : nat) (n1 n2 : nat),
      (n1 < 2^(sz * 8))
   -> (n2 < 2^(sz * 8))
   -> IntBytes sz n1 = IntBytes sz n2
   -> n1 = n2.
-Proof. Admitted.
 
-Lemma size_IntBytes (sz : nat) (n : nat): size (IntBytes sz n) = sz.
-Proof. Admitted.
+Hypothesis size_IntBytes: forall (sz : nat) (n : nat),
+  size (IntBytes sz n) = sz.
 
 (* -------------------------------------------------------------------- *)
 Definition VLBytes (sz : nat) (b : bytes) :=
@@ -423,7 +422,7 @@ Lemma CSBytes_inj cs1 cs2:
   -> CSBytes cs2 != None
   -> CSBytes cs1 = CSBytes cs2
   -> cs1 = cs2.
-Proof. Admitted.
+Proof. Abort.
 
 (* -------------------------------------------------------------------- *)
 Definition random    := 32.-tuple byte.
