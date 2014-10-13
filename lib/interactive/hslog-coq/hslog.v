@@ -44,9 +44,19 @@ Section ExtraSeq.
 End ExtraSeq.
 
 (* -------------------------------------------------------------------- *)
-Notation   byte    := 'Z_256.
-Notation   bytes   := (seq byte).
-Notation   "n %:I" := (nosimpl (@inZp 256.-1 n)) (at level 2, format "n %:I").
+Section FinInj.
+  Variable T : finType.
+  Variable U : eqType.
+  Variable f : T -> U.
+
+  Lemma fin_inj: uniq [seq f x | x <- enum T] -> injective f.
+  Proof. Admitted.
+End FinInj.
+
+(* -------------------------------------------------------------------- *)
+Notation byte    := 'Z_256.
+Notation bytes   := (seq byte).
+Notation "n %:I" := (nosimpl (@inZp 256.-1 n)) (at level 2, format "n %:I").
 
 (* -------------------------------------------------------------------- *)
 Notation log := bytes (only parsing).
@@ -286,8 +296,6 @@ Inductive SigAlg : Type :=
 | SA_DSA 
 | SA_ECDSA.
 
-Scheme Equality for SigAlg.
-
 (* -------------------------------------------------------------------- *)
 Definition SigAlgBytes sa :=
   match sa with
@@ -295,6 +303,41 @@ Definition SigAlgBytes sa :=
   | SA_DSA   => [:: 2%:I ]
   | SA_ECDSA => [:: 3%:I ]
   end.
+
+(* -------------------------------------------------------------------- *)
+Scheme Equality for SigAlg.
+
+Lemma SigAlg_eqP (sa1 sa2 : SigAlg):
+  reflect (sa1 = sa2) (SigAlg_beq sa1 sa2).
+Proof.
+  apply: (iffP idP).
+    by apply/internal_SigAlg_dec_bl.
+    by apply/internal_SigAlg_dec_lb.
+Qed.
+
+Definition SigAlg_eqMixin := EqMixin SigAlg_eqP.
+Canonical  SigAlg_eqType  := Eval hnf in EqType SigAlg SigAlg_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition SigAlg_enum := [:: SA_RSA; SA_DSA; SA_ECDSA].
+
+Definition nat_of_sigalg ha := index ha SigAlg_enum.
+Definition sigalg_of_nat id := nth None [seq Some ha | ha <- SigAlg_enum] id.
+
+Lemma sigalg_of_natK: pcancel nat_of_sigalg sigalg_of_nat.
+Proof. by case. Qed.
+
+Definition SigAlg_choiceMixin := PcanChoiceMixin sigalg_of_natK.
+Canonical  SigAlg_choiceType  := ChoiceType SigAlg SigAlg_choiceMixin.
+
+Definition SigAlg_countMixin := PcanCountMixin sigalg_of_natK.
+Canonical  SigAlg_countType  := CountType SigAlg SigAlg_countMixin.
+
+Lemma SigAlg_enumP: @Finite.axiom SigAlg_eqType SigAlg_enum.
+Proof. by case. Qed.
+
+Definition SigAlg_finMixin := FinMixin SigAlg_enumP.
+Canonical  SigAlg_finType  := FinType SigAlg SigAlg_finMixin.
 
 (* -------------------------------------------------------------------- *)
 Notation SigHashAlg := (SigAlg * HashAlg)%type.
@@ -307,7 +350,45 @@ Definition SigHashAlgBytes (sah : SigHashAlg) :=
 Inductive SCSVsuite : Type :=
 | TLS_EMPTY_RENEGOTIATION_INFO_SCSV.
 
+(* -------------------------------------------------------------------- *)
+Lemma all_SCSVsuite (d : SCSVsuite):
+  d = TLS_EMPTY_RENEGOTIATION_INFO_SCSV.
+Proof. by case: d. Qed.
+
+(* -------------------------------------------------------------------- *)
 Scheme Equality for SCSVsuite.
+
+Lemma SCSVsuite_eqP (ss1 ss2 : SCSVsuite):
+  reflect (ss1 = ss2) (SCSVsuite_beq ss1 ss2).
+Proof.
+  apply: (iffP idP).
+    by apply/internal_SCSVsuite_dec_bl.
+    by apply/internal_SCSVsuite_dec_lb.
+Qed.
+
+Definition SCSVsuite_eqMixin := EqMixin SCSVsuite_eqP.
+Canonical  SCSVsuite_eqType  := Eval hnf in EqType SCSVsuite SCSVsuite_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition SCSVsuite_enum := [:: TLS_EMPTY_RENEGOTIATION_INFO_SCSV].
+
+Definition nat_of_SCSVsuite ss := index ss SCSVsuite_enum.
+Definition SCSVsuite_of_nat id := nth None [seq Some ss | ss <- SCSVsuite_enum] id.
+
+Lemma SCSVsuite_of_natK: pcancel nat_of_SCSVsuite SCSVsuite_of_nat.
+Proof. by case. Qed.
+
+Definition SCSVsuite_choiceMixin := PcanChoiceMixin SCSVsuite_of_natK.
+Canonical  SCSVsuite_choiceType  := ChoiceType SCSVsuite SCSVsuite_choiceMixin.
+
+Definition SCSVsuite_countMixin := PcanCountMixin SCSVsuite_of_natK.
+Canonical  SCSVsuite_countType  := CountType SCSVsuite SCSVsuite_countMixin.
+
+Lemma SCSVsuite_enumP: @Finite.axiom SCSVsuite_eqType SCSVsuite_enum.
+Proof. by case. Qed.
+
+Definition SCSVsuite_finMixin := FinMixin SCSVsuite_enumP.
+Canonical  SCSVsuite_finType  := FinType SCSVsuite SCSVsuite_finMixin.
 
 (* -------------------------------------------------------------------- *)
 Inductive CipherAlg : Type :=
@@ -316,14 +397,80 @@ Inductive CipherAlg : Type :=
 | AES_128_CBC
 | AES_256_CBC.
 
+(* -------------------------------------------------------------------- *)
 Scheme Equality for CipherAlg.
+
+Lemma CipherAlg_eqP (ca1 ca2 : CipherAlg):
+  reflect (ca1 = ca2) (CipherAlg_beq ca1 ca2).
+Proof.
+  apply: (iffP idP).
+    by apply/internal_CipherAlg_dec_bl.
+    by apply/internal_CipherAlg_dec_lb.
+Qed.
+
+Definition CipherAlg_eqMixin := EqMixin CipherAlg_eqP.
+Canonical  CipherAlg_eqType  := Eval hnf in EqType CipherAlg CipherAlg_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition CipherAlg_enum := [:: RC4_128; TDES_EDE_CBC; AES_128_CBC; AES_256_CBC].
+
+Definition nat_of_CipherAlg ca := index ca CipherAlg_enum.
+Definition CipherAlg_of_nat id := nth None [seq Some ca | ca <- CipherAlg_enum] id.
+
+Lemma CipherAlg_of_natK: pcancel nat_of_CipherAlg CipherAlg_of_nat.
+Proof. by case. Qed.
+
+Definition CipherAlg_choiceMixin := PcanChoiceMixin CipherAlg_of_natK.
+Canonical  CipherAlg_choiceType  := ChoiceType CipherAlg CipherAlg_choiceMixin.
+
+Definition CipherAlg_countMixin := PcanCountMixin CipherAlg_of_natK.
+Canonical  CipherAlg_countType  := CountType CipherAlg CipherAlg_countMixin.
+
+Lemma CipherAlg_enumP: @Finite.axiom CipherAlg_eqType CipherAlg_enum.
+Proof. by case. Qed.
+
+Definition CipherAlg_finMixin := FinMixin CipherAlg_enumP.
+Canonical  CipherAlg_finType  := FinType CipherAlg CipherAlg_finMixin.
 
 (* -------------------------------------------------------------------- *)
 Inductive AEADAlg : Type :=
 | AES_128_GCM
 | AES_256_GCM.
 
+(* -------------------------------------------------------------------- *)
 Scheme Equality for AEADAlg.
+
+Lemma AEADAlg_eqP (ae1 ae2 : AEADAlg):
+  reflect (ae1 = ae2) (AEADAlg_beq ae1 ae2).
+Proof.
+  apply: (iffP idP).
+    by apply/internal_AEADAlg_dec_bl.
+    by apply/internal_AEADAlg_dec_lb.
+Qed.
+
+Definition AEADAlg_eqMixin := EqMixin AEADAlg_eqP.
+Canonical  AEADAlg_eqType  := Eval hnf in EqType AEADAlg AEADAlg_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition AEADAlg_enum := [:: AES_128_GCM; AES_256_GCM].
+
+Definition nat_of_AEADAlg ae := index ae AEADAlg_enum.
+Definition AEADAlg_of_nat id := nth None [seq Some ae | ae <- AEADAlg_enum] id.
+
+Lemma AEADAlg_of_natK: pcancel nat_of_AEADAlg AEADAlg_of_nat.
+Proof. by case. Qed.
+
+Definition AEADAlg_choiceMixin := PcanChoiceMixin AEADAlg_of_natK.
+Canonical  AEADAlg_choiceType  := ChoiceType AEADAlg AEADAlg_choiceMixin.
+
+Definition AEADAlg_countMixin := PcanCountMixin AEADAlg_of_natK.
+Canonical  AEADAlg_countType  := CountType AEADAlg AEADAlg_countMixin.
+
+Lemma AEADAlg_enumP: @Finite.axiom AEADAlg_eqType AEADAlg_enum.
+Proof. by case. Qed.
+
+Definition AEADAlg_finMixin := FinMixin AEADAlg_enumP.
+Canonical  AEADAlg_finType  := FinType AEADAlg AEADAlg_finMixin.
 
 (* -------------------------------------------------------------------- *)
 Inductive KexAlg : Type :=
@@ -334,7 +481,40 @@ Inductive KexAlg : Type :=
 | DHE_RSA
 | DH_anon.
 
+(* -------------------------------------------------------------------- *)
 Scheme Equality for KexAlg.
+
+Lemma KexAlg_eqP (ae1 ae2 : KexAlg):
+  reflect (ae1 = ae2) (KexAlg_beq ae1 ae2).
+Proof.
+  apply: (iffP idP).
+    by apply/internal_KexAlg_dec_bl.
+    by apply/internal_KexAlg_dec_lb.
+Qed.
+
+Definition KexAlg_eqMixin := EqMixin KexAlg_eqP.
+Canonical  KexAlg_eqType  := Eval hnf in EqType KexAlg KexAlg_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition KexAlg_enum := [::  RSA; DH_DSS; DH_RSA; DHE_DSS; DHE_RSA; DH_anon].
+
+Definition nat_of_KexAlg ka := index ka KexAlg_enum.
+Definition KexAlg_of_nat id := nth None [seq Some ka | ka <- KexAlg_enum] id.
+
+Lemma KexAlg_of_natK: pcancel nat_of_KexAlg KexAlg_of_nat.
+Proof. by case. Qed.
+
+Definition KexAlg_choiceMixin := PcanChoiceMixin KexAlg_of_natK.
+Canonical  KexAlg_choiceType  := ChoiceType KexAlg KexAlg_choiceMixin.
+
+Definition KexAlg_countMixin := PcanCountMixin KexAlg_of_natK.
+Canonical  KexAlg_countType  := CountType KexAlg KexAlg_countMixin.
+
+Lemma KexAlg_enumP: @Finite.axiom KexAlg_eqType KexAlg_enum.
+Proof. by case. Qed.
+
+Definition KexAlg_finMixin := FinMixin KexAlg_enumP.
+Canonical  KexAlg_finType  := FinType KexAlg KexAlg_finMixin.
 
 (* -------------------------------------------------------------------- *)
 Inductive CSAuthEncAlg : Type :=
@@ -342,11 +522,106 @@ Inductive CSAuthEncAlg : Type :=
 | CS_AEAD of AEADAlg   * HashAlg.
 
 (* -------------------------------------------------------------------- *)
+Definition CSAuthEncAlg_eqb csae1 csae2 :=
+  match csae1, csae2 with
+  | CS_MtE  d1, CS_MtE  d2 => d1 == d2
+  | CS_AEAD d1, CS_AEAD d2 => d1 == d2
+  | _         , _          => false
+  end.
+
+(* -------------------------------------------------------------------- *)
+Lemma CSAuthEncAlg_eqP csae1 csae2:
+  reflect (csae1 = csae2) (CSAuthEncAlg_eqb csae1 csae2).
+Proof.
+  case: csae1 csae2=> []d1 []d2 /=; try by constructor.
+  + by case: eqP=> e; constructor; [rewrite e|case].
+  + by case: eqP=> e; constructor; [rewrite e|case].
+Qed.
+
+Definition CSAuthEncAlg_eqMixin := EqMixin CSAuthEncAlg_eqP.
+Canonical  CSAuthEncAlg_eqType  := EqType CSAuthEncAlg CSAuthEncAlg_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition CSAuthEncAlg_enum := Eval compute in
+     [seq CS_MtE  (d1, d2) | d1 <- CipherAlg_enum, d2 <- HashAlg_enum]
+  ++ [seq CS_AEAD (d1, d2) | d1 <- AEADAlg_enum  , d2 <- HashAlg_enum].
+
+Definition nat_of_CSAuthEncAlg csae := index csae CSAuthEncAlg_enum.
+
+Definition CSAuthEncAlg_of_nat id :=
+  nth None [seq Some csae | csae <- CSAuthEncAlg_enum] id.
+
+Lemma CSAuthEncAlg_of_natK: pcancel nat_of_CSAuthEncAlg CSAuthEncAlg_of_nat.
+Proof. by do! (case || move=> ?). Qed.
+
+Definition CSAuthEncAlg_choiceMixin := PcanChoiceMixin CSAuthEncAlg_of_natK.
+Canonical  CSAuthEncAlg_choiceType  := ChoiceType CSAuthEncAlg CSAuthEncAlg_choiceMixin.
+
+Definition CSAuthEncAlg_countMixin := PcanCountMixin CSAuthEncAlg_of_natK.
+Canonical  CSAuthEncAlg_countType  := CountType CSAuthEncAlg CSAuthEncAlg_countMixin.
+
+Lemma CSAuthEncAlg_enumP: @Finite.axiom CSAuthEncAlg_eqType CSAuthEncAlg_enum.
+Proof. by do! (case || move=> ?). Qed.
+
+Definition CSAuthEncAlg_finMixin := FinMixin CSAuthEncAlg_enumP.
+Canonical  CSAuthEncAlg_finType  := FinType CSAuthEncAlg CSAuthEncAlg_finMixin.
+
+(* -------------------------------------------------------------------- *)
 Inductive CipherSuite : Type :=
 | NullCipherSuite
 | CSCipherSuite      of KexAlg * CSAuthEncAlg
 | OnlyMACCipherSuite of KexAlg * HashAlg
 | SCSV               of SCSVsuite.
+
+(* -------------------------------------------------------------------- *)
+Definition CipherSuite_eqb cs1 cs2 :=
+  match cs1, cs2 with
+  | NullCipherSuite      , NullCipherSuite       => true
+  | CSCipherSuite      d1, CSCipherSuite      d2 => d1 == d2
+  | OnlyMACCipherSuite d1, OnlyMACCipherSuite d2 => d1 == d2
+  | SCSV               d1, SCSV               d2 => d1 == d2
+  | _                    , _                     => false
+  end.
+
+(* -------------------------------------------------------------------- *)
+Lemma CipherSuite_eqP cs1 cs2:
+  reflect (cs1 = cs2) (CipherSuite_eqb cs1 cs2).
+Proof.
+  case: cs1; case: cs2=> //=; try by constructor.
+  + by move=> ??; case: eqP=> e; constructor; [rewrite e|case].
+  + by move=> ??; case: eqP=> e; constructor; [rewrite e|case].
+  + move=> d1 d2; rewrite [d1]all_SCSVsuite [d2]all_SCSVsuite.
+    by rewrite eqxx; constructor.
+Qed.
+
+Definition CipherSuite_eqMixin := EqMixin CipherSuite_eqP.
+Canonical  CipherSuite_eqType  := EqType CipherSuite CipherSuite_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition CipherSuite_enum := Eval compute in
+     [:: NullCipherSuite; SCSV TLS_EMPTY_RENEGOTIATION_INFO_SCSV]
+  ++ [seq CSCipherSuite      (d1, d2) | d1 <- KexAlg_enum, d2 <- CSAuthEncAlg_enum]
+  ++ [seq OnlyMACCipherSuite (d1, d2) | d1 <- KexAlg_enum, d2 <- HashAlg_enum].
+
+Definition nat_of_CipherSuite cs := index cs CipherSuite_enum.
+
+Definition CipherSuite_of_nat id :=
+  nth None [seq Some cs | cs <- CipherSuite_enum] id.
+
+Lemma CipherSuite_of_natK: pcancel nat_of_CipherSuite CipherSuite_of_nat.
+Proof. by do! (case || move=> ?); vm_compute. Qed.
+
+Definition CipherSuite_choiceMixin := PcanChoiceMixin CipherSuite_of_natK.
+Canonical  CipherSuite_choiceType  := ChoiceType CipherSuite CipherSuite_choiceMixin.
+
+Definition CipherSuite_countMixin := PcanCountMixin CipherSuite_of_natK.
+Canonical  CipherSuite_countType  := CountType CipherSuite CipherSuite_countMixin.
+
+Lemma CipherSuite_enumP: @Finite.axiom CipherSuite_eqType CipherSuite_enum.
+Proof. by do! (case || move=> ?); vm_compute. Qed.
+
+Definition CipherSuite_finMixin := FinMixin CipherSuite_enumP.
+Canonical  CipherSuite_finType  := FinType CipherSuite CipherSuite_finMixin.
 
 (* -------------------------------------------------------------------- *)
 Definition CSBytes cs : option bytes :=
@@ -451,7 +726,6 @@ Record SessionInfo := mkSessionInfo {
   si_compression      : seq Compression;
   si_extensions       : bytes;
   si_pmsId            : bytes;
-  si_session_hash     : bytes;
   si_clientID         : CertChain;
   si_clientSigAlg     : SigHashAlg;
   si_serverID         : CertChain;
@@ -468,7 +742,6 @@ Definition EqExceptPmsID (si si' : SessionInfo) :=
   /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
   /\ si.(si_compression     ) = si'.(si_compression     )
   /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_session_hash    ) = si'.(si_session_hash    )
   /\ si.(si_clientID        ) = si'.(si_clientID        )
   /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
   /\ si.(si_serverID        ) = si'.(si_serverID        )
@@ -485,7 +758,6 @@ Definition EqExceptClientID (si si' : SessionInfo) :=
   /\ si.(si_compression     ) = si'.(si_compression     )
   /\ si.(si_extensions      ) = si'.(si_extensions      )
   /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_session_hash    ) = si'.(si_session_hash    )
   /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
   /\ si.(si_serverID        ) = si'.(si_serverID        )
   /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
@@ -500,7 +772,6 @@ Definition EqExceptPmsClientID (si si' : SessionInfo) :=
   /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
   /\ si.(si_compression     ) = si'.(si_compression     )
   /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_session_hash    ) = si'.(si_session_hash    )
   /\ si.(si_serverID        ) = si'.(si_serverID        )
   /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
   /\ si.(si_client_auth     ) = si'.(si_client_auth     )
@@ -515,7 +786,6 @@ Definition EqExceptServerID (si si' : SessionInfo) :=
   /\ si.(si_compression     ) = si'.(si_compression     )
   /\ si.(si_extensions      ) = si'.(si_extensions      )
   /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_session_hash    ) = si'.(si_session_hash    )
   /\ si.(si_clientID        ) = si'.(si_clientID        )
   /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
   /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
@@ -531,7 +801,6 @@ Definition EqExceptClientSigAlg (si si' : SessionInfo) :=
   /\ si.(si_compression     ) = si'.(si_compression     )
   /\ si.(si_extensions      ) = si'.(si_extensions      )
   /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_session_hash    ) = si'.(si_session_hash    )
   /\ si.(si_clientID        ) = si'.(si_clientID        )
   /\ si.(si_serverID        ) = si'.(si_serverID        )
   /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
@@ -547,7 +816,6 @@ Definition EqExceptServerSigAlg (si si' : SessionInfo) :=
   /\ si.(si_compression     ) = si'.(si_compression     )
   /\ si.(si_extensions      ) = si'.(si_extensions      )
   /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_session_hash    ) = si'.(si_session_hash    )
   /\ si.(si_clientID        ) = si'.(si_clientID        )
   /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
   /\ si.(si_serverID        ) = si'.(si_serverID        )
@@ -563,7 +831,6 @@ Definition EqExceptClientAuth (si si' : SessionInfo) :=
   /\ si.(si_compression     ) = si'.(si_compression     )
   /\ si.(si_extensions      ) = si'.(si_extensions      )
   /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_session_hash    ) = si'.(si_session_hash    )
   /\ si.(si_clientID        ) = si'.(si_clientID        )
   /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
   /\ si.(si_serverID        ) = si'.(si_serverID        )
