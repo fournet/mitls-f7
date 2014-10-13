@@ -47,9 +47,12 @@ End ExtraSeq.
 Section FinInj.
   Variable T : finType.
   Variable U : eqType.
-  Variable f : T -> U.
+  Variable f : T -> option U.
 
-  Lemma fin_inj: uniq [seq f x | x <- enum T] -> injective f.
+  Lemma fin_inj:
+       uniq (pmap f (enum T))
+    -> forall (x1 x2 : T), f x1 != None -> f x2 != None ->
+         f x1 = f x2 -> x1 = x2.
   Proof. Admitted.
 End FinInj.
 
@@ -705,7 +708,10 @@ Lemma CSBytes_inj cs1 cs2:
   -> CSBytes cs2 != None
   -> CSBytes cs1 = CSBytes cs2
   -> cs1 = cs2.
-Proof. Abort.
+Proof.
+  move=> h1 h2; apply/fin_inj=> //.
+  by rewrite enumT Finite.EnumDef.enumDef; vm_compute.
+Qed.
 
 (* -------------------------------------------------------------------- *)
 Definition random    := 32.-tuple byte.
