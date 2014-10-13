@@ -1046,3 +1046,10 @@ Theorem I1 si1 si2 lg:
      ClientLogBeforeClientFinished si1 lg
   -> ServerLogBeforeClientFinished si2 lg
   -> si1 = si2.
+Proof. Abort.
+
+(*
+*** Local Variables: ***
+*** coq-load-path: ("ssreflect" ".") ***
+*** End: ***
+ *)
