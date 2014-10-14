@@ -43,6 +43,14 @@ Section ExtraSeq.
     move/catIs=> eq_rev; apply/rev_inj/(eq_rev (rev s1) (rev s2)).
     by rewrite -!rev_cat eq.
   Qed.
+
+  Lemma catIts (n : nat) (s1 s2 : n.-tuple T) (r1 r2 : seq T):
+    s1 ++ r1 = s2 ++ r2 -> s1 = s2.
+  Proof. by move/catIs; rewrite ?size_tuple => /(_ (erefl _)) /(val_inj). Qed.
+
+  Lemma size_take_le (n : nat) (s : seq T):
+    size (take n s) <= n.
+  Proof. by rewrite size_take; case: ltnP. Qed.
 End ExtraSeq.
 
 (* -------------------------------------------------------------------- *)
@@ -111,8 +119,8 @@ Implicit Arguments bytesof_inj [T f x1 x2].
 Parameter IntBytes: forall (sz : nat), nat -> bytes.
 
 Hypothesis IntBytes_inj: forall (sz : nat) (n1 n2 : nat),
-     (n1 < 2^(sz * 8))
-  -> (n2 < 2^(sz * 8))
+     (n1 <= (2^(sz * 8)).-1)
+  -> (n2 <= (2^(sz * 8)).-1)
   -> IntBytes sz n1 = IntBytes sz n2
   -> n1 = n2.
 
@@ -126,13 +134,11 @@ Definition VLBytes (sz : nat) (b : bytes) :=
   bsz ++ b.
 
 Lemma VLBytes_inj (n : nat) (b1 b2 : bytes):
-     (size b1 < 2^(n * 8))
-  -> (size b2 < 2^(n * 8))
+     (size b1 <= (2^(n * 8)).-1)
+  -> (size b2 <= (2^(n * 8)).-1)
   -> VLBytes n b1 = VLBytes n b2 -> b1 = b2.
 Proof.
-  move=> szb1 szb2; rewrite /VLBytes !take_oversize; first last.
-    by rewrite -ltnS prednK // expn_gt0.
-    by rewrite -ltnS prednK // expn_gt0.
+  move=> szb1 szb2; rewrite /VLBytes !take_oversize //.
   by move/catsI; rewrite !size_IntBytes; apply.
 Qed.
 
@@ -221,8 +227,8 @@ Proof.
 Qed.
 
 Lemma MessageBytes_inj2 ht1 b1 ht2 b2:
-     (size b1 < 2^24)%N
-  -> (size b2 < 2^24)%N
+     (size b1 <= (2^24).-1)%N
+  -> (size b2 <= (2^24).-1)%N
   -> MessageBytes ht1 b1 = MessageBytes ht2 b2 -> b1 = b2.
 Proof. 
   rewrite unlock; move=> szb1 szb2 /catsI; rewrite !size_HTBytes.
@@ -1587,6 +1593,20 @@ Proof. case.
 Qed.
 
 (* ==================================================================== *)
+Lemma catIB (n : nat) (p1 p2 : bytes) (l1 l2 : log):
+     VLBytes n p1 ++ l1 = VLBytes n p2 ++ l2
+  ->    take (2 ^ (n * 8)).-1 p1 = take (2 ^ (n * 8)).-1 p2
+     /\ l1 = l2.
+Proof.
+  rewrite /VLBytes -!catA => eq; have/catIs := eq.
+  rewrite ?size_IntBytes => /(_ (erefl _)) /IntBytes_inj.
+  rewrite !size_take_le => /(_ (erefl _) (erefl _)) => eq_sz.
+  have/catsI := eq; rewrite ?size_IntBytes => /(_ (erefl _)).
+  move=> {eq} eq; have/catIs := eq => /(_ eq_sz) eq1.
+  by move/catsI: eq => /(_ eq_sz) => eq2; split.
+Qed.
+
+(* ==================================================================== *)
 (* INVERSION LEMMAS                                                     *)
 (* ==================================================================== *)
 
@@ -1607,8 +1627,7 @@ Theorem I1 si1 si2 lg:
      ClientLogBeforeClientFinished si1 lg
   -> ServerLogBeforeClientFinished si2 lg
   -> EQSI si1 si2.
-Proof.
-  case.
+Proof. case.
   + case/ClientLogBeforeClientFinishedRSA_P.
     * admit.
     * admit.
