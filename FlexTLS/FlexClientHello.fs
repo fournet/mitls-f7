@@ -168,7 +168,7 @@ type FlexClientHello =
                 LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
                 LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
                 LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
-                LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fch.ext);
+                LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fch));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 (st,nsc,fch)
             )
@@ -248,7 +248,7 @@ type FlexClientHello =
         LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
         LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
         LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
-        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fch.ext);
+        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fch));
         st,fch
     
     end
