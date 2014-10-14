@@ -183,17 +183,17 @@ type FClientHello = {
 /// </summary>
 type FServerHello = {
 /// <summary> Protocol version </summary>
-    pv: ProtocolVersion;
+    pv: option<ProtocolVersion>;
     /// <summary> Server random bytes </summary>
     rand: bytes;
     /// <summary> Session identifier. A non-empty byte array indicates that the server accepted resumption </summary>
     sid: bytes;
     /// <summary> Ciphersuite selected by the server </summary>
-    suite: cipherSuiteName;
+    suite: option<cipherSuiteName>;
     /// <summary> Compression selected by the server </summary>
     comp: Compression;
     /// <summary> List of extensions agreed by the server </summary>
-    ext: list<serverExtension>;
+    ext: option<list<serverExtension>>;
     /// <summary> Message bytes </summary>
     payload: bytes;
 }

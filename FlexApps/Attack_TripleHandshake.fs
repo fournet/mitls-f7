@@ -75,7 +75,7 @@ type Attack_TripleHandshake =
 
         // Forward server hello, and get access to the honest server random
         let cst,cnsc,csh = FlexServerHello.receive(cst,cch,cnsc) in
-        let sst,snsc,ssh = FlexServerHello.send(sst,csh,snsc) in
+        let sst,snsc,ssh = FlexServerHello.send(sst,sch,snsc,csh) in
 
         // Discard the server certificate and inject ours instead
         let cst,cnsc,ccert = FlexCertificate.receive(cst,Client,cnsc) in

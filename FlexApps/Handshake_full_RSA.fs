@@ -90,7 +90,7 @@ type Handshake_full_RSA =
 
         // Ensure we send our preferred ciphersuite
         let fsh = { FlexConstants.nullFServerHello with 
-            suite = TLS_RSA_WITH_AES_128_CBC_SHA} in
+            suite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
 
         let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc,fsh) in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
@@ -197,8 +197,8 @@ type Handshake_full_RSA =
 
         // Ensure we send our preferred ciphersuite
         let sh = { FlexConstants.nullFServerHello with
-            pv = TLS_1p2; 
-            suite = TLS_RSA_WITH_AES_128_CBC_SHA } in
+            pv = Some(TLS_1p2); 
+            suite = Some(TLS_RSA_WITH_AES_128_CBC_SHA) } in
 
         let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in

@@ -108,14 +108,12 @@ type FlexConstants =
     /// fresh server randomness.
     /// </remarks>
     static member nullFServerHello : FServerHello = {   
-        pv = defaultConfig.maxVer;
+        pv = None;
         rand = empty_bytes; 
         sid = empty_bytes;
-        suite = (match name_of_cipherSuite defaultConfig.ciphersuites.Head with
-        | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-        | Correct(cs) -> cs);
+        suite = None;
         comp = defaultConfig.compressions.Head;
-        ext = [];
+        ext = None;
         payload = empty_bytes;
     }
 

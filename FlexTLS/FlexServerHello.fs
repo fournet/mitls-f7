@@ -18,40 +18,23 @@ open FlexConstants
 open FlexState
 open FlexHandshake
 
+let getSuite (fsh:FServerHello) =
+    match fsh.suite with
+    | None ->
+        (match FlexConstants.names_of_cipherSuites TLSInfo.defaultConfig.ciphersuites with
+        | Error(x,y) -> failwith "Cannot extract ciphersuites from the default config"
+        | Correct(css) -> css.Head)
+    | Some(suite) -> suite
 
+let getPV (fsh:FServerHello) =
+    match fsh.pv with
+    | None -> TLSInfo.defaultConfig.maxVer
+    | Some(pv) -> pv
 
-
-/// <summary>
-/// Inference on user provided information
-/// </summary>
-/// <param name="fsh"> FServerHello message record </param>
-/// <param name="si"> Session information being negociated </param>
-/// <returns> Updated FServerHello message record * Updated session infos </returns>
-let fillFServerHelloANDSi (fsh:FServerHello) (si:SessionInfo) : FServerHello * SessionInfo =
-    (* rand = Is there random bytes ? If no, create some *)
-    let rand =
-        match fsh.rand = FlexConstants.nullFServerHello.rand with
-        | false -> fsh.rand
-        | true -> Nonce.mkHelloRandom si.protocol_version
-    in
-
-    (* Update fch with correct informations and sets payload to empty bytes *)
-    let fsh = { fsh with 
-                rand = rand;
-                payload = empty_bytes 
-              } 
-    in
-
-    (* Update si with correct informations from fsh *)
-    let si = { si with
-               protocol_version = fsh.pv;
-               sessionID = fsh.sid;
-               cipher_suite = TLSConstants.cipherSuite_of_name fsh.suite;
-               compression = fsh.comp;
-               init_srand = fsh.rand;
-             } 
-    in
-    (fsh,si)
+let getExt (fsh:FServerHello) =
+    match fsh.ext with
+    | None -> []
+    | Some(l) -> l
 
 /// <summary>
 /// Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing
@@ -61,8 +44,8 @@ let fillFServerHelloANDSi (fsh:FServerHello) (si:SessionInfo) : FServerHello * S
 /// <returns> Updated state </returns>
 let fillStateEpochInitPvIFIsEpochInit (st:state) (fsh:FServerHello) : state =
     if TLSInfo.isInitEpoch st.read.epoch then
-        let st = FlexState.updateIncomingRecordEpochInitPV st fsh.pv in
-        let st = FlexState.updateOutgoingRecordEpochInitPV st fsh.pv in
+        let st = FlexState.updateIncomingRecordEpochInitPV st (getPV fsh) in
+        let st = FlexState.updateOutgoingRecordEpochInitPV st (getPV fsh) in
         st
     else
         st
@@ -88,9 +71,9 @@ type FlexServerHello =
         let st,fsh,negExts = FlexServerHello.receive(st,(FlexClientHello.getExt fch)) in
         let si  = { nsc.si with 
                     init_srand = fsh.rand;
-                    protocol_version = fsh.pv;
+                    protocol_version = getPV fsh;
                     sessionID = fsh.sid;
-                    cipher_suite = cipherSuite_of_name fsh.suite;
+                    cipher_suite = cipherSuite_of_name (getSuite fsh);
                     compression = fsh.comp;
                     extensions = negExts;
                   } 
@@ -146,12 +129,12 @@ type FlexServerHello =
                     | Error(ad,x) -> failwith x
                     | Correct(exts) -> exts
                 in
-                let fsh = { pv = pv;
+                let fsh = { pv = Some(pv);
                             rand = sr;
                             sid = sid;
-                            suite = csname;
+                            suite = Some(csname);
                             comp = cm;
-                            ext = sextL;
+                            ext = Some(sextL);
                             payload = to_log; 
                           } 
                 in
@@ -183,13 +166,12 @@ type FlexServerHello =
             | Correct(cs) -> cs
         in
         let payload = HandshakeMessages.serverHelloBytes si si.init_srand ext in
-        let fsh = { FlexConstants.nullFServerHello with 
-                    pv = si.protocol_version;
+        let fsh = { pv = Some(si.protocol_version);
                     rand = si.init_srand;
                     sid = si.sessionID;
-                    suite = csname;
+                    suite = Some(csname);
                     comp = si.compression;
-                    ext = sExtL;
+                    ext = Some(sExtL);
                     payload = payload;
                   }
         in
@@ -205,13 +187,13 @@ type FlexServerHello =
     /// <param name="cfg"> Optional Server configuration if differs from default </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?srand:bytes, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
+    static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let srand = defaultArg srand empty_bytes in
+        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let cfg = defaultArg cfg defaultConfig in
 
-        let st,si,fsh = FlexServerHello.send(st,nsc.si,fch.pv,fch.suites,fch.comps,(FlexClientHello.getExt fch),srand,cfg,fp=fp) in
+        let st,si,fsh = FlexServerHello.send(st,nsc.si,fch.pv,fch.suites,fch.comps,(FlexClientHello.getExt fch),fsh,cfg,fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;
@@ -229,43 +211,74 @@ type FlexServerHello =
     /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated negotiated session information * FServerHello message record </returns>
-    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?srand:bytes, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
+    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?fsh:FServerHello, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
         let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
-        let srand = defaultArg srand (Nonce.mkHelloRandom si.protocol_version) in
+        let fsh = defaultArg fsh FlexConstants.nullFServerHello in
+        let srand =
+            if fsh.rand = empty_bytes then
+                (Nonce.mkHelloRandom si.protocol_version)
+            else
+                fsh.rand
+        in
 
         // Check if the user gave us a session to resume, otherwise try to negotiate something sensible
         let si,sExtL =
             if si.sessionID = empty_bytes then
                 // Protocol version
-                let pv = minPV cpv cfg.maxVer in
+                let pv =
+                    match fsh.pv with
+                    | None -> minPV cpv cfg.maxVer
+                    | Some(pv) -> pv
+                in
                 if (geqPV pv cfg.minVer) = false then
                     failwith (perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation")
                 else
-                // Fresh sid, since we're not resuming
-                let sid = Nonce.random 32 in
+                
+                // SessionID
+                let sid =
+                    if fsh.sid = empty_bytes then
+                        Nonce.random 32
+                    else
+                        fsh.sid
+                in
+
                 // Ciphersuite
-                match Handshake.negotiate (cipherSuites_of_nameList csuites) cfg.ciphersuites with
-                | Some(nCs) ->
-                    // Compression
-                    (match Handshake.negotiate ccomps cfg.compressions with
-                    | Some(nCm) ->
-                        // Extensions
-                        let (sExtL, nExtL) = negotiateServerExtensions cextL cfg nCs verify_datas false in
-                        let si = { si with 
-                                   client_auth      = cfg.request_client_certificate;
-                                   sessionID        = sid;
-                                   protocol_version = pv;
-                                   cipher_suite     = nCs;
-                                   compression      = nCm;
-                                   extensions       = nExtL;
-                                   init_srand       = srand;
-                                 }
-                        in
-                        si,sExtL
-                    | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Compression method negotiation"))
-                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation")
+                let nCs =
+                    match fsh.suite with
+                    | None ->
+                        (match Handshake.negotiate (cipherSuites_of_nameList csuites) cfg.ciphersuites with
+                        | Some(nCs) -> nCs
+                        | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation"))
+                    | Some(suite) -> TLSConstants.cipherSuite_of_name suite
+                in
+                
+                // Compression
+                let nCm = NullCompression in
+                    
+                // Extensions
+                let (sExtL, nExtL) =
+                    match fsh.ext with
+                    | None ->
+                        negotiateServerExtensions cextL cfg nCs verify_datas false
+                    | Some(sExtL) ->
+                        match negotiateClientExtensions cextL sExtL false nCs with
+                        | Error(x,y) -> sExtL,[]
+                        | Correct(nExtL) -> sExtL,nExtL
+                in
+
+                let si = { si with 
+                            client_auth      = cfg.request_client_certificate;
+                            sessionID        = sid;
+                            protocol_version = pv;
+                            cipher_suite     = nCs;
+                            compression      = nCm;
+                            extensions       = nExtL;
+                            init_srand       = srand;
+                            }
+                in
+                si,sExtL
             else
                 let (sExtL, nExtL) = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas true in
                 si,sExtL
@@ -274,23 +287,6 @@ type FlexServerHello =
         let st,fsh = FlexServerHello.send(st,si,sExtL,fp) in
         st,si,fsh
     
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="st"></param>
-    /// <param name="fsh"></param>
-    /// <param name="nsc"></param>
-    /// <param name="fp"></param>
-    static member send(st:state, fsh:FServerHello, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy): state * nextSecurityContext * FServerHello =
-        let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        
-        let fsh,si = fillFServerHelloANDSi fsh nsc.si in
-        let nsc = {nsc with si = si} in
-        let st,fsh = FlexServerHello.send(st,si,fsh.ext,fp) in
-        st,nsc,fsh
-            
-
     /// <summary>
     /// Send a ServerHello message to the network stream
     /// </summary>
