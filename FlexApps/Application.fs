@@ -24,6 +24,9 @@ let main argv =
     let log = LogManager.GetLogger("file") in
     log.Info("START Running FlexTLS scenario");
 
+    (* OpenSSL tests *)
+    OpenSSL_tests.opensslTest 2443 "127.0.0.1" 2444;
+
     (* Alert attack *)
 //    Attack_Alert.run "www.google.com";
     
