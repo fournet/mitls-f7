@@ -93,11 +93,13 @@ type FlexAlert =
         let st = FlexState.updateOutgoingAlertBuffer st buf in
         //BB : This is only needed for log
         let _ = 
-            match Alert.parseAlert payload with
-                | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-                | Correct(ad) ->
-                    LogManager.GetLogger("file").Info(sprintf "--- Description : %A" ad);
-                    LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+            if length payload = 2 then
+                match Alert.parseAlert payload with
+                    | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+                    | Correct(ad) ->
+                        LogManager.GetLogger("file").Info(sprintf "--- Description : %A" ad);
+                        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+            else ()
         in
         FlexRecord.send(st,Alert,fp)
     
