@@ -22,6 +22,8 @@ Ltac Case id := idtac id.
 Section ExtraSeq.
   Variable T : Type.
 
+  Definition rems (T : eqType) xs s := foldr (@rem T) s xs.
+
   Lemma rev_inj: injective (@rev T).
   Proof. by elim=> [|x s ih] [|x' s'] /(congr1 rev); rewrite !revK. Qed.
 
@@ -192,21 +194,39 @@ Lemma PVBytes_inj: injective PVBytes.
 Proof. by case=> [] []. Qed.
 
 (* -------------------------------------------------------------------- *)
-Definition MessageBytes (ht : HandshakeType) (b : bytes) :=
+Definition MessageBytes_r (ht : HandshakeType) (b : bytes) : bytes :=
   (HTBytes ht) ++ (VLBytes 3 b).
+
+Module Type MessageBytesSig.
+  Parameter MessageBytes: HandshakeType -> bytes -> bytes.
+  Hypothesis MessageBytesE: MessageBytes = MessageBytes_r.
+End MessageBytesSig.
+
+Module MessageBytes: MessageBytesSig.
+  Definition MessageBytes := MessageBytes_r.
+
+  Lemma MessageBytesE: MessageBytes = MessageBytes_r.
+  Proof. by []. Qed.
+End MessageBytes.
+
+Notation MessageBytes := MessageBytes.MessageBytes.
+Canonical messagebytes_unlock := Unlockable MessageBytes.MessageBytesE.
 
 (* -------------------------------------------------------------------- *)
 Lemma MessageBytes_inj1 ht1 b1 ht2 b2:
   MessageBytes ht1 b1 = MessageBytes ht2 b2 -> ht1 = ht2.
-Proof. by move=> /catIs eq; apply/HTBytes_inj/eq; rewrite !size_HTBytes. Qed.
+Proof.
+  rewrite unlock => /catIs eq; apply/HTBytes_inj.
+  by apply/eq; rewrite !size_HTBytes.
+Qed.
 
 Lemma MessageBytes_inj2 ht1 b1 ht2 b2:
      (size b1 < 2^24)%N
   -> (size b2 < 2^24)%N
   -> MessageBytes ht1 b1 = MessageBytes ht2 b2 -> b1 = b2.
 Proof. 
-  move=> szb1 szb2 /catsI; rewrite !size_HTBytes => /(_ (erefl _)).
-  by move/VLBytes_inj => -/(_ szb1 szb2); apply.
+  rewrite unlock; move=> szb1 szb2 /catsI; rewrite !size_HTBytes.
+  by move/(_ (erefl _))/VLBytes_inj => -/(_ szb1 szb2); apply.
 Qed.
 
 (* -------------------------------------------------------------------- *)
@@ -730,7 +750,6 @@ Record SessionInfo := mkSessionInfo {
   si_protocol_version : ProtocolVersion;
   si_cipher_suite     : seq CipherSuite;
   si_compression      : seq Compression;
-  si_extensions       : bytes;
   si_pmsId            : bytes;
   si_clientID         : CertChain;
   si_clientSigAlg     : SigHashAlg;
@@ -741,107 +760,106 @@ Record SessionInfo := mkSessionInfo {
 }.
 
 (* -------------------------------------------------------------------- *)
-Definition EqExceptPmsID (si si' : SessionInfo) :=
-     si.(si_init_crand      ) = si'.(si_init_crand      )
-  /\ si.(si_init_srand      ) = si'.(si_init_srand      )
-  /\ si.(si_protocol_version) = si'.(si_protocol_version)
-  /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
-  /\ si.(si_compression     ) = si'.(si_compression     )
-  /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_clientID        ) = si'.(si_clientID        )
-  /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
-  /\ si.(si_serverID        ) = si'.(si_serverID        )
-  /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
-  /\ si.(si_client_auth     ) = si'.(si_client_auth     )
-  /\ si.(si_sessionID       ) = si'.(si_sessionID       ).
+Inductive SI_Field : Type :=
+| SI_init_crand
+| SI_init_srand
+| SI_protocol_version
+| SI_cipher_suite
+| SI_compression
+| SI_pmsId
+| SI_clientID
+| SI_clientSigAlg
+| SI_serverID
+| SI_serverSigAlg
+| SI_client_auth
+| SI_sessionID.
 
 (* -------------------------------------------------------------------- *)
-Definition EqExceptClientID (si si' : SessionInfo) :=
-     si.(si_init_crand      ) = si'.(si_init_crand      )
-  /\ si.(si_init_srand      ) = si'.(si_init_srand      )
-  /\ si.(si_protocol_version) = si'.(si_protocol_version)
-  /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
-  /\ si.(si_compression     ) = si'.(si_compression     )
-  /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
-  /\ si.(si_serverID        ) = si'.(si_serverID        )
-  /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
-  /\ si.(si_client_auth     ) = si'.(si_client_auth     )
-  /\ si.(si_sessionID       ) = si'.(si_sessionID       ).
+Scheme Equality for SI_Field.
+
+Lemma SIField_eqP (si1 si2 : SI_Field):
+  reflect (si1 = si2) (SI_Field_beq si1 si2).
+Proof.
+  apply: (iffP idP).
+    by apply/internal_SI_Field_dec_bl.
+    by apply/internal_SI_Field_dec_lb.
+Qed.
+
+Definition SIField_eqMixin := EqMixin SIField_eqP.
+Canonical  SIField_eqType  := Eval hnf in EqType SI_Field SIField_eqMixin.
 
 (* -------------------------------------------------------------------- *)
-Definition EqExceptPmsClientID (si si' : SessionInfo) :=
-     si.(si_init_crand      ) = si'.(si_init_crand      )
-  /\ si.(si_init_srand      ) = si'.(si_init_srand      )
-  /\ si.(si_protocol_version) = si'.(si_protocol_version)
-  /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
-  /\ si.(si_compression     ) = si'.(si_compression     )
-  /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_serverID        ) = si'.(si_serverID        )
-  /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
-  /\ si.(si_client_auth     ) = si'.(si_client_auth     )
-  /\ si.(si_sessionID       ) = si'.(si_sessionID       ).
+Definition SI_Fields := [::
+  SI_init_crand      ;
+  SI_init_srand      ;
+  SI_protocol_version;
+  SI_cipher_suite    ;
+  SI_compression     ;
+  SI_pmsId           ;
+  SI_clientID        ;
+  SI_clientSigAlg    ;
+  SI_serverID        ;
+  SI_serverSigAlg    ;
+  SI_client_auth     ;
+  SI_sessionID
+].
 
 (* -------------------------------------------------------------------- *)
-Definition EqExceptServerID (si si' : SessionInfo) :=
-     si.(si_init_crand      ) = si'.(si_init_crand      )
-  /\ si.(si_init_srand      ) = si'.(si_init_srand      )
-  /\ si.(si_protocol_version) = si'.(si_protocol_version)
-  /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
-  /\ si.(si_compression     ) = si'.(si_compression     )
-  /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_clientID        ) = si'.(si_clientID        )
-  /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
-  /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
-  /\ si.(si_client_auth     ) = si'.(si_client_auth     )
-  /\ si.(si_sessionID       ) = si'.(si_sessionID       ).
+Lemma SI_Fields_enumP: Finite.axiom SI_Fields.
+Proof. by case. Qed.
 
 (* -------------------------------------------------------------------- *)
-Definition EqExceptClientSigAlg (si si' : SessionInfo) :=
-     si.(si_init_crand      ) = si'.(si_init_crand      )
-  /\ si.(si_init_srand      ) = si'.(si_init_srand      )
-  /\ si.(si_protocol_version) = si'.(si_protocol_version)
-  /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
-  /\ si.(si_compression     ) = si'.(si_compression     )
-  /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_clientID        ) = si'.(si_clientID        )
-  /\ si.(si_serverID        ) = si'.(si_serverID        )
-  /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
-  /\ si.(si_client_auth     ) = si'.(si_client_auth     )
-  /\ si.(si_sessionID       ) = si'.(si_sessionID       ).
+Definition SI_FieldEq sif :=
+  match sif return SessionInfo -> SessionInfo -> Prop with
+  | SI_init_crand       => fun si si' => si.(si_init_crand      ) = si'.(si_init_crand      )
+  | SI_init_srand       => fun si si' => si.(si_init_srand      ) = si'.(si_init_srand      )
+  | SI_protocol_version => fun si si' => si.(si_protocol_version) = si'.(si_protocol_version)
+  | SI_cipher_suite     => fun si si' => si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
+  | SI_compression      => fun si si' => si.(si_compression     ) = si'.(si_compression     )
+  | SI_pmsId            => fun si si' => si.(si_compression     ) = si'.(si_compression     )
+  | SI_clientID         => fun si si' => si.(si_clientID        ) = si'.(si_clientID        )
+  | SI_clientSigAlg     => fun si si' => si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
+  | SI_serverID         => fun si si' => si.(si_serverID        ) = si'.(si_serverID        )
+  | SI_serverSigAlg     => fun si si' => si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
+  | SI_client_auth      => fun si si' => si.(si_client_auth     ) = si'.(si_client_auth     )
+  | SI_sessionID        => fun si si' => si.(si_sessionID       ) = si'.(si_sessionID       )
+  end.
 
 (* -------------------------------------------------------------------- *)
-Definition EqExceptServerSigAlg (si si' : SessionInfo) :=
-     si.(si_init_crand      ) = si'.(si_init_crand      )
-  /\ si.(si_init_srand      ) = si'.(si_init_srand      )
-  /\ si.(si_protocol_version) = si'.(si_protocol_version)
-  /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
-  /\ si.(si_compression     ) = si'.(si_compression     )
-  /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_clientID        ) = si'.(si_clientID        )
-  /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
-  /\ si.(si_serverID        ) = si'.(si_serverID        )
-  /\ si.(si_client_auth     ) = si'.(si_client_auth     )
-  /\ si.(si_sessionID       ) = si'.(si_sessionID       ).
+Fixpoint SI_FieldEqs sifs si si' :=
+  match sifs with
+  | [::]        => True
+  | [:: sif]    => SI_FieldEq sif si si'
+  | sif :: sifs => (SI_FieldEq sif si si' * SI_FieldEqs sifs si si')%type
+  end.
 
 (* -------------------------------------------------------------------- *)
-Definition EqExceptClientAuth (si si' : SessionInfo) :=
-     si.(si_init_crand      ) = si'.(si_init_crand      )
-  /\ si.(si_init_srand      ) = si'.(si_init_srand      )
-  /\ si.(si_protocol_version) = si'.(si_protocol_version)
-  /\ si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
-  /\ si.(si_compression     ) = si'.(si_compression     )
-  /\ si.(si_extensions      ) = si'.(si_extensions      )
-  /\ si.(si_pmsId           ) = si'.(si_pmsId           )
-  /\ si.(si_clientID        ) = si'.(si_clientID        )
-  /\ si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
-  /\ si.(si_serverID        ) = si'.(si_serverID        )
-  /\ si.(si_serverSigAlg    ) = si'.(si_serverSigAlg    )
-  /\ si.(si_sessionID       ) = si'.(si_sessionID       ).
+Definition EqExceptPmsID (si si' : SessionInfo) := Eval simpl in
+  SI_FieldEqs (rem SI_pmsId SI_Fields) si si'.
+
+(* -------------------------------------------------------------------- *)
+Definition EqExceptClientID (si si' : SessionInfo) := Eval simpl in
+  SI_FieldEqs (rem SI_clientID SI_Fields) si si'.
+
+(* -------------------------------------------------------------------- *)
+Definition EqExceptClientSigAlg (si si' : SessionInfo) := Eval simpl in
+  SI_FieldEqs (rem SI_clientSigAlg SI_Fields) si si'.
+
+(* -------------------------------------------------------------------- *)
+Definition EqExceptPmsClientID (si si' : SessionInfo) := Eval simpl in
+  SI_FieldEqs (rems [:: SI_pmsId; SI_clientID; SI_clientSigAlg] SI_Fields) si si'.
+
+(* -------------------------------------------------------------------- *)
+Definition EqExceptServerID (si si' : SessionInfo) := Eval simpl in
+  SI_FieldEqs (rem SI_serverID SI_Fields) si si'.
+
+(* -------------------------------------------------------------------- *)
+Definition EqExceptServerSigAlg (si si' : SessionInfo) := Eval simpl in
+  SI_FieldEqs (rem SI_serverSigAlg SI_Fields) si si'.
+
+(* -------------------------------------------------------------------- *)
+Definition EqExceptClientAuth (si si' : SessionInfo) := Eval simpl in 
+  SI_FieldEqs (rem SI_client_auth SI_Fields) si si'.
 
 (* -------------------------------------------------------------------- *)
 Definition DHEParamBytes (p g y : bytes) :=
@@ -952,15 +970,14 @@ Inductive ServerLogBeforeClientCertificateRSA
        ++ (CertificateRequestMsg si.(si_protocol_version) ctl sal nl)
        ++ (ServerHelloDoneMsg [::])
 
-| ServerLogBeforeClientCertificateRSA_NoAth cs cm sess ex1 ex2 of
+| ServerLogBeforeClientCertificateRSA_NoAuth cs cm sess ex1 ex2 of
       ~~ si.(si_client_auth)
     & lg =
            (ClientHelloMsg pv si.(si_init_crand) sess cs cm ex1)
         ++ (ServerHelloMsg si.(si_protocol_version) si.(si_init_srand) si.(si_sessionID)
                            si.(si_cipher_suite) si.(si_compression) ex2)
         ++ (CertificateMsg si.(si_serverID))
-        ++ (ServerHelloDoneMsg [::])
-.
+        ++ (ServerHelloDoneMsg [::]).
 
 (* -------------------------------------------------------------------- *)
 Inductive ServerLogBeforeClientCertificateDHE
@@ -968,11 +985,11 @@ Inductive ServerLogBeforeClientCertificateDHE
   (lg : log)
 : Prop :=
 | ServerLogBeforeClientCertificateDHE_Auth
-    crand cpv csl cml csess ex1 ex2 ctl sal nl p g y a sign
+    cpv csl cml csess ex1 ex2 ctl sal nl p g y a sign
   of
       si.(si_client_auth)
     & lg =
-            (ClientHelloMsg cpv crand csess csl cml ex1)
+            (ClientHelloMsg cpv si.(si_init_crand) csess csl cml ex1)
          ++ (ServerHelloMsg si.(si_protocol_version) si.(si_init_srand) si.(si_sessionID)
                             si.(si_cipher_suite) si.(si_compression) ex2)
          ++ (CertificateMsg si.(si_serverID))
@@ -1047,7 +1064,7 @@ Inductive ServerLogBeforeClientCertificateVerifyDHE
 : Prop :=
 | ServerLogBeforeClientCertificateVerifyDHE_E
     si' lg' p g gc gs r
-  of 
+  of
       lg = lg' ++ ClientKeyExchangeMsg_DHE gc
     & si.(si_pmsId) = DHEPMS p g gs gc r
     & EqExceptPmsID si' si
@@ -1098,10 +1115,10 @@ Inductive ClientLogBeforeServerCertificate
   (si : SessionInfo)
   (lg : log)
 : Prop :=
-| ClientLogBeforeServerCertificate_E lg' cr ex2 of
+| ClientLogBeforeServerCertificate_E lg' ex2 of
      lg = lg' ++ ServerHelloMsg si.(si_protocol_version) si.(si_init_srand) si.(si_sessionID)
                                 si.(si_cipher_suite) si.(si_compression) ex2
-   & ClientLogBeforeServerHello cr lg'.
+   & ClientLogBeforeServerHello si.(si_init_crand) lg'.
 
 (* -------------------------------------------------------------------- *)
 Inductive ClientLogBeforeCertificateRequestRSA
@@ -1246,7 +1263,7 @@ Inductive ClientLogBeforeClientFinishedDHE
    & EqExceptPmsClientID si' si
    & ClientLogAfterServerHelloDoneDHE si' lg'
 
-| ClientLogBeforeClientFinishedDHE_TryNoAuth_E si' lg' b of
+| ClientLogBeforeClientFinishedDHE_TryNoAuth si' lg' b of
      si.(si_client_auth) & si.(si_clientID) = [::]
    & lg = lg' ++ CertificateMsg si.(si_clientID)
               ++ ClientKeyExchangeMsg_DHE b
@@ -1321,29 +1338,286 @@ Inductive ClientLogBeforeClientFinishedResume
     & ClientLogBeforeServerFinishedResume cr sr si lg'.
 
 (* ==================================================================== *)
-Lemma EqExceptPmsClientID_client_auth si1 si2:
-  EqExceptPmsClientID si1 si2 -> si1.(si_client_auth) = si2.(si_client_auth).
-Proof. by rewrite /EqExceptPmsClientID; tauto. Qed.
+Inductive ClientLogBeforeClientFinishedRSA_spec
+  (si : SessionInfo)
+  (lg : log)
+: Prop :=
+| ClientLogBeforeClientFinishedRSA_Auth_spec
+    pv1 csid cs cm ex1 ex2 pv2 ctl sal nl donemsg encpms sa sign
+  of
+      si.(si_client_auth) &
+    lg =
+       ClientHelloMsg pv1 si.(si_init_crand) csid cs cm ex1
+    ++ ServerHelloMsg si.(si_protocol_version) si.(si_init_srand)
+                      si.(si_sessionID) si.(si_cipher_suite)
+                      si.(si_compression) ex2
+    ++ CertificateMsg si.(si_serverID)
+    ++ CertificateRequestMsg pv2 ctl sal nl
+    ++ ServerHelloDoneMsg donemsg
+    ++ CertificateMsg si.(si_clientID)
+    ++ ClientKeyExchangeMsg_RSA si.(si_protocol_version) encpms
+    ++ CertificateVerifyMsg si.(si_protocol_version) sa sign
+
+| ClientLogBeforeClientFinishedRSA_TryNoAuth_spec
+    pv1 csid cs cm ex1 ex2 pv2 ctl sla nl donemsg encpms
+  of
+     si.(si_client_auth) &
+   lg =
+       ClientHelloMsg pv1 si.(si_init_crand) csid cs cm ex1
+    ++ ServerHelloMsg si.(si_protocol_version) si.(si_init_srand)
+                      si.(si_sessionID) si.(si_cipher_suite)
+                      si.(si_compression) ex2
+    ++ CertificateMsg si.(si_serverID)
+    ++ CertificateRequestMsg pv2 ctl sla nl
+    ++ ServerHelloDoneMsg donemsg
+    ++ CertificateMsg si.(si_clientID)
+    ++ ClientKeyExchangeMsg_RSA si.(si_protocol_version) encpms
+
+| ClientLogBeforeClientFinishedRSA_NoAuth_spec
+    pv csid cs cm ex1 ex2 donemsg encpms
+  of
+     ~~ si.(si_client_auth) &
+   lg =
+       ClientHelloMsg pv si.(si_init_crand) csid cs cm ex1
+    ++ ServerHelloMsg si.(si_protocol_version) si.(si_init_srand)
+                      si.(si_sessionID) si.(si_cipher_suite)
+                      si.(si_compression) ex2
+    ++ CertificateMsg si.(si_serverID)
+    ++ ServerHelloDoneMsg donemsg
+    ++ ClientKeyExchangeMsg_RSA si.(si_protocol_version) encpms.
+
+(* -------------------------------------------------------------------- *)
+Lemma ClientLogBeforeClientFinishedRSA_P si lg:
+     ClientLogBeforeClientFinishedRSA      si lg
+  -> ClientLogBeforeClientFinishedRSA_spec si lg.
+Proof. case.
+  + move=> si1 lg1 encpms sa sign auth _ -> eq1.
+    case=> lg2 donemsg -> []; last by rewrite eq1 auth.
+    move=> si2 lg3 ctl sal pv2 nl _ -> eq2.
+    case=> si3 lg4 -> eq3; case=> lg5 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 1; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3).
+  + move=> si1 lg1 encpms auth _ -> eq1.
+    case=> lg2 donemsg -> []; last by rewrite eq1 auth.
+    move=> si2 lg3 ctl sla pv2 nl _ -> eq2.
+    case=> si3 lg4 -> eq3; case=> lg5 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 2; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3).
+  + move=> si1 lg1 encpms Nauth -> eq1.
+    case=> lg2 donemsg -> []; first by rewrite eq1 (negbTE Nauth).
+    move=> si2 _ eq2; case=> si3 lg3 -> eq3; case=> lg4 ex2 ->.
+    case=> pv csid cs cm ex1 ->; econstructor 3; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3).
+Qed.
+
+(* ==================================================================== *)
+Inductive ClientLogBeforeClientFinishedDHE_spec
+  (si : SessionInfo)
+  (lg : log)
+: Prop :=
+| ClientLogBeforeClientFinishedDHE_Auth_spec
+    pv1 csid cs cm ex1 ex2 pv2 p g y dhea dhesign pv3 ctl sal nl donemsg dhe sa sign
+  of
+     si.(si_client_auth)
+  &  lg =
+       ClientHelloMsg pv1 (si_init_crand si) csid cs cm ex1
+    ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                      (si_sessionID si) (si_cipher_suite si)
+                      (si_compression si) ex2
+    ++ CertificateMsg (si_serverID si)
+    ++ ServerKeyExchangeMsg_DHE pv2 p g y dhea dhesign
+    ++ CertificateRequestMsg pv3 ctl sal nl
+    ++ ServerHelloDoneMsg donemsg
+    ++ CertificateMsg (si_clientID si)
+    ++ ClientKeyExchangeMsg_DHE dhe
+    ++ CertificateVerifyMsg (si_protocol_version si) sa sign
+
+| ClientLogBeforeClientFinishedDHE_TryNoAuth_spec
+    pv1 csid cs cm ex1 ex2 pv2 p g y dhea dhesig pv3 ctl nal nl donemsg dhe
+  of
+     si.(si_client_auth)
+   & lg =
+        ClientHelloMsg pv1 (si_init_crand si) csid cs cm ex1
+     ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                       (si_sessionID si) (si_cipher_suite si)
+
+                       (si_compression si) ex2
+     ++ CertificateMsg (si_serverID si)
+     ++ ServerKeyExchangeMsg_DHE pv2 p g y dhea dhesig
+     ++ CertificateRequestMsg pv3 ctl nal nl
+     ++ ServerHelloDoneMsg donemsg
+     ++ CertificateMsg (si_clientID si)
+     ++ ClientKeyExchangeMsg_DHE dhe
+
+| ClientLogBeforeClientFinishedDHE_NoAuth_spec
+    pv1 csid cs cm ex1 ex2 pv2 p g y dhea dhesign donemsg dhe
+  of
+     ~~ si.(si_client_auth)
+   & lg =
+        ClientHelloMsg pv1 (si_init_crand si) csid cs cm ex1
+     ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                       (si_sessionID si) (si_cipher_suite si)
+                       (si_compression si) ex2
+     ++ CertificateMsg (si_serverID si)
+     ++ ServerKeyExchangeMsg_DHE pv2 p g y dhea dhesign
+     ++ ServerHelloDoneMsg donemsg
+     ++ ClientKeyExchangeMsg_DHE dhe.
+
+(* -------------------------------------------------------------------- *)
+Lemma ClientLogBeforeClientFinishedDHE_P si lg:
+     ClientLogBeforeClientFinishedDHE      si lg
+  -> ClientLogBeforeClientFinishedDHE_spec si lg.
+Proof. case.
+  + move=> si1 lg1 dhe sa sign auth _ -> eq1.
+    case=> lg2 donemsg ->; case; last by rewrite eq1 auth.
+    move=> si2 lg3 pv2 ctl sal nl _ -> eq2.
+    case=> si3 lg4 p g y a pv dhesign -> eq3.
+    case=> si4 lg5 -> eq4; case=> lg6 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 1; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3, eq4).
+  + move=> si1 lg1 dhe auth _ -> eq1; case=> lg2 donemsg ->.
+    case=> [si2 lg3 pv3 ctl nal nl _ -> eq2|]; last by rewrite eq1 auth.
+    case=> si3 lg4 p g y dhea pv2 dhesig -> eq3.
+    case=> si4 lg5 -> eq4; case=> lg6 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 2; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3, eq4).
+  + move=> si1 lg1 dhe Nauth -> eq1.
+    case=> lg2 donemsg ->; case; first by rewrite eq1 (negbTE Nauth).
+    move=> si2 _ eq2; case=> si3 lg3 p g y dhea pv2 dhesign -> eq3.
+    case=> si4 lg4 -> eq4; case=> lg5 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 3; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3, eq4).
+Qed.
+
+(* ==================================================================== *)
+Inductive ServerLogBeforeClientCertificateVerifyRSA_spec
+  (si : SessionInfo)
+  (lg : log)
+: Prop :=
+| ServerLogBeforeClientCertificateVerifyRSA_Auth_spec
+    pv csess csl cml ex1 ex2 ctl sal nl encpms
+  of
+      si.(si_client_auth)
+   & lg =
+         ClientHelloMsg pv (si_init_crand si) csess csl cml ex1
+      ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                        (si_sessionID si) (si_cipher_suite si)
+                        (si_compression si) ex2
+      ++ CertificateMsg (si_serverID si)
+      ++ CertificateRequestMsg (si_protocol_version si) ctl sal nl
+      ++ ServerHelloDoneMsg [::]
+      ++ CertificateMsg (si_clientID si)
+      ++ ClientKeyExchangeMsg_RSA (si_protocol_version si) encpms
+
+| ServerLogBeforeClientCertificateVerifyRSA_NoAuth_spec
+    pv sess cs cm ex1 ex2 encpms
+  of
+     ~~ si.(si_client_auth)
+   & lg = 
+         ClientHelloMsg pv (si_init_crand si) sess cs cm ex1
+      ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                        (si_sessionID si) (si_cipher_suite si)
+                        (si_compression si) ex2
+      ++ CertificateMsg (si_serverID si)
+      ++ ServerHelloDoneMsg [::]
+      ++ ClientKeyExchangeMsg_RSA (si_protocol_version si) encpms.
+
+(* -------------------------------------------------------------------- *)
+Lemma ServerLogBeforeClientCertificateVerifyRSA_P si lg:
+     ServerLogBeforeClientCertificateVerifyRSA      si lg
+  -> ServerLogBeforeClientCertificateVerifyRSA_spec si lg.
+Proof. case.
+  move=> si1 pv r lg1 encpms -> eqpms eq1; case.
+  + move=> lg2 si2 auth -> eq2; case; last by rewrite eq2 auth.
+    move=> csl cml csess ex1 ex2 ctl sal nl _ ->.
+    by econstructor 1; move: auth; rewrite -?catA ?(eq1, eq2).
+  + move=> Nauth; case; first by rewrite -eq1 (negbTE Nauth).
+    move=> cs cm sess ex1 ex2 _ ->.
+    by econstructor 2; move: Nauth; rewrite  -?catA ?eq1.
+Qed.
+
+(* ==================================================================== *)
+Inductive ServerLogBeforeClientCertificateVerifyDHE_spec
+  (si : SessionInfo)
+  (lg : log)
+: Prop :=
+| ServerLogBeforeClientCertificateVerifyDHE_Auth_spec
+    cpv csess csl cml ex1 ex2 p g y dhea dhesign ctl sal nl gc
+  of
+     si.(si_client_auth)
+   & lg =
+         ClientHelloMsg cpv (si_init_crand si) csess csl cml ex1
+      ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                        (si_sessionID si) (si_cipher_suite si)
+                        (si_compression si) ex2
+      ++ CertificateMsg (si_serverID si)
+      ++ ServerKeyExchangeMsg_DHE (si_protocol_version si) p g y dhea dhesign
+      ++ CertificateRequestMsg (si_protocol_version si) ctl sal nl
+      ++ ServerHelloDoneMsg [::]
+      ++ CertificateMsg (si_clientID si)
+      ++ ClientKeyExchangeMsg_DHE gc
+
+| ServerLogBeforeClientCertificateVerifyDHE_NoAuth_spec
+    pv sess cs cm ex1 ex2 p g y dhea dhesign gc
+  of
+    ~~ si.(si_client_auth)
+  & lg =
+        ClientHelloMsg pv (si_init_crand si) sess cs cm ex1
+     ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                       (si_sessionID si) (si_cipher_suite si)
+                       (si_compression si) ex2
+     ++ CertificateMsg (si_serverID si)
+     ++ ServerKeyExchangeMsg_DHE (si_protocol_version si) p g y dhea dhesign
+     ++ ServerHelloDoneMsg [::]
+     ++ ClientKeyExchangeMsg_DHE gc.
+
+(* -------------------------------------------------------------------- *)
+Lemma ServerLogBeforeClientCertificateVerifyDHE_P si lg:
+     ServerLogBeforeClientCertificateVerifyDHE      si lg
+  -> ServerLogBeforeClientCertificateVerifyDHE_spec si lg.
+Proof. case.
+ move=> si1 lg1 p' g' gc gs r -> eqpms eq1; case.
+ + move=> lg2 si2 auth -> eq2; case; last by rewrite eq2 auth.
+   move=> cpv csl cml csess ex1 ex2 ctl sal nl p g y dhea dhesign.
+   move=> _ ->; rewrite -!catA !(eq1, eq2).
+   by econstructor 1; move: auth; rewrite -?catA ?(eq1, eq2).
+ + move=> Nauth; case; first by rewrite (negbTE Nauth).
+   move=> pv cs cm sess ex1 ex2 p g y dhea dhesign _ ->.
+   by econstructor 2; move: Nauth; rewrite -?catA ?eq1.
+Qed.
 
 (* ==================================================================== *)
 (* INVERSION LEMMAS                                                     *)
 (* ==================================================================== *)
 
+Definition EQSI si si' := Eval simpl in
+  SI_FieldEqs
+    [:: SI_init_crand      ;
+        SI_init_srand      ;
+        SI_protocol_version;
+        SI_cipher_suite    ;
+        SI_compression     ;
+        SI_clientID        ;
+        SI_serverID        ;
+        SI_client_auth     ;
+        SI_sessionID       ]
+    si si'.
+
 Theorem I1 si1 si2 lg:
      ClientLogBeforeClientFinished si1 lg
   -> ServerLogBeforeClientFinished si2 lg
-  -> si1 = si2.
+  -> EQSI si1 si2.
 Proof.
   case.
-  + Case "ClientLogBeforeClientFinishedRSA"; case.
-    * Case "RSA-Auth" => si1_1 lg1 encpms sa sign isauth hasid lg1E eq1_1.
-      case=> lg2 donemsg lg2E []; last first.
-        by move=> ?; rewrite (EqExceptPmsClientID_client_auth eq1_1) isauth.
-      move=> si1_2 lg3 ctl sal pv nl _ lg3E eq1_2.
-      case=> si1_3 lg4 lg4E eq1_3; case=> lg5 cr ex2 lg5E.
-      case=> pv' csid cs cm ex1 lg6E server_log; move: (erefl lg).
-      rewrite {1}lg1E {}lg2E {}lg3E {}lg4E {}lg5E {}lg6E => /esym {lg1E} lgE.
-Abort.
+  + case/ClientLogBeforeClientFinishedRSA_P.
+    * admit.
+    * admit.
+    * admit.
+  + case/ClientLogBeforeClientFinishedDHE_P.
+    * admit.
+    * admit.
+    * admit.
+Qed.
 
 (*
 *** Local Variables: ***
