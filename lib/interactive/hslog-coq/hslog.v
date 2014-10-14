@@ -970,7 +970,7 @@ Inductive ServerLogBeforeClientCertificateRSA
        ++ (CertificateRequestMsg si.(si_protocol_version) ctl sal nl)
        ++ (ServerHelloDoneMsg [::])
 
-| ServerLogBeforeClientCertificateRSA_NoAth cs cm sess ex1 ex2 of
+| ServerLogBeforeClientCertificateRSA_NoAuth cs cm sess ex1 ex2 of
       ~~ si.(si_client_auth)
     & lg =
            (ClientHelloMsg pv si.(si_init_crand) sess cs cm ex1)
@@ -1263,7 +1263,7 @@ Inductive ClientLogBeforeClientFinishedDHE
    & EqExceptPmsClientID si' si
    & ClientLogAfterServerHelloDoneDHE si' lg'
 
-| ClientLogBeforeClientFinishedDHE_TryNoAuth_E si' lg' b of
+| ClientLogBeforeClientFinishedDHE_TryNoAuth si' lg' b of
      si.(si_client_auth) & si.(si_clientID) = [::]
    & lg = lg' ++ CertificateMsg si.(si_clientID)
               ++ ClientKeyExchangeMsg_DHE b
@@ -1338,11 +1338,6 @@ Inductive ClientLogBeforeClientFinishedResume
     & ClientLogBeforeServerFinishedResume cr sr si lg'.
 
 (* ==================================================================== *)
-Lemma EqExceptPmsClientID_client_auth si1 si2:
-  EqExceptPmsClientID si1 si2 -> si1.(si_client_auth) = si2.(si_client_auth).
-Proof. by rewrite /EqExceptPmsClientID; tauto. Qed.
-
-(* -------------------------------------------------------------------- *)
 Inductive ClientLogBeforeClientFinishedRSA_spec
   (si : SessionInfo)
   (lg : log)
@@ -1416,6 +1411,85 @@ Proof. case.
 Qed.
 
 (* ==================================================================== *)
+Inductive ClientLogBeforeClientFinishedDHE_spec
+  (si : SessionInfo)
+  (lg : log)
+: Prop :=
+| ClientLogBeforeClientFinishedDHE_Auth_spec
+    pv1 csid cs cm ex1 ex2 pv2 p g y dhea dhesign pv3 ctl sal nl donemsg dhe sa sign
+  of
+     si.(si_client_auth)
+  &  lg =
+       ClientHelloMsg pv1 (si_init_crand si) csid cs cm ex1
+    ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                      (si_sessionID si) (si_cipher_suite si)
+                      (si_compression si) ex2
+    ++ CertificateMsg (si_serverID si)
+    ++ ServerKeyExchangeMsg_DHE pv2 p g y dhea dhesign
+    ++ CertificateRequestMsg pv3 ctl sal nl
+    ++ ServerHelloDoneMsg donemsg
+    ++ CertificateMsg (si_clientID si)
+    ++ ClientKeyExchangeMsg_DHE dhe
+    ++ CertificateVerifyMsg (si_protocol_version si) sa sign
+
+| ClientLogBeforeClientFinishedDHE_TryNoAuth_spec
+    pv1 csid cs cm ex1 ex2 pv2 p g y dhea dhesig pv3 ctl nal nl donemsg dhe
+  of
+     si.(si_client_auth)
+   & lg =
+        ClientHelloMsg pv1 (si_init_crand si) csid cs cm ex1
+     ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                       (si_sessionID si) (si_cipher_suite si)
+
+                       (si_compression si) ex2
+     ++ CertificateMsg (si_serverID si)
+     ++ ServerKeyExchangeMsg_DHE pv2 p g y dhea dhesig
+     ++ CertificateRequestMsg pv3 ctl nal nl
+     ++ ServerHelloDoneMsg donemsg
+     ++ CertificateMsg (si_clientID si)
+     ++ ClientKeyExchangeMsg_DHE dhe
+
+| ClientLogBeforeClientFinishedDHE_NoAuth_spec
+    pv1 csid cs cm ex1 ex2 pv2 p g y dhea dhesign donemsg dhe
+  of
+     ~~ si.(si_client_auth)
+   & lg =
+        ClientHelloMsg pv1 (si_init_crand si) csid cs cm ex1
+     ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                       (si_sessionID si) (si_cipher_suite si)
+                       (si_compression si) ex2
+     ++ CertificateMsg (si_serverID si)
+     ++ ServerKeyExchangeMsg_DHE pv2 p g y dhea dhesign
+     ++ ServerHelloDoneMsg donemsg
+     ++ ClientKeyExchangeMsg_DHE dhe.
+
+(* -------------------------------------------------------------------- *)
+Lemma ClientLogBeforeClientFinishedDHE_P si lg:
+     ClientLogBeforeClientFinishedDHE      si lg
+  -> ClientLogBeforeClientFinishedDHE_spec si lg.
+Proof. case.
+  + move=> si1 lg1 dhe sa sign auth _ -> eq1.
+    case=> lg2 donemsg ->; case; last by rewrite eq1 auth.
+    move=> si2 lg3 pv2 ctl sal nl _ -> eq2.
+    case=> si3 lg4 p g y a pv dhesign -> eq3.
+    case=> si4 lg5 -> eq4; case=> lg6 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 1; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3, eq4).
+  + move=> si1 lg1 dhe auth _ -> eq1; case=> lg2 donemsg ->.
+    case=> [si2 lg3 pv3 ctl nal nl _ -> eq2|]; last by rewrite eq1 auth.
+    case=> si3 lg4 p g y dhea pv2 dhesig -> eq3.
+    case=> si4 lg5 -> eq4; case=> lg6 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 2; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3, eq4).
+  + move=> si1 lg1 dhe Nauth -> eq1.
+    case=> lg2 donemsg ->; case; first by rewrite eq1 (negbTE Nauth).
+    move=> si2 _ eq2; case=> si3 lg3 p g y dhea pv2 dhesign -> eq3.
+    case=> si4 lg4 -> eq4; case=> lg5 ex2 ->.
+    case=> pv1 csid cs cm ex1 ->; econstructor 3; first done.
+    by rewrite -!catA -!(eq1, eq2, eq3, eq4).
+Qed.
+
+(* ==================================================================== *)
 (* INVERSION LEMMAS                                                     *)
 (* ==================================================================== *)
 
@@ -1442,7 +1516,10 @@ Proof.
     * admit.
     * admit.
     * admit.
-  + admit.
+  + case/ClientLogBeforeClientFinishedDHE_P.
+    * admit.
+    * admit.
+    * admit.
 Qed.
 
 (*
