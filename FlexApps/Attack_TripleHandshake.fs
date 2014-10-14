@@ -55,7 +55,7 @@ type Attack_TripleHandshake =
         
         // Override the honest client hello message with our preferences
         // Access to the honest client random
-        let asch         = { sch with suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256]; ext = []; } in
+        let asch         = { sch with suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256]; ext = None; } in
         let cst,nsc,cch = FlexClientHello.send(cst,asch) in
 
         // Forward server hello but check that the choosen ciphersuite is RSA

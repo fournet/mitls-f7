@@ -96,7 +96,7 @@ type FlexConstants =
         | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct(s) -> s);
         comps = defaultConfig.compressions;
-        ext = [];
+        ext = None;
         payload = empty_bytes;
     }
 

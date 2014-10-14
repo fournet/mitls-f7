@@ -85,7 +85,7 @@ type FlexServerHello =
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
     static member receive (st:state, fch:FClientHello, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let st,fsh,negExts = FlexServerHello.receive(st,fch.ext) in
+        let st,fsh,negExts = FlexServerHello.receive(st,(FlexClientHello.getExt fch)) in
         let si  = { nsc.si with 
                     init_srand = fsh.rand;
                     protocol_version = fsh.pv;
@@ -212,7 +212,7 @@ type FlexServerHello =
         let cfg = defaultArg cfg defaultConfig in
 
         let fsh,si = fillFServerHelloANDSi fsh nsc.si in
-        let st,si,fsh = FlexServerHello.send(st,si,fch.pv,fch.sid,fch.suites,fch.comps,fch.ext,cfg=cfg,fp=fp) in
+        let st,si,fsh = FlexServerHello.send(st,si,fch.pv,fch.sid,fch.suites,fch.comps,(FlexClientHello.getExt fch),cfg=cfg,fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;

@@ -73,11 +73,11 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
 
     (* ext = Is there some ? If no, generate using config *)
     let ext =
-        match fch.ext = FlexConstants.nullFClientHello.ext with
-        | false -> fch.ext
-        | true -> 
+        match fch.ext with
+        | Some(_) -> fch.ext
+        | None -> 
             let ci = initConnection Client rand in
-            prepareClientExtensions cfg ci empty_bytes
+            Some(prepareClientExtensions cfg ci empty_bytes)
     in
 
     (* Update fch with correct informations and sets payload to empty bytes *)
@@ -106,8 +106,14 @@ let fillStateEpochInitPvIFIsEpochInit (st:state) (fch:FClientHello) : state =
     else
         st
 
-
-
+/// <summary>
+/// Get the extension list from the given client hello, or an empty list if None.
+/// </summary>
+/// <param name="ch">The given client hello</param>
+let getExt (ch:FClientHello) =
+    match ch.ext with
+    | None -> []
+    | Some(e) -> e
 
 /// <summary>
 /// Module receiving, sending and forwarding TLS Client Hello messages.
@@ -143,7 +149,7 @@ type FlexClientHello =
                             sid = sid;
                             suites = csnames;
                             comps = cm;
-                            ext = cextL;
+                            ext = Some(cextL);
                             payload = to_log;
                           } 
                 in
@@ -181,7 +187,7 @@ type FlexClientHello =
         let fch,cfg = fillFClientHelloANDConfig  FlexConstants.nullFClientHello cfg in
 
         let payload = HandshakeMessages.clientHelloBytes cfg crand csid exts in
-        let fch = { fch with rand = crand; sid = csid; ext = cExtL; payload = payload } in
+        let fch = { fch with rand = crand; sid = csid; ext = Some(cExtL); payload = payload } in
         fch
 
 
@@ -201,10 +207,10 @@ type FlexClientHello =
         let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
 
-        let st,fch = FlexClientHello.send(st,cfg,fch.rand,fch.sid,fch.ext,fp) in
+        let st,fch = FlexClientHello.send(st,cfg,fch.rand,fch.sid,getExt fch,fp) in
         
         let offers = 
-            match TLSExtensions.getOfferedDHGroups fch.ext with
+            match TLSExtensions.getOfferedDHGroups (getExt fch) with
             | None -> []
             | Some(gl) ->
                 let dh13 g =

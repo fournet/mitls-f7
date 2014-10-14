@@ -172,8 +172,8 @@ type FClientHello = {
     suites: list<cipherSuiteName>;
     /// <summary> List of compression mechanisms supported by the client </summary>
     comps: list<Compression>;
-    /// <summary> List of extensions proposed by the client </summary>
-    ext: list<clientExtension>;
+    /// <summary> List of extensions proposed by the client; None: user asks for default; Some<list>: user gives value. A returned client hello always has Some<list>. </summary>
+    ext: option<list<clientExtension>>;
     /// <summary> Message Bytes </summary>
     payload: bytes;
 }
