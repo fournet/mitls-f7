@@ -1490,6 +1490,53 @@ Proof. case.
 Qed.
 
 (* ==================================================================== *)
+Inductive ServerLogBeforeClientCertificateVerifyRSA_spec
+  (si : SessionInfo)
+  (lg : log)
+: Prop :=
+| ServerLogBeforeClientCertificateVerifyRSA_Auth_spec
+    pv csess csl cml ex1 ex2 ctl sal nl encpms
+  of
+      si.(si_client_auth)
+   & lg =
+         ClientHelloMsg pv (si_init_crand si) csess csl cml ex1
+      ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                        (si_sessionID si) (si_cipher_suite si)
+                        (si_compression si) ex2
+      ++ CertificateMsg (si_serverID si)
+      ++ CertificateRequestMsg (si_protocol_version si) ctl sal nl
+      ++ ServerHelloDoneMsg [::]
+      ++ CertificateMsg (si_clientID si)
+      ++ ClientKeyExchangeMsg_RSA (si_protocol_version si) encpms
+
+| ServerLogBeforeClientCertificateVerifyRSA_NoAuth_spec
+    pv sess cs cm ex1 ex2 encpms
+  of
+     ~~ si.(si_client_auth)
+   & lg = 
+         ClientHelloMsg pv (si_init_crand si) sess cs cm ex1
+      ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                        (si_sessionID si) (si_cipher_suite si)
+                        (si_compression si) ex2
+      ++ CertificateMsg (si_serverID si)
+      ++ ServerHelloDoneMsg [::]
+      ++ ClientKeyExchangeMsg_RSA (si_protocol_version si) encpms.
+
+(* -------------------------------------------------------------------- *)
+Lemma ServerLogBeforeClientCertificateVerifyRSA_P si lg:
+     ServerLogBeforeClientCertificateVerifyRSA      si lg
+  -> ServerLogBeforeClientCertificateVerifyRSA_spec si lg.
+Proof. case.
+  move=> si1 pv r lg1 encpms -> eqpms eq1; case.
+  + move=> lg2 si2 auth -> eq2; case; last by rewrite eq2 auth.
+    move=> csl cml csess ex1 ex2 ctl sal nl _ ->.
+    by econstructor 1; move: auth; rewrite -?catA ?(eq1, eq2).
+  + move=> Nauth; case; first by rewrite -eq1 (negbTE Nauth).
+    move=> cs cm sess ex1 ex2 _ ->.
+    by econstructor 2; move: Nauth; rewrite  -?catA ?eq1.
+Qed.
+
+(* ==================================================================== *)
 (* INVERSION LEMMAS                                                     *)
 (* ==================================================================== *)
 
