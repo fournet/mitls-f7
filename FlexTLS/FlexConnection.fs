@@ -68,8 +68,10 @@ type FlexConnection =
                 server_name = cn
         } in
 
+        LogManager.GetLogger("file").Info("TCP : Listening on {0}:{2} as {1}", address, cn, port);
         let l    = Tcp.listen address port in
         let ns   = Tcp.accept l in
+        LogManager.GetLogger("file").Debug("--- Client accepted");
         let st = FlexConnection.init (Server,ns,pv) in
         (st,cfg)
 
@@ -83,7 +85,6 @@ type FlexConnection =
     /// <param name="pv"> Optional protocol version required to generate randomness </param>
     /// <returns> Updated state * Updated config </returns> 
     static member clientOpenTcpConnection (address:string, ?cn:string, ?port:int, ?pv:ProtocolVersion) :  state * config =
-        LogManager.GetLogger("file").Info("TCP : FlexConnection.clientOpenTcpConnection");
         let pv = defaultArg pv defaultConfig.maxVer in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
@@ -92,10 +93,10 @@ type FlexConnection =
                 server_name = cn
         } in
 
+        LogManager.GetLogger("file").Info("TCP : Connecting to {0}:{1}",address,port);
         let ns = Tcp.connect address port in
         let st = FlexConnection.init (Client, ns) in
-        LogManager.GetLogger("file").Debug(sprintf "--- Address : %s" address);
-        LogManager.GetLogger("file").Debug(sprintf "--- Port : %d" port);
+        LogManager.GetLogger("file").Debug("--- Done");
         (st,cfg)
 
     end
