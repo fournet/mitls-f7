@@ -54,7 +54,7 @@ let run peer =
     let st           = FlexState.installReadKeys st nsc in
     // Check that verify_data is correct
     let vd = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| cff.payload) in
-    let st,sff       = FlexFinished.receive(st) in
+    let st,sff       = FlexFinished.receive(st,vd) in
     if not (vd = sff.verify_data) then
         failwith "Verify_data check failed"
     else
