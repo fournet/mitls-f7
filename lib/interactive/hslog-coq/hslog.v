@@ -1537,6 +1537,56 @@ Proof. case.
 Qed.
 
 (* ==================================================================== *)
+Inductive ServerLogBeforeClientCertificateVerifyDHE_spec
+  (si : SessionInfo)
+  (lg : log)
+: Prop :=
+| ServerLogBeforeClientCertificateVerifyDHE_Auth_spec
+    cpv csess csl cml ex1 ex2 p g y dhea dhesign ctl sal nl gc
+  of
+     si.(si_client_auth)
+   & lg =
+         ClientHelloMsg cpv (si_init_crand si) csess csl cml ex1
+      ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                        (si_sessionID si) (si_cipher_suite si)
+                        (si_compression si) ex2
+      ++ CertificateMsg (si_serverID si)
+      ++ ServerKeyExchangeMsg_DHE (si_protocol_version si) p g y dhea dhesign
+      ++ CertificateRequestMsg (si_protocol_version si) ctl sal nl
+      ++ ServerHelloDoneMsg [::]
+      ++ CertificateMsg (si_clientID si)
+      ++ ClientKeyExchangeMsg_DHE gc
+
+| ServerLogBeforeClientCertificateVerifyDHE_NoAuth_spec
+    pv sess cs cm ex1 ex2 p g y dhea dhesign gc
+  of
+    ~~ si.(si_client_auth)
+  & lg =
+        ClientHelloMsg pv (si_init_crand si) sess cs cm ex1
+     ++ ServerHelloMsg (si_protocol_version si) (si_init_srand si)
+                       (si_sessionID si) (si_cipher_suite si)
+                       (si_compression si) ex2
+     ++ CertificateMsg (si_serverID si)
+     ++ ServerKeyExchangeMsg_DHE (si_protocol_version si) p g y dhea dhesign
+     ++ ServerHelloDoneMsg [::]
+     ++ ClientKeyExchangeMsg_DHE gc.
+
+(* -------------------------------------------------------------------- *)
+Lemma ServerLogBeforeClientCertificateVerifyDHE_P si lg:
+     ServerLogBeforeClientCertificateVerifyDHE      si lg
+  -> ServerLogBeforeClientCertificateVerifyDHE_spec si lg.
+Proof. case.
+ move=> si1 lg1 p' g' gc gs r -> eqpms eq1; case.
+ + move=> lg2 si2 auth -> eq2; case; last by rewrite eq2 auth.
+   move=> cpv csl cml csess ex1 ex2 ctl sal nl p g y dhea dhesign.
+   move=> _ ->; rewrite -!catA !(eq1, eq2).
+   by econstructor 1; move: auth; rewrite -?catA ?(eq1, eq2).
+ + move=> Nauth; case; first by rewrite (negbTE Nauth).
+   move=> pv cs cm sess ex1 ex2 p g y dhea dhesign _ ->.
+   by econstructor 2; move: Nauth; rewrite -?catA ?eq1.
+Qed.
+
+(* ==================================================================== *)
 (* INVERSION LEMMAS                                                     *)
 (* ==================================================================== *)
 
