@@ -1,0 +1,16 @@
+# This MANIFEST
+MANIFEST
+
+# Dev
+Makefile
+Makefile.common
+*.v
+exclude:attic.v
+
+# Ssreflect
+ssreflect/Makefile
+
+# Build scripts
+scripts/install-sh
+scripts/distribution.py
+scripts/add-ssr.py

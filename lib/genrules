@@ -19,7 +19,7 @@ FS7DEFAULT = [
   'HMAC',
   'Sig',
 # 'UntrustedCert',
-  'Cert',
+#  'Cert',
   'TLSInfo',
 # 'TLSExtensions',
 # 'TLSPRF',

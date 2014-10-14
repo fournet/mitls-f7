@@ -586,8 +586,8 @@ definition !si,pv,l.
 
 definition !si,l.
   ServerLogBeforeClientCertificateDHE_Auth(si,l) <=>
-  (?crand,cpv,csl,cml,csess,ex1,ex2,ctl,sal,nl,p,g,y,a,sign. 
-    B(l) = (ClientHelloMsg(cpv,crand,csess,csl,cml,ex1)  @|
+  (?cpv,csl,cml,csess,ex1,ex2,ctl,sal,nl,p,g,y,a,sign. 
+    B(l) = (ClientHelloMsg(cpv,si.init_crand,csess,csl,cml,ex1)  @|
         (ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2) @|
          CertificateMsg(si.serverID) @|
          ServerKeyExchangeMsg_DHE(si.protocol_version,p,g,y,a,sign) @|
@@ -706,8 +706,8 @@ ask !pv,cs,cm,ex1,cr,sid,l. B(l) = ClientHelloMsg(pv,cr,sid,cs,cm,ex1) =>
 
 definition !si,l.
   ClientLogBeforeServerCertificate(si,l) <=>
-  (?l',cr,ex2. 
-     ClientLogBeforeServerHello(cr,l') /\
+  (?l',ex2. 
+     ClientLogBeforeServerHello(si.init_crand,l') /\
      B(l) = B(l') @| 
      ServerHelloMsg(si.protocol_version,si.init_srand,si.sessionID,si.cipher_suite,si.compression,ex2))
 
