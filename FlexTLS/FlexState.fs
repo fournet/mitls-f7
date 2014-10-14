@@ -19,7 +19,7 @@ open FlexTypes
 type FlexState =
     class
 
-    /// <summary> Update the state with a new incoming record </summary>
+    /// <summary> Update the state with a new readin (incoming) record </summary>
     static member updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
         let read_s = {st.read with record = incoming} in
         {st with read = read_s}
