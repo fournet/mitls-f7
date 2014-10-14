@@ -63,3 +63,5 @@ type incomingCCS =
 val recv_ccs     : ConnectionInfo -> hs_state -> range -> HSFragment.fragment -> incomingCCS
 
 val getMinVersion: ConnectionInfo -> hs_state -> ProtocolVersion
+
+val negotiate: list<'a> -> list<'a> -> option<'a> when 'a:equality
