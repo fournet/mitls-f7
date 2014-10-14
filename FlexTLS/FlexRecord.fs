@@ -127,7 +127,7 @@ type FlexRecord =
         stin,stout,payload
 
     /// <summary>
-    /// OVERLOAD : Send data picked from a choosen CT buffer over the network after encrypting a record depending on the fragmentation policy
+    /// Send data picked from a choosen CT buffer over the network after encrypting a record depending on the fragmentation policy
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="ct"> Content type of the fragment </param>
@@ -180,7 +180,7 @@ type FlexRecord =
        
 
     /// <summary>
-    /// Send raw data over the network without altering the state depending on the fragmentation policy
+    /// Encapsulate the given payload with a record header; does not perform encryption.
     /// </summary>
     /// <param name="ns"> Network stream </param>
     /// <param name="ct"> Content type of the fragment </param>

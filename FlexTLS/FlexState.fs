@@ -24,17 +24,21 @@ type FlexState =
         let read_s = {st.read with record = incoming} in
         {st with read = read_s}
 
-    /// <summary> Update the state with a new epoch </summary>
+    /// <summary> Update the state with a new reading (incoming) epoch </summary>
     static member updateIncomingEpoch (st:state) (e:TLSInfo.epoch) : state =
         let read_s = {st.read with epoch = e} in
         {st with read = read_s}
 
-    /// <summary> Update the state with new keys </summary>
+    /// <summary> Update the state with new reading (incoming) keys </summary>
+    /// <remarks> This field is informational only; the new keys will not be used to encrypt future messages.
+    /// To change encryption keys, update the incoming record instead. </remarks>
     static member updateIncomingKeys (st:state) (keys:keys) : state =
         let read_s = {st.read with keys = keys} in
         {st with read = read_s}
 
-    /// <summary> Update the state initial epoch protocol version </summary>
+    /// <summary> Update the state with the initial epoch protocol version </summary>
+    /// <remarks> The user typically doesn't need to invoke this function. It is invoked when receiving a
+    /// ServerHello message, to set the protocol version for the first handshake on a connection. </remarks>
     static member updateIncomingRecordEpochInitPV (st:state) (pv:TLSConstants.ProtocolVersion) : state =
         let read_s = {st.read with epoch_init_pv = pv} in
         {st with read = read_s}
