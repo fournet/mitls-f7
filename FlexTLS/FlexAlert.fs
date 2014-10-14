@@ -98,9 +98,9 @@ type FlexAlert =
                     | Error(ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
                     | Correct(ad) ->
                         LogManager.GetLogger("file").Info(sprintf "--- Description : %A" ad);
-                        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
             else ()
         in
+        LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
         FlexRecord.send(st,Alert,fp)
     
     end
