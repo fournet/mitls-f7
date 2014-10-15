@@ -18,6 +18,14 @@ open FlexConstants
 open FlexState
 open FlexHandshake
 
+
+
+
+/// <summary>
+/// Extract the ciphersuite from a FServerHello message record
+/// </summary>
+/// <param name="fsh"> FServerHello message record </param>
+/// <returns> Ciphersuite </returns>
 let getSuite (fsh:FServerHello) =
     match fsh.suite with
     | None ->
@@ -26,11 +34,21 @@ let getSuite (fsh:FServerHello) =
         | Correct(css) -> css.Head)
     | Some(suite) -> suite
 
+/// <summary>
+/// Extract the protocol version from a FServerHello message record
+/// </summary>
+/// <param name="fsh"> FServerHello message record </param>
+/// <returns> Protocol version </returns>
 let getPV (fsh:FServerHello) =
     match fsh.pv with
     | None -> TLSInfo.defaultConfig.maxVer
     | Some(pv) -> pv
 
+/// <summary>
+/// Extract the extension list from a FServerHello message record
+/// </summary>
+/// <param name="fsh"> FServerHello message record </param>
+/// <returns> List of server extensions </returns>
 let getExt (fsh:FServerHello) =
     match fsh.ext with
     | None -> []
