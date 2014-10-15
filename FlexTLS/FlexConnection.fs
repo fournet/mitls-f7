@@ -99,6 +99,11 @@ type FlexConnection =
         LogManager.GetLogger("file").Debug("--- Done");
         (st,cfg)
 
+    /// <summary>
+    /// Asynchronous forwarding of data from one string to another
+    /// </summary>
+    /// <param name="src"> Source network stream </param>
+    /// <param name="dst"> Destination network stream </param>
     static member asyncForward(src:System.IO.Stream,dst:System.IO.Stream) : Async<unit> =
         async {
             let  b = Array.zeroCreate 2048 in
@@ -110,6 +115,11 @@ type FlexConnection =
                 return! FlexConnection.asyncForward(src,dst)
         }
 
+    /// <summary>
+    /// Passthrough function at the network stream level
+    /// </summary>
+    /// <param name="a"> Network stream A </param>
+    /// <param name="b"> Network stream B </param>
     static member passthrough(a:NetworkStream, b:NetworkStream): unit =
         let a = Tcp.getStream a in
         let b = Tcp.getStream b in
