@@ -8,8 +8,11 @@ type TcpListener
 
 (* Create a network stream from a given stream.
    Only used by the application interface TLSharp. *)
-
 val create: System.IO.Stream -> NetworkStream
+
+(* Get the underlying stream.
+   Only used by the FlexTLS application *)
+val getStream: NetworkStream -> System.IO.Stream
 
 (* Server side *)
 
