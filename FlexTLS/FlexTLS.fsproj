@@ -51,13 +51,13 @@
     <Compile Include="FlexTypes.fs" />
     <Compile Include="FlexConstants.fs" />
     <Compile Include="FlexState.fs" />
+    <Compile Include="FlexSecrets.fs" />
     <Compile Include="FlexConnection.fs" />
     <Compile Include="FlexRecord.fs" />
     <Compile Include="FlexAppData.fs" />
     <Compile Include="FlexAlert.fs" />
     <Compile Include="FlexCCS.fs" />
     <Compile Include="FlexHandshake.fs" />
-    <Compile Include="FlexSecrets.fs" />
     <Compile Include="FlexHelloRequest.fs" />
     <Compile Include="FlexClientHello.fs" />
     <Compile Include="FlexClientKeyShare.fs" />
