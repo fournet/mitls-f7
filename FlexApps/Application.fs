@@ -5,14 +5,16 @@ module FlexApps.Application
 open NLog
 
 open FlexTLS.FlexTypes
-open FlexApps.Attack_Alert
-open FlexApps.Attack_FragmentClientHello
-open FlexApps.Attack_EarlyCCS
-open FlexApps.Attack_TripleHandshake
-open FlexApps.Handshake_full_RSA
-open FlexApps.Handshake_full_DHE
-open FlexApps.Handshake_resumption
-open FlexApps.Handshake_tls13
+
+open FlexApps
+open Attack_Alert
+open Attack_FragmentClientHello
+open Attack_EarlyCCS
+open Attack_TripleHandshake
+open Handshake_full_RSA
+open Handshake_full_DHE
+open Handshake_resumption
+open Handshake_tls13
 
 
 
@@ -34,12 +36,16 @@ let main argv =
 //    Attack_FragmentClientHello.run("www.inria.fr",fp=All(5));
 //    printf "Protocol version downgrade attack finished\n";
 
-    (* Early CCS attack *)
-//    Attack_EarlyCCS.runMITM("0.0.0.0","128.93.62.11",4433);
+    (* Protocol downgrade attack MITM (Fragmented ClientHello) *)
+//    let cst,sst = Attack_FragmentClientHello.runMITM("0.0.0.0","127.0.0.1",4433);
+//    printf "Protocol version downgrade attack finished\n";
+
+    (* Early CCS attack MITM *)
+//    Attack_EarlyCCS.runMITM("0.0.0.0","127.0.0.1",4433);
 //    printf "Early CCS attack finished\n";
 
     (* Triple handshake attack *)
-//    Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"128.93.189.207",4433);
+//    Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"127.0.0.1",4433);
 //    printf "Triple handshake attack finished\n";
 
     (* Experimental TLS 1.3 full handshake as Client *)

