@@ -9,6 +9,7 @@ type NetworkStream = N of System.IO.Stream
 type TcpListener = T of System.Net.Sockets.TcpListener
 
 let create s = N(s)
+let getStream (N(s)) = s
 
 (* Server side *)
 
