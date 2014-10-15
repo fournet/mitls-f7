@@ -86,8 +86,9 @@ type FlexHandshake =
     /// <param name="payload"> Data bytes to send as en handshake message </param>
     /// <param name="fp"> Optional fragmentation policy applied to the message </param>
     /// <returns> Updated state </returns>
-    static member send (st:state, payload:bytes, ?fp:fragmentationPolicy) : state =
+    static member send (st:state, ?payload:bytes, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let payload = defaultArg payload empty_bytes in
         let buf = st.write.hs_buffer @| payload in
         let st = FlexState.updateOutgoingHSBuffer st buf in
         LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(payload)));
