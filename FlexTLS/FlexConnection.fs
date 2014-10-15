@@ -99,4 +99,23 @@ type FlexConnection =
         LogManager.GetLogger("file").Debug("--- Done");
         (st,cfg)
 
+    static member asyncForward(src:System.IO.Stream,dst:System.IO.Stream) : Async<unit> =
+        async {
+            let  b = Array.zeroCreate 2048 in
+            let! n = src.AsyncRead(b) in
+            if n > 0 then
+                let b = Array.sub b 0 n in
+                LogManager.GetLogger("file").Debug("--- Passing-through. Payload: {0}", Bytes.hexString (abytes b));
+                dst.Write(b,0,n);
+                return! FlexConnection.asyncForward(src,dst)
+        }
+
+    static member passthrough(a:NetworkStream, b:NetworkStream): unit =
+        let a = Tcp.getStream a in
+        let b = Tcp.getStream b in
+        let d1 = FlexConnection.asyncForward(a,b) in
+        let d2 = FlexConnection.asyncForward(b,a) in
+        let p = Async.Parallel([d1;d2]) in
+        ignore (Async.RunSynchronously(p))
+
     end
