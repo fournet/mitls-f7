@@ -83,7 +83,7 @@ type FlexHandshake =
     /// Send an Handshake message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="payload"> Data bytes to send as en handshake message </param>
+    /// <param name="payload"> Optional Data bytes to send as en handshake message. None will send the handshake buffer </param>
     /// <param name="fp"> Optional fragmentation policy applied to the message </param>
     /// <returns> Updated state </returns>
     static member send (st:state, ?payload:bytes, ?fp:fragmentationPolicy) : state =
