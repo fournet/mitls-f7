@@ -238,7 +238,6 @@ type FlexClientHello =
     static member send (st:state, cfg:config, crand:bytes, csid:bytes, cExtL:list<clientExtension>, ?fp:fragmentationPolicy) : state * FClientHello =
         LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let exts = clientExtensionsBytes cExtL in
 
         let fch = FlexClientHello.prepare(cfg,crand,csid,cExtL) in
         let st = FlexHandshake.send(st,fch.payload,fp) in
