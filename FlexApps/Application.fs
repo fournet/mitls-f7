@@ -30,25 +30,25 @@ let main argv =
 //    OpenSSL_tests.opensslTest 2443 "127.0.0.1" 2444;
 
     (* Alert attack *)
-//    Attack_Alert.run "www.google.com";
+//    let st = Attack_Alert.run "www.google.com" in
 
     (* Alert attack MITM *)
-//    let cst,sst = Attack_Alert.runMITM("0.0.0.0","127.0.0.1",4433) in
+//    let sst,cst = Attack_Alert.runMITM("0.0.0.0","127.0.0.1",4433) in
 
     (* Protocol downgrade attack (Fragmented ClientHello) *)
-//    Attack_FragmentClientHello.run("www.inria.fr",fp=All(5));
+//    let st = Attack_FragmentClientHello.run("www.inria.fr",fp=All(5)) in
 //    printf "Protocol version downgrade attack finished\n";
 
     (* Protocol downgrade attack MITM (Fragmented ClientHello) *)
-//    let cst,sst = Attack_FragmentClientHello.runMITM("0.0.0.0","127.0.0.1",4433);
+//    let sst,cst = Attack_FragmentClientHello.runMITM("0.0.0.0","127.0.0.1",4433) in
 //    printf "Protocol version downgrade attack finished\n";
 
     (* Early CCS attack MITM *)
-//    Attack_EarlyCCS.runMITM("0.0.0.0","127.0.0.1",4433);
+//    let sst,cst = Attack_EarlyCCS.runMITM("0.0.0.0","127.0.0.1",4433) in
 //    printf "Early CCS attack finished\n";
 
-    (* Triple handshake attack *)
-//    Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"127.0.0.1",4433);
+    (* Triple handshake attack MITM *)
+//    let sst,cst = Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"127.0.0.1",4433) in
 //    printf "Triple handshake attack finished\n";
 
     (* Experimental TLS 1.3 full handshake as Client *)

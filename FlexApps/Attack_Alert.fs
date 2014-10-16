@@ -31,7 +31,7 @@ type Attack_Alert =
         sprintf "GET / HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nCache-Control: max-age=0\r\n\r\n" host
 
 
-    static member run(server_name:string, ?port:int) : unit =
+    static member run(server_name:string, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         // Connect to the server
@@ -85,7 +85,7 @@ type Attack_Alert =
         let st,ad,_ = FlexAlert.receive(st) in
         printf "Alert: %A" ad;
         ignore (System.Console.ReadLine());
-        ()
+        st
 
      static member runMITM (accept, server_name:string, ?port:int) : state * state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
@@ -101,6 +101,6 @@ type Attack_Alert =
 
         // Passthrough mode
         let _ = FlexConnection.passthrough(cst.ns,sst.ns) in
-        cst,sst
+        sst,cst
 
     end

@@ -28,7 +28,7 @@ open FlexSecrets
 type Attack_FragmentClientHello =
     class
 
-    static member run (server_name:string, ?port:int, ?fp:fragmentationPolicy) : unit =
+    static member run (server_name:string, ?port:int, ?fp:fragmentationPolicy) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let fp = defaultArg fp (All(5)) in
 
@@ -60,7 +60,7 @@ type Attack_FragmentClientHello =
 
         let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
         let st,ffS       = FlexFinished.receive(st,verify_data) in
-        ()
+        st
 
     static member runMITM (accept, server_name:string, ?port:int) : state * state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
@@ -80,6 +80,6 @@ type Attack_FragmentClientHello =
 
         // Forward the rest of the handshake and the application data
         FlexConnection.passthrough(cst.ns,sst.ns);
-        cst,sst
+        sst,cst
 
     end
