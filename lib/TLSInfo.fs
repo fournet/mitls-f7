@@ -29,11 +29,14 @@ type sVerifyData = bytes (* ServerFinished payload *)
 type sessionHash = bytes
 
 // Defined here to not depend on TLSExtension
-type negotiatedExtension =
-    | NE_extended_ms
-    | NE_extended_padding
+//type negotiatedExtension =
+//    | NE_extended_ms
+//    | NE_extended_padding
 
-type negotiatedExtensions = list<negotiatedExtension>
+//type negotiatedExtensions = list<negotiatedExtension>
+
+type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
+                             ne_renegotiation_info: (cVerifyData * sVerifyData) option }
 
 let noCsr:csrands = Nonce.random 64 //TODO should be Nonce.noCsr but this does not tc.
 
@@ -61,12 +64,6 @@ type pmsId =
 let pmsId (pms:PMS.pms) = SomePmsId(pms)
 let noPmsId = NoPmsId
 
-type msId = 
-  pmsId * 
-  csrands *                                          
-  kefAlg  
-
-let noMsId = noPmsId, noCsr, PRF_SSL3_nested    
 
 type SessionInfo = {
     init_crand: crand;
@@ -84,6 +81,13 @@ type SessionInfo = {
     serverSigAlg: Sig.alg;
     sessionID: sessionID;
     }
+
+type msId = 
+   | StandardMS of pmsId * csrands * kefAlg
+   | ExtendedMS of pmsId * sessionHash * kefAlg
+
+let noMsId = StandardMS (noPmsId, noCsr, PRF_SSL3_nested)    
+
 
 let csrands sinfo = 
     sinfo.init_crand @| sinfo.init_srand
@@ -115,15 +119,32 @@ let vdAlg (si:SessionInfo) =
 
 
 let msi (si:SessionInfo) = 
-  let csr = csrands si in
-  let ca = kefAlg si in
-  (si.pmsId, csr, ca) 
+  let ext = si.extensions in
+  if ext.ne_extended_ms = false then
+    let csr = csrands si in
+    let ca = kefAlg si in
+    StandardMS (si.pmsId, csr, ca) 
+  else 
+    let ca = kefAlg_extended si in
+    ExtendedMS (si.pmsId,si.session_hash,ca)
 
 
+
+//type preEpoch =
+//    | InitEpoch of Role
+//    | SuccEpoch of crand * srand * SessionInfo * preEpoch
+
+type abbrInfo = 
+    {abbr_crand: crand;
+     abbr_srand: srand;
+     abbr_session_hash: sessionHash;
+     abbr_extensions: negotiatedExtensions}
 
 type preEpoch =
     | InitEpoch of Role
-    | SuccEpoch of crand * srand * SessionInfo * preEpoch
+    | FullEpoch of SessionInfo * preEpoch
+    | AbbrEpoch of abbrInfo * preEpoch * preEpoch
+
 type epoch = preEpoch
 type succEpoch = preEpoch
 type openEpoch = preEpoch
@@ -131,22 +152,34 @@ type openEpoch = preEpoch
 let isInitEpoch e = 
     match e with
     | InitEpoch (_) -> true
-    | SuccEpoch (_,_,_,_) -> false
+    | FullEpoch (_,_) -> false
+    | AbbrEpoch (_,_,_) -> false
 
 let epochSI e =
     match e with
     | InitEpoch (d) -> Error.unexpected "[epochSI] invoked on initial epoch."
-    | SuccEpoch (cr,sr,si,pe) -> si
+    | FullEpoch (si,pe) -> si
+    | AbbrEpoch (ai,FullEpoch(si,pe1),pe2) -> si
+    | AbbrEpoch (ai,pe1,pe2) -> Error.unexpected "[epochSI] given a AbbrEpoch that is not linked to a FullEpoch."
+
+let epochAI e =
+    match e with
+    | InitEpoch (d) -> Error.unexpected "[epochAI] invoked on initial epoch."
+    | FullEpoch (si,pe) -> Error.unexpected "[epochAI] invoked on full epoch."
+    | AbbrEpoch (ai,pe1,pe2) -> ai
+
 
 let epochSRand e =
     match e with
     | InitEpoch (d) -> Error.unexpected "[epochSRand] invoked on initial epoch."
-    | SuccEpoch (cr,sr,si,pe) -> sr
+    | FullEpoch (si,pe) -> si.init_srand
+    | AbbrEpoch (ri,pe1,pe2) -> ri.abbr_srand
 
 let epochCRand e =
     match e with
     | InitEpoch (d) -> Error.unexpected "[epochCRand] invoked on initial epoch."
-    | SuccEpoch (cr,sr,si,pe) -> cr
+    | FullEpoch (si,pe) -> si.init_crand
+    | AbbrEpoch (ai,pe1,pe2) -> ai.abbr_crand
 
 let epochCSRands e =
     epochCRand e @| epochSRand e
@@ -167,20 +200,23 @@ let initConnection role rand =
     | Client -> {role = Client; id_rand = rand; id_in = stoc; id_out = ctos}
     | Server -> {role = Server; id_rand = rand; id_in = ctos; id_out = stoc}
 
-let nextEpoch epoch crand srand si =
-    SuccEpoch (crand, srand, si, epoch )
+let fullEpoch epoch si =
+    FullEpoch (si, epoch )
+
+let abbrEpoch epoch1 ai si epoch2 = 
+    AbbrEpoch (ai,FullEpoch(si,epoch2),epoch1)
 
 let predEpoch (e:epoch) = 
     match e with
-    | SuccEpoch(_,_,_, e') -> e'
-    | InitEpoch(r) -> failwith "no pred"
+    | FullEpoch(_, e') -> e'
+    | AbbrEpoch(_,_,e') -> e'
+    | InitEpoch(r) -> Error.unexpected "[predEpoch] invoked on initial epoch."
 
 let rec epochWriter (e:epoch) =
     match e with
     | InitEpoch(r) -> r
-    | SuccEpoch(_,_,_,_) -> 
-        let pe = predEpoch e in
-          epochWriter pe
+    | FullEpoch(_,e) -> epochWriter e
+    | AbbrEpoch(_,_,e) -> epochWriter e
 
 // the tight index we use as an abstract parameter for StatefulAEAD et al
 type id = { 
@@ -209,7 +245,8 @@ let kdfAlg_of_id (id:id) = id.kdfAlg
 type event =
   | KeyCommit of    csrands * ProtocolVersion * aeAlg * negotiatedExtensions
   | KeyGenClient of csrands * ProtocolVersion * aeAlg * negotiatedExtensions
-  | SentCCS of Role * crand * srand * SessionInfo
+  | SentCCS of Role * SessionInfo
+  | SentCCSAbbr of Role * abbrInfo 
 
 
 let noId: id = { 
@@ -218,7 +255,7 @@ let noId: id = {
   pv=SSL_3p0; 
   aeAlg= MACOnly(MA_SSLKHASH(NULL)); 
   csrConn = noCsr;
-  ext = [];
+  ext = {ne_extended_padding = false; ne_extended_ms = false; ne_renegotiation_info = None};
   writer=Client }
 
 let id e = 
