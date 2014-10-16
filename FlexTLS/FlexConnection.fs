@@ -100,6 +100,44 @@ type FlexConnection =
         (st,cfg)
 
     /// <summary>
+    /// Open two TCP connection to do MITM : Listen for a client and Connect to a server
+    /// </summary>
+    /// <param name="listener_address"> Listening address (Should be 0.0.0.0 locally) </param>
+    /// <param name="server_address"> Remote address </param>
+    /// <param name="listener_cn"> Optional common name of the attacker </param>
+    /// <param name="listener_port"> Optional port awaiting for connection </param>
+    /// <param name="listener_pv"> Optional protocol version required to generate randomness </param>
+    /// <param name="server_cn"> Optional common name of the server </param>
+    /// <param name="server_port"> Optional port number on which to connect to the server </param>
+    /// <param name="server_pv"> Optional protocol version required to generate randomness </param>
+    static member MitmOpenTcpConnections (listener_address:string, server_address:string, ?listener_cn:string, ?listener_port:int, ?listener_pv:ProtocolVersion, ?server_cn:string, ?server_port:int, ?server_pv:ProtocolVersion) :  state * config * state * config =
+        let listener_pv = defaultArg listener_pv defaultConfig.maxVer in
+        let listener_port = defaultArg listener_port FlexConstants.defaultTCPPort in
+        let listener_cn = defaultArg listener_cn listener_address in
+        let server_pv = defaultArg server_pv defaultConfig.maxVer in
+        let server_port = defaultArg server_port FlexConstants.defaultTCPPort in
+        let server_cn = defaultArg server_cn server_address in
+        let scfg = {
+            defaultConfig with
+                server_name = listener_cn
+        } in
+        let ccfg = {
+            defaultConfig with
+                server_name = server_cn
+        } in
+
+        LogManager.GetLogger("file").Info("TCP : Listening on {0}:{2} as {1}", listener_address, listener_cn, listener_port);
+        let l    = Tcp.listen listener_address listener_port in
+        let sns   = Tcp.accept l in
+        let sst = FlexConnection.init (Server,sns,listener_pv) in
+        LogManager.GetLogger("file").Debug("--- Client accepted");
+        LogManager.GetLogger("file").Info("TCP : Connecting to {0}:{1}",server_address,server_port);
+        let cns = Tcp.connect server_address server_port in
+        let cst = FlexConnection.init (Client, cns) in
+        LogManager.GetLogger("file").Debug("--- Done");
+        (sst,scfg,cst,ccfg)
+
+    /// <summary>
     /// Asynchronous forwarding of data from one string to another
     /// </summary>
     /// <param name="src"> Source network stream </param>
