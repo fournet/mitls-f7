@@ -20,7 +20,7 @@ Ltac Case id := idtac id.
 
 (* -------------------------------------------------------------------- *)
 Section ExtraSeq.
-  Variable T : Type.
+  Variable T : eqType.
 
   Definition rems (T : eqType) xs s := foldr (@rem T) s xs.
 
@@ -29,26 +29,15 @@ Section ExtraSeq.
 
   Lemma catIs (s1 s2 r1 r2 : seq T):
     size s1 = size s2 -> s1 ++ r1 = s2 ++ r2 -> s1 = s2.
-  Proof.
-    elim: s1 s2 => [|x1 s1 ih] [|x2 s2] //=.
-    by case=> eq_sz [<- /ih ->].
-  Qed.    
+  Proof. by move=> eq_sz /eqP; rewrite eqseq_cat // => /andP [/eqP]. Qed.    
 
   Lemma catsI (s1 s2 r1 r2 : seq T):
     size s1 = size s2 -> s1 ++ r1 = s2 ++ r2 -> r1 = r2.
-  Proof.
-    move=> eq_sz eq; have: size (rev r1) = size (rev r2).
-      move/(congr1 size): eq; rewrite !size_cat eq_sz => /eqP.
-      by rewrite eqn_add2l !size_rev => /eqP ->.
-    move/catIs=> eq_rev; apply/rev_inj/(eq_rev (rev s1) (rev s2)).
-    by rewrite -!rev_cat eq.
-  Qed.
+  Proof. by move=> eq_sz /eqP; rewrite eqseq_cat // => /andP [_ /eqP]. Qed.
 
   Lemma catI (s1 s2 r1 r2 : seq T):
     size s1 = size s2 -> s1 ++ r1 = s2 ++ r2 -> [/\ s1 = s2 & r1 = r2].
-  Proof.
-    by move=> eq_sz eq; have/catsI ->// := eq; move/catIs: eq=> ->.
-  Qed.    
+  Proof. by move=> eq_sz eq; have/catsI ->// := eq; move/catIs: eq=> ->. Qed.    
 
   Lemma catIts (n : nat) (s1 s2 : n.-tuple T) (r1 r2 : seq T):
     s1 ++ r1 = s2 ++ r2 -> s1 = s2.
@@ -68,11 +57,10 @@ Section FinInj.
   Variable U : eqType.
   Variable f : T -> option U.
 
-  Lemma fin_inj:
+  Parameter fin_inj:
        uniq (pmap f (enum T))
     -> forall (x1 x2 : T), f x1 != None -> f x2 != None ->
          f x1 = f x2 -> x1 = x2.
-  Proof. Admitted.
 End FinInj.
 
 (* -------------------------------------------------------------------- *)
@@ -149,6 +137,18 @@ Lemma VLBytes_inj (n : nat) (b1 b2 : bytes):
 Proof.
   move=> szb1 szb2; rewrite /VLBytes !take_oversize //.
   by move/catsI; rewrite !size_IntBytes; apply.
+Qed.
+
+(* -------------------------------------------------------------------- *)
+Lemma catIB (n : nat) (p1 p2 : bytes) (l1 l2 : log):
+     VLBytes n p1 ++ l1 = VLBytes n p2 ++ l2
+  -> [/\ VLBytes n p1 = VLBytes n p2 & l1 = l2].
+Proof.
+  move=> eq; have: size (VLBytes n p1) = size (VLBytes n p2).
+    move: eq; rewrite -2!catA => /catI []; rewrite ?size_IntBytes //.
+    move/IntBytes_inj; rewrite !size_take_le => /(_ erefl erefl).
+    by move=> eq_sz /catI [] // eq _; rewrite /VLBytes eq_sz eq.
+  by move=> eq_sz; case/catI: eq.
 Qed.
 
 (* -------------------------------------------------------------------- *)
@@ -241,8 +241,36 @@ Lemma MessageBytes_inj2 ht1 b1 ht2 b2:
   -> MessageBytes ht1 b1 = MessageBytes ht2 b2 -> b1 = b2.
 Proof. 
   rewrite unlock; move=> szb1 szb2 /catsI; rewrite !size_HTBytes.
-  by move/(_ (erefl _))/VLBytes_inj => -/(_ szb1 szb2); apply.
+  by move/(_ erefl)/VLBytes_inj => -/(_ szb1 szb2); apply.
 Qed.
+
+Lemma MessageBytes_inj2_take ht1 b1 ht2 b2:
+     MessageBytes ht1 b1 = MessageBytes ht2 b2
+  -> take (2^24).-1 b1 = take (2^24).-1 b2.
+Proof.
+  rewrite unlock /MessageBytes_r => /catsI; rewrite !size_HTBytes.
+  move/(_ erefl); rewrite /VLBytes => /catsI; apply.
+  by rewrite !size_IntBytes.
+Qed.
+
+(* -------------------------------------------------------------------- *)
+Lemma catIL ht1 ht2 p1 p2 l1 l2:
+     MessageBytes ht1 p1 ++ l1 = MessageBytes ht2 p2 ++ l2
+  -> [/\ MessageBytes ht1 p1 = MessageBytes ht2 p2 & l1 = l2].
+Proof.
+  rewrite !unlock /MessageBytes_r -2!catA; case/catI.
+    by rewrite !size_HTBytes.
+  by move=> <- /catIB [<- <-].
+Qed.
+
+Lemma catILs ht1 ht2 p1 p2 l1 l2:
+  MessageBytes ht1 p1 ++ l1 = MessageBytes ht2 p2 ++ l2 -> l1 = l2.
+Proof. by case/catIL. Qed.
+
+Lemma catsIL ht1 ht2 p1 p2 l1 l2:
+     MessageBytes ht1 p1 ++ l1 = MessageBytes ht2 p2 ++ l2
+  -> MessageBytes ht1 p1 = MessageBytes ht2 p2.
+Proof. by case/catIL. Qed.
 
 (* -------------------------------------------------------------------- *)
 Inductive Compression : Type :=
@@ -1595,47 +1623,8 @@ Proof. case.
 Qed.
 
 (* ==================================================================== *)
-Lemma catIB (n : nat) (p1 p2 : bytes) (l1 l2 : log):
-     VLBytes n p1 ++ l1 = VLBytes n p2 ++ l2
-  -> [/\ VLBytes n p1 = VLBytes n p2 & l1 = l2].
-Proof.
-  move=> eq; have: size (VLBytes n p1) = size (VLBytes n p2).
-    move: eq; rewrite -2!catA => /catI []; rewrite ?size_IntBytes //.
-    move/IntBytes_inj; rewrite !size_take_le => /(_ erefl erefl).
-    by move=> eq_sz /catI [] // eq _; rewrite /VLBytes eq_sz eq.
-  by move=> eq_sz; case/catI: eq.
-Qed.
-
-(* -------------------------------------------------------------------- *)
-Lemma catIL ht1 ht2 p1 p2 l1 l2:
-     MessageBytes ht1 p1 ++ l1 = MessageBytes ht2 p2 ++ l2
-  -> [/\ MessageBytes ht1 p1 = MessageBytes ht2 p2 & l1 = l2].
-Proof.
-  rewrite !unlock /MessageBytes_r -2!catA; case/catI.
-    by rewrite !size_HTBytes.
-  by move=> <- /catIB [<- <-].
-Qed.
-
-Lemma catILs ht1 ht2 p1 p2 l1 l2:
-  MessageBytes ht1 p1 ++ l1 = MessageBytes ht2 p2 ++ l2 -> l1 = l2.
-Proof. by case/catIL. Qed.
-
-Lemma catsIL ht1 ht2 p1 p2 l1 l2:
-     MessageBytes ht1 p1 ++ l1 = MessageBytes ht2 p2 ++ l2
-  -> MessageBytes ht1 p1 = MessageBytes ht2 p2.
-Proof. by case/catIL. Qed.
-
-(* ==================================================================== *)
 (* INVERSION LEMMAS                                                     *)
 (* ==================================================================== *)
-
-Ltac move1 :=
-  match goal with
-  | |- forall (_ : _), _ => intro
-  | |- _ => idtac
-  end.
-
-Ltac moves := do? (progress move1).
 
 (* -------------------------------------------------------------------- *)
 Lemma TraceNonConfusion si1 si2 lg:
@@ -1643,8 +1632,8 @@ Lemma TraceNonConfusion si1 si2 lg:
   -> ClientLogBeforeClientFinished          si2 lg
   -> [/\ si1.(si_pmsId)       = si2.(si_pmsId)
        & si1.(si_client_auth) = si2.(si_client_auth)].
-Proof.
-  Time by do! case=> ?; repeat (
+Proof.                          (* ~35sec *)
+  by do! case=> ?; repeat (
     match goal with
     | h: ServerLogBeforeClientCertificateVerifyRSA _ _ |- _ =>
         case/ServerLogBeforeClientCertificateVerifyRSA_P: h
@@ -1661,16 +1650,51 @@ Proof.
 Qed.
 
 (* -------------------------------------------------------------------- *)
+Ltac take_tail E :=
+  match goal with
+  | |- take ?sz1 (?x1 ++ _) = take ?sz2 (?x2 ++ _) -> _ =>
+      rewrite [X in X=_]take_cat [X in _=X]take_cat;
+        try (have ->: sz1 < size x1 = false by rewrite ?E);
+        try (have ->: sz2 < size x2 = false by rewrite ?E);
+      match goal with |- _ ++ _ = _ ++ _ -> _ => idtac end
+  end.
+
+Ltac invert_log E n :=
+  match n with
+  | 0%N => idtac
+  | _   => do n! (take_tail E; move/catsI; rewrite ?E => /(_ erefl))
+  end;
+  take_tail E; move/catI; rewrite ?E => /(_ erefl) [].
+
+Definition E := (size_tuple, size_PVBytes).
+
+(* -------------------------------------------------------------------- *)
+Lemma ClientHelloMsgI pv cr1 cr2 sess cs cm ex:
+       ClientHelloMsg pv cr1 sess cs cm ex
+     = ClientHelloMsg pv cr2 sess cs cm ex
+  -> cr1 = cr2.
+Proof. by move/MessageBytes_inj2_take; invert_log E 1%N => /val_inj. Qed.
+
+(* -------------------------------------------------------------------- *)
+Lemma ServerHelloMsgI pv1 pv2 rd1 rd2 id1 id2 cs cp ex:
+        ServerHelloMsg pv1 rd1 id1 cs cp ex
+      = ServerHelloMsg pv2 rd2 id2 cs cp ex
+  -> [/\ pv1 = pv2, rd1 = rd2 & id1 = id2].
+Proof.
+  move/MessageBytes_inj2_take.
+  invert_log E 0%N => /PVBytes_inj ->.
+  invert_log E 0%N => /val_inj ->.
+  invert_log E 0%N => /val_inj ->.
+  done.
+Qed.
+
+(* -------------------------------------------------------------------- *)
 Definition EQSI si si' := Eval simpl in
   SI_FieldEqs
     [:: SI_init_crand      ;
         SI_init_srand      ;
         SI_protocol_version;
-        SI_cipher_suite    ;
-        SI_compression     ;
         SI_pmsId           ;
-        SI_clientID        ;
-        SI_serverID        ;
         SI_client_auth     ;
         SI_sessionID       ]
     si si'.
