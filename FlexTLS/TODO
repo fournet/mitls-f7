@@ -5,6 +5,8 @@
 
 - Forward messages for the messages
 
+- Forward functions should take an optional 'n' parameter (default=1), to foward 'n' messages at a time
+
 - Unit tests 
 
 - Attack scenarios
