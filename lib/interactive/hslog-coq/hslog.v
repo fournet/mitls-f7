@@ -1712,7 +1712,15 @@ Proof.
     * case/ClientLogBeforeClientFinishedRSA_P; last first.
         by rewrite -eq_auth auth_si2.
       - admit.
-      - admit.
+      - do 14! move=> ?; move=> auth_si1 lg2'E.
+        case/ServerLogBeforeClientCertificateVerifyRSA_P; last first.
+          by rewrite auth_si2.
+        do 10! move=> ?; move=> _ lg2'E'; move: lg2'E.
+        rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
+        move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
+        case/ServerHelloMsgI=> -> -> ->.
+        rewrite -[si_client_auth si2]eq2 eq_auth.
+        by rewrite -[si_pmsId si2]eq2 eqpms.
     * by move=> clog slog; move: eqpms;
         case/ClientLogBeforeClientFinishedDHE_P: clog;
         case/ServerLogBeforeClientCertificateVerifyRSA_P: slog.
