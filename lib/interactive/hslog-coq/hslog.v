@@ -777,6 +777,38 @@ Proof.
 Qed.
 
 (* -------------------------------------------------------------------- *)
+Definition valid_CipherSuite (cs : CipherSuite) :=
+  (CSBytes cs != None).
+
+Structure ValidCipherSuite : Type
+  := ValidCS { csval :> CipherSuite; _ : valid_CipherSuite csval }.
+
+Canonical ValidCipherSuite_subType := Eval hnf in [subType for csval].
+
+Definition vcs_eqMixin := Eval hnf in [eqMixin of ValidCipherSuite by <:].
+Canonical  vcs_eqType  := Eval hnf in EqType _ vcs_eqMixin.
+
+(* -------------------------------------------------------------------- *)
+Definition VCSBytes (cs : ValidCipherSuite) := odflt [::] (CSBytes cs).
+
+(* -------------------------------------------------------------------- *)
+Lemma size_VCSBytes cs: size (VCSBytes cs) = 2%N.
+Proof.
+  rewrite /VCSBytes; case: cs=> cs /=; move: (size_CSBytes cs).
+  by rewrite /valid_CipherSuite; case: (CSBytes _).
+Qed.
+
+(* -------------------------------------------------------------------- *)
+Lemma VCSBytes_inj: injective VCSBytes.
+Proof.
+  case=> [cs1 v1] [cs2 v2] h; apply/eqP; rewrite eqE /=.
+  apply/eqP/CSBytes_inj.
+    by move/negbTE: {h} v1 => ->. by move/negbTE: {h} v2 => ->.
+  move: v1 v2 h; rewrite /valid_CipherSuite /VCSBytes /=.
+  by case: (CSBytes _)=> //; case: (CSBytes _)=> //= c1 c2 _ _ ->.
+Qed.
+
+(* -------------------------------------------------------------------- *)
 Definition random    := 32.-tuple byte.
 Definition sessionID := 32.-tuple byte.
 
@@ -794,8 +826,8 @@ Record SessionInfo := mkSessionInfo {
   si_init_crand       : random;
   si_init_srand       : random;
   si_protocol_version : ProtocolVersion;
-  si_cipher_suite     : seq CipherSuite;
-  si_compression      : seq Compression;
+  si_cipher_suite     : ValidCipherSuite;
+  si_compression      : Compression;
   si_pmsId            : PMS;
   si_clientID         : CertChain;
   si_clientSigAlg     : SigHashAlg;
@@ -923,14 +955,14 @@ Definition ServerHelloMsg
   (pv : ProtocolVersion)
   (rd : random)
   (id : sessionID)
-  (cs : seq CipherSuite)
-  (cp : seq Compression)
+  (cs : ValidCipherSuite)
+  (cp : Compression)
   (ex : bytes)
 :=
   MessageBytes HT_server_hello (
       (PVBytes pv) ++ rd ++ id
-   ++ (flatten (pmap CSBytes cs))
-   ++ (MCPBytes cp)
+   ++ (VCSBytes cs)
+   ++ (CPBytes  cp)
    ++ ex).
 
 (* -------------------------------------------------------------------- *)
@@ -1654,8 +1686,8 @@ Ltac take_tail E :=
   match goal with
   | |- take ?sz1 (?x1 ++ _) = take ?sz2 (?x2 ++ _) -> _ =>
       rewrite [X in X=_]take_cat [X in _=X]take_cat;
-        try (have ->: sz1 < size x1 = false by rewrite ?E);
-        try (have ->: sz2 < size x2 = false by rewrite ?E);
+        try (have ->: sz1 < size x1 = false by rewrite 1?E);
+        try (have ->: sz2 < size x2 = false by rewrite 1?E);
       match goal with |- _ ++ _ = _ ++ _ -> _ => idtac end
   end.
 
@@ -1666,7 +1698,7 @@ Ltac invert_log E n :=
   end;
   take_tail E; move/catI; rewrite ?E => /(_ erefl) [].
 
-Definition E := (size_tuple, size_PVBytes).
+Definition E := (size_tuple, size_PVBytes, size_VCSBytes, size_CPBytes).
 
 (* -------------------------------------------------------------------- *)
 Lemma ClientHelloMsgI pv1 pv2 cr1 cr2 sess1 sess2 cs1 cs2 cm1 cm2 ex1 ex2:
@@ -1679,12 +1711,14 @@ Proof. by move/MessageBytes_inj2_take; invert_log E 1%N => /val_inj. Qed.
 Lemma ServerHelloMsgI pv1 pv2 rd1 rd2 id1 id2 cs1 cs2 cp1 cp2 ex1 ex2:
         ServerHelloMsg pv1 rd1 id1 cs1 cp1 ex1
       = ServerHelloMsg pv2 rd2 id2 cs2 cp2 ex2
-  -> [/\ pv1 = pv2, rd1 = rd2 & id1 = id2 ].
+  -> [/\ pv1 = pv2, rd1 = rd2, id1 = id2, cs1 = cs2 & cp1 = cp2 ].
 Proof.
   move/MessageBytes_inj2_take.
   invert_log E 0%N => /PVBytes_inj ->.
   invert_log E 0%N => /val_inj ->.
   invert_log E 0%N => /val_inj ->.
+  invert_log E 0%N => /VCSBytes_inj ->.
+  invert_log E 0%N => /CPBytes_inj ->.
   done.
 Qed.
 
@@ -1694,6 +1728,8 @@ Definition EQSI si si' := Eval simpl in
     [:: SI_init_crand      ;
         SI_init_srand      ;
         SI_protocol_version;
+        SI_cipher_suite    ;
+        SI_compression     ;
         SI_pmsId           ;
         SI_client_auth     ;
         SI_sessionID       ]
@@ -1718,7 +1754,7 @@ Proof.
         do 10! move=> ?; move=> _ lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> -> -> ->.
+        case/ServerHelloMsgI=> -> -> -> -> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
         by rewrite -[si_pmsId si2]eq2 eqpms.
     * by move=> clog slog; move: eqpms;
@@ -1736,7 +1772,7 @@ Proof.
         do 15! move=> ?; move=> auth_si2' lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> -> -> ->.
+        case/ServerHelloMsgI=> -> -> -> -> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
         by rewrite -[si_pmsId si2]eq2 eqpms.
   + (* DHE *)
@@ -1751,7 +1787,7 @@ Proof.
       - by rewrite (negbTE Nauth_si2).
       move=> pv' sess cs' cm' ex1' ex2' encpms' _.
       rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
-      by case/catIL=> /ServerHelloMsgI [-> -> ->].
+      by case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
     * by move=> clog slog; move: eqpms;
         case/ClientLogBeforeClientFinishedDHE_P: clog;
         case/ServerLogBeforeClientCertificateVerifyRSA_P: slog.
@@ -1766,7 +1802,7 @@ Proof.
       - by rewrite (negbTE Nauth_si2).
       move=> pv' sess cs' cm' ex1' ex2' p' g' y' dhea' dhesign' gc.
       move=> _; rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
-      by case/catIL=> /ServerHelloMsgI [-> -> ->].
+      by case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
 Qed.
 
 (*
