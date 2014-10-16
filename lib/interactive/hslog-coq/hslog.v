@@ -1637,6 +1637,30 @@ Ltac move1 :=
 
 Ltac moves := do? (progress move1).
 
+(* -------------------------------------------------------------------- *)
+Lemma TraceNonConfusion si1 si2 lg:
+     ServerLogBeforeClientCertificateVerify si1 lg
+  -> ClientLogBeforeClientFinished          si2 lg
+  -> [/\ si1.(si_pmsId)       = si2.(si_pmsId)
+       & si1.(si_client_auth) = si2.(si_client_auth)].
+Proof.
+  Time by do! case=> ?; repeat (
+    match goal with
+    | h: ServerLogBeforeClientCertificateVerifyRSA _ _ |- _ =>
+        case/ServerLogBeforeClientCertificateVerifyRSA_P: h
+    | h: ServerLogBeforeClientCertificateVerifyDHE _ _ |- _ =>
+        case/ServerLogBeforeClientCertificateVerifyDHE_P: h
+    | h: ClientLogBeforeClientFinishedRSA _ _ |- _ =>
+        case/ClientLogBeforeClientFinishedRSA_P: h
+    | h: ClientLogBeforeClientFinishedDHE _ _ |- _ =>
+        case/ClientLogBeforeClientFinishedDHE_P: h
+    end); try (by split; reflexivity);
+    do? move=> ?; subst lg; (absurd false; first done);
+    (match goal with x : _ = _ |- _ => move: x end);
+    do? (try (by move/catsIL/MessageBytes_inj1); move/catILs).
+Qed.
+
+(* -------------------------------------------------------------------- *)
 Definition EQSI si si' := Eval simpl in
   SI_FieldEqs
     [:: SI_init_crand      ;
@@ -1644,7 +1668,7 @@ Definition EQSI si si' := Eval simpl in
         SI_protocol_version;
         SI_cipher_suite    ;
         SI_compression     ;
-        SI_pmsID           ;
+        SI_pmsId           ;
         SI_clientID        ;
         SI_serverID        ;
         SI_client_auth     ;
@@ -1655,16 +1679,7 @@ Theorem I1 si1 si2 lg:
      ClientLogBeforeClientFinished si1 lg
   -> ServerLogBeforeClientFinished si2 lg
   -> EQSI si1 si2.
-Proof. case.
-  + case/ClientLogBeforeClientFinishedRSA_P.
-    * admit.
-    * admit.
-    * admit.
-  + case/ClientLogBeforeClientFinishedDHE_P.
-    * admit.
-    * admit.
-    * admit.
-Qed.
+Proof. Abort.
 
 (*
 *** Local Variables: ***
