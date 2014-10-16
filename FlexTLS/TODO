@@ -1,13 +1,13 @@
 - Library
   - Each send/receive function should be able to take a full Fxxxxxxxxxxx message
 
-- Resumption
-  - Server-side
+- Passthrough functions content-type specific
 
-- Logging
+- Forward messages for the messages
+
+- Unit tests 
 
 - Attack scenarios
-  - 3Shake
   [- Renegotiation
    - Heartbleed
    - Lucky 13
