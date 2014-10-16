@@ -862,7 +862,7 @@ Definition SI_FieldEq sif :=
   | SI_protocol_version => fun si si' => si.(si_protocol_version) = si'.(si_protocol_version)
   | SI_cipher_suite     => fun si si' => si.(si_cipher_suite    ) = si'.(si_cipher_suite    )
   | SI_compression      => fun si si' => si.(si_compression     ) = si'.(si_compression     )
-  | SI_pmsId            => fun si si' => si.(si_compression     ) = si'.(si_compression     )
+  | SI_pmsId            => fun si si' => si.(si_pmsId           ) = si'.(si_pmsId           )
   | SI_clientID         => fun si si' => si.(si_clientID        ) = si'.(si_clientID        )
   | SI_clientSigAlg     => fun si si' => si.(si_clientSigAlg    ) = si'.(si_clientSigAlg    )
   | SI_serverID         => fun si si' => si.(si_serverID        ) = si'.(si_serverID        )
@@ -1627,13 +1627,13 @@ Qed.
 (* ==================================================================== *)
 
 (* -------------------------------------------------------------------- *)
-Lemma TraceNonConfusion si1 si2 lg:
+Lemma TraceNonConfusion si1 si2 lg lg':
      ServerLogBeforeClientCertificateVerify si1 lg
-  -> ClientLogBeforeClientFinished          si2 lg
+  -> ClientLogBeforeClientFinished          si2 (lg ++ lg')
   -> [/\ si1.(si_pmsId)       = si2.(si_pmsId)
        & si1.(si_client_auth) = si2.(si_client_auth)].
-Proof.                          (* ~35sec *)
-  by do! case=> ?; repeat (
+Proof.                          (* ~45sec *)
+  Time by do! case=> ?; repeat (
     match goal with
     | h: ServerLogBeforeClientCertificateVerifyRSA _ _ |- _ =>
         case/ServerLogBeforeClientCertificateVerifyRSA_P: h
@@ -1645,7 +1645,7 @@ Proof.                          (* ~35sec *)
         case/ClientLogBeforeClientFinishedDHE_P: h
     end); try (by split; reflexivity);
     do? move=> ?; subst lg; (absurd false; first done);
-    (match goal with x : _ = _ |- _ => move: x end);
+    (match goal with x : _ = _ |- _ => move: x end); rewrite -!catA;
     do? (try (by move/catsIL/MessageBytes_inj1); move/catILs).
 Qed.
 
@@ -1669,17 +1669,17 @@ Ltac invert_log E n :=
 Definition E := (size_tuple, size_PVBytes).
 
 (* -------------------------------------------------------------------- *)
-Lemma ClientHelloMsgI pv cr1 cr2 sess cs cm ex:
-       ClientHelloMsg pv cr1 sess cs cm ex
-     = ClientHelloMsg pv cr2 sess cs cm ex
+Lemma ClientHelloMsgI pv1 pv2 cr1 cr2 sess1 sess2 cs1 cs2 cm1 cm2 ex1 ex2:
+       ClientHelloMsg pv1 cr1 sess1 cs1 cm1 ex1
+     = ClientHelloMsg pv2 cr2 sess2 cs2 cm2 ex2
   -> cr1 = cr2.
 Proof. by move/MessageBytes_inj2_take; invert_log E 1%N => /val_inj. Qed.
 
 (* -------------------------------------------------------------------- *)
-Lemma ServerHelloMsgI pv1 pv2 rd1 rd2 id1 id2 cs cp ex:
-        ServerHelloMsg pv1 rd1 id1 cs cp ex
-      = ServerHelloMsg pv2 rd2 id2 cs cp ex
-  -> [/\ pv1 = pv2, rd1 = rd2 & id1 = id2].
+Lemma ServerHelloMsgI pv1 pv2 rd1 rd2 id1 id2 cs1 cs2 cp1 cp2 ex1 ex2:
+        ServerHelloMsg pv1 rd1 id1 cs1 cp1 ex1
+      = ServerHelloMsg pv2 rd2 id2 cs2 cp2 ex2
+  -> [/\ pv1 = pv2, rd1 = rd2 & id1 = id2 ].
 Proof.
   move/MessageBytes_inj2_take.
   invert_log E 0%N => /PVBytes_inj ->.
@@ -1703,7 +1703,38 @@ Theorem I1 si1 si2 lg:
      ClientLogBeforeClientFinished si1 lg
   -> ServerLogBeforeClientFinished si2 lg
   -> EQSI si1 si2.
-Proof. Abort.
+Proof.
+  move=> clog; case.
+  + (* RSA *) admit.
+  + (* DHE *)
+    move=> Nauth_si2 slog; rewrite -[lg]cats0 in clog.
+    case: (TraceNonConfusion slog clog) => eqpms eq_auth.
+    rewrite cats0 in clog; case: slog; case: clog.
+    * case/ClientLogBeforeClientFinishedRSA_P.
+      - by do 14! move=> ?; rewrite -eq_auth (negbTE Nauth_si2).
+      - by do 12! move=> ?; rewrite -eq_auth (negbTE Nauth_si2).
+      move=> pv csid cs cm ex1 ex2 donemsg encpms _ lgE.
+      case/ServerLogBeforeClientCertificateVerifyRSA_P.
+      - by do 10! move=> ?; rewrite (negbTE Nauth_si2).
+      move=> pv' sess cs' cm' ex1' ex2' encpms' _.
+      rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
+      by case/catIL=> /ServerHelloMsgI [-> -> ->].
+    * by move=> clog slog; move: eqpms;
+        case/ClientLogBeforeClientFinishedDHE_P: clog;
+        case/ServerLogBeforeClientCertificateVerifyRSA_P: slog.
+    * by move=> clog slog; move: eqpms;
+        case/ClientLogBeforeClientFinishedRSA_P: clog;
+        case/ServerLogBeforeClientCertificateVerifyDHE_P: slog.
+    * case/ClientLogBeforeClientFinishedDHE_P.
+      - by do 20! move=> ?; rewrite -eq_auth (negbTE Nauth_si2).
+      - by do 18! move=> ?; rewrite -eq_auth (negbTE Nauth_si2).
+      move=> pv1 csid cs cm ex1 ex2 pv2 p g y dhea dhesign domemsg dhe _ lgE.
+      case/ServerLogBeforeClientCertificateVerifyDHE_P.
+      - by do 15! move=> ?; rewrite (negbTE Nauth_si2).
+      move=> pv' sess cs' cm' ex1' ex2' p' g' y' dhea' dhesign' gc.
+      move=> _; rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
+      by case/catIL=> /ServerHelloMsgI [-> -> ->].
+Qed.
 
 (*
 *** Local Variables: ***
