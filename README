@@ -75,3 +75,49 @@ or
 
 - Mono framework, version 3.4.0 or above; this includes F# 3.1.
 
+* 4. FlexTLS & FlexApps
+
+The FlexTLS library and the FlexApps console application should 
+both build out of the box if all requirements of miTLS are filled.
+The FlexApps project stores the scenarios and Application.fs
+is the file where the calls to those can be commented/uncommented.
+
+To use certificate, miTLS and flexTLS rely on certificate stores.
+On windows, the windows store handles managment of those. For
+other platforms like Linux or OSX the Mono store is used.
+Go to lib/tests/pki and run Make
+
+You can use tests certificates to use the tools. You can also
+import yours to the store.
+
+** 4.a. Microsoft Windows
+
+Add ca certificate to the store by using the certutil command
+certutil -f -user -addstore Root ca.crt
+
+Add certificates to the store by using the certutil command
+certutil -f -user -p '' -v -importpfx certificate.p12
+
+Delete ca certificate from the store by using the certutil command
+certutil -user -delstore Root <NAME>
+
+Delete certificates from the store by using the certutil command
+certutil -user -delstore My <NAME>
+
+** 4.b. Linux, MacOS X and other Un*ces
+
+Add ca certificate to the store by using the certutil certmgr
+umask 077; certmgr -add -c Trust ca.crt
+
+Add certificate to the store by using the certutil certmgr
+umask 077; ( set -e; \
+  certmgr -add       -c My <NAME>.crt;      \
+  certmgr -importKey -c -p '' My <NAME>.p12 \
+)
+
+Delete ca certificate from the store by using the certutil certmgr
+certmgr -del -c Trust <NAME>
+
+Delete certificates from the store by using the certutil certmgr
+certmgr -del -c My <NAME>
+
