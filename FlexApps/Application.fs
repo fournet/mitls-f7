@@ -31,7 +31,10 @@ let main argv =
 
     (* Alert attack *)
 //    Attack_Alert.run "www.google.com";
-    
+
+    (* Alert attack MITM *)
+//    let cst,sst = Attack_Alert.runMITM("0.0.0.0","127.0.0.1",4433) in
+
     (* Protocol downgrade attack (Fragmented ClientHello) *)
 //    Attack_FragmentClientHello.run("www.inria.fr",fp=All(5));
 //    printf "Protocol version downgrade attack finished\n";
