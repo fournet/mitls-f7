@@ -90,13 +90,9 @@ type Attack_Alert =
      static member runMITM (accept, server_name:string, ?port:int) : state * state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
-        // Start being a server
-        printf "Please connect to me, and I will attack you.\n";
-        let sst,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",port=6666) in
+        // Start being a Man-In-The-Middle
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listener_port=6666,server_cn=server_name,server_port=port) in
 
-        // Start being a client
-        let cst,_   = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
-        
         // Forward client hello
         let sst,cst,_ = FlexHandshake.forward(sst,cst) in
 
