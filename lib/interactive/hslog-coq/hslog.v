@@ -1730,7 +1730,15 @@ Proof.
     * case/ClientLogBeforeClientFinishedDHE_P; last first.
         by rewrite -eq_auth auth_si2.
       - admit.
-      - admit.
+      - do 20! move=> ?; move=> auth_si1 lg2'E.
+        case/ServerLogBeforeClientCertificateVerifyDHE_P; last first.
+          by rewrite auth_si2.
+        do 15! move=> ?; move=> auth_si2' lg2'E'; move: lg2'E.
+        rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
+        move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
+        case/ServerHelloMsgI=> -> -> ->.
+        rewrite -[si_client_auth si2]eq2 eq_auth.
+        by rewrite -[si_pmsId si2]eq2 eqpms.
   + (* DHE *)
     move=> Nauth_si2 slog; rewrite -[lg]cats0 in clog.
     case: (TraceNonConfusion slog clog) => eqpms eq_auth.
