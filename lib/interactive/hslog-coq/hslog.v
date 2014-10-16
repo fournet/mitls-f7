@@ -813,10 +813,27 @@ Definition random    := 32.-tuple byte.
 Definition sessionID := 32.-tuple byte.
 
 (* -------------------------------------------------------------------- *)
-Parameter Cert : Type.
-Parameter CSChainBytes : seq Cert -> bytes.
+Parameter Cert : eqType.
 
-Notation CertChain := (seq Cert).
+Definition CertChain := seq Cert.
+
+Parameter CSChainBytes : CertChain -> bytes.
+
+Parameter CSChainBytes_inj: injective CSChainBytes.
+
+Definition valid_CertChain (cc : CertChain) :=
+  size (CSChainBytes cc) < (2 ^ 24).-1 - 3%N.
+
+Structure ValidCertChain : Type
+  := ValidCC { ccval :> CertChain; _ : valid_CertChain ccval }.
+
+Canonical ValidCertChain_subType := Eval hnf in [subType for ccval].
+
+Definition vcc_eqMixin := Eval hnf in [eqMixin of ValidCertChain by <:].
+Canonical  vcc_eqType  := Eval hnf in EqType _ vcc_eqMixin.
+
+Coercion seq_of_ValidCertChain (cc : ValidCertChain) : seq _ :=
+  ccval cc.
 
 (* -------------------------------------------------------------------- *)
 Inductive PMS : Type := PMS_RSA | PMS_DHE.
@@ -829,9 +846,9 @@ Record SessionInfo := mkSessionInfo {
   si_cipher_suite     : ValidCipherSuite;
   si_compression      : Compression;
   si_pmsId            : PMS;
-  si_clientID         : CertChain;
+  si_clientID         : ValidCertChain;
   si_clientSigAlg     : SigHashAlg;
-  si_serverID         : CertChain;
+  si_serverID         : ValidCertChain;
   si_serverSigAlg     : SigHashAlg;
   si_client_auth      : bool;
   si_sessionID        : sessionID
@@ -1005,7 +1022,7 @@ Definition CertificateVerifyMsg pv (sa : SigHashAlg) (sign : bytes) :=
   MessageBytes HT_certificate_verify (DigitallySignedBytes sa sign pv).
 
 (* -------------------------------------------------------------------- *)
-Definition CertificateMsg (cs : CertChain) :=
+Definition CertificateMsg (cs : ValidCertChain) :=
   MessageBytes HT_certificate (VLBytes 3 (CSChainBytes cs)).
 
 (* -------------------------------------------------------------------- *)
@@ -1284,7 +1301,9 @@ Inductive ClientLogBeforeClientFinishedRSA
   (lg : log)
 : Prop :=
 | ClientLogBeforeClientFinishedRSA_Auth si' lg' encpms a sign of
-     si.(si_client_auth) & si.(si_pmsId) = PMS_RSA & si.(si_clientID) <> [::]
+     si.(si_client_auth)
+   & si.(si_pmsId) = PMS_RSA
+   & si.(si_clientID) <> [::] :> seq _
    & lg = lg' ++ CertificateMsg si.(si_clientID)
               ++ ClientKeyExchangeMsg_RSA si.(si_protocol_version) encpms
               ++ CertificateVerifyMsg si.(si_protocol_version) a sign
@@ -1292,7 +1311,9 @@ Inductive ClientLogBeforeClientFinishedRSA
    & ClientLogAfterServerHelloDoneRSA si' lg'
 
 | ClientLogBeforeClientFinishedRSA_TryNoAuth si' lg' encpms of
-     si.(si_client_auth) & si.(si_pmsId) = PMS_RSA & si.(si_clientID) = [::]
+     si.(si_client_auth)
+   & si.(si_pmsId) = PMS_RSA
+   & si.(si_clientID) = [::] :> seq _
    & lg = lg' ++ CertificateMsg si.(si_clientID)
               ++ ClientKeyExchangeMsg_RSA si.(si_protocol_version) encpms
    & EqExceptPmsClientID si' si
@@ -1310,7 +1331,9 @@ Inductive ClientLogBeforeClientFinishedDHE
   (lg : log)
 : Prop :=
 | ClientLogBeforeClientFinishedDHE_Auth si' lg' b a sign of
-     si.(si_client_auth) & si.(si_pmsId) = PMS_DHE & si.(si_clientID) <> [::]
+     si.(si_client_auth)
+   & si.(si_pmsId) = PMS_DHE
+   & si.(si_clientID) <> [::] :> seq _
    & lg = lg' ++ CertificateMsg si.(si_clientID)
               ++ ClientKeyExchangeMsg_DHE b
               ++ CertificateVerifyMsg si.(si_protocol_version) a sign
@@ -1318,7 +1341,9 @@ Inductive ClientLogBeforeClientFinishedDHE
    & ClientLogAfterServerHelloDoneDHE si' lg'
 
 | ClientLogBeforeClientFinishedDHE_TryNoAuth si' lg' b of
-     si.(si_client_auth) & si.(si_pmsId) = PMS_DHE & si.(si_clientID) = [::]
+     si.(si_client_auth)
+   & si.(si_pmsId) = PMS_DHE
+   & si.(si_clientID) = [::] :> seq _
    & lg = lg' ++ CertificateMsg si.(si_clientID)
               ++ ClientKeyExchangeMsg_DHE b
    & EqExceptPmsClientID si' si
@@ -1723,6 +1748,34 @@ Proof.
 Qed.
 
 (* -------------------------------------------------------------------- *)
+Lemma CertificateMsgI cs1 cs2:
+     CertificateMsg cs1 = CertificateMsg cs2
+  -> cs1 = cs2.
+Proof.
+  case: cs1 cs2 => [cs1 h1] [cs2 h2]; rewrite /CertificateMsg /= => h.
+  apply/eqP; rewrite eqE /=; move/MessageBytes_inj2: h.
+  move: {-2}(2^24).-1 (erefl (2^24).-1) => n nE.
+  rewrite /VLBytes; have ->: (3 * 8 = 24)%N by [].
+  rewrite -!nE !size_cat !size_IntBytes -{2 4}[n](@subnK 3%N) //; last first.
+    by rewrite nE.
+  rewrite ![(_+3)%N]addnC !leq_add2l !size_take !ltnNge.
+  have := h1; rewrite /valid_CertChain -nE => /leq_trans -/(_ n.+1).
+  rewrite ltnS => -> /=; last by rewrite leq_subLR !addSn add0n !leqW.
+  have := h2; rewrite /valid_CertChain -nE => /leq_trans -/(_ n.+1).
+  rewrite ltnS => -> /=; last by rewrite leq_subLR !addSn add0n !leqW.
+  move: (h1) (h2); unfold valid_CertChain; rewrite -nE => /ltnW -> /ltnW ->.
+  move/(_ erefl erefl) => /catsI; rewrite !size_IntBytes => /(_ erefl).
+  rewrite !take_oversize; first last.
+    move: h1; unfold valid_CertChain; rewrite -nE => h.
+      apply/(@leq_trans (n-3)); first by apply/ltnW.
+      by rewrite leq_subLR !addSn add0n !leqW.
+    move: h2; unfold valid_CertChain; rewrite -nE => h.
+      apply/(@leq_trans (n-3)); first by apply/ltnW.
+      by rewrite leq_subLR !addSn add0n !leqW.
+  by move/CSChainBytes_inj=> ->.
+Qed.
+
+(* -------------------------------------------------------------------- *)
 Definition EQSI si si' := Eval simpl in
   SI_FieldEqs
     [:: SI_init_crand      ;
@@ -1731,6 +1784,7 @@ Definition EQSI si si' := Eval simpl in
         SI_cipher_suite    ;
         SI_compression     ;
         SI_pmsId           ;
+        SI_serverID        ;
         SI_client_auth     ;
         SI_sessionID       ]
     si si'.
@@ -1754,7 +1808,8 @@ Proof.
         do 10! move=> ?; move=> _ lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> -> -> -> -> ->.
+        case/ServerHelloMsgI=> -> -> -> -> ->; case/catIL.
+        move/CertificateMsgI=> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
         by rewrite -[si_pmsId si2]eq2 eqpms.
     * by move=> clog slog; move: eqpms;
@@ -1772,7 +1827,8 @@ Proof.
         do 15! move=> ?; move=> auth_si2' lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> -> -> -> -> ->.
+        case/ServerHelloMsgI=> -> -> -> -> ->; case/catIL.
+        move/CertificateMsgI=> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
         by rewrite -[si_pmsId si2]eq2 eqpms.
   + (* DHE *)
@@ -1787,7 +1843,8 @@ Proof.
       - by rewrite (negbTE Nauth_si2).
       move=> pv' sess cs' cm' ex1' ex2' encpms' _.
       rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
-      by case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
+      case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
+      by case/catIL=> /CertificateMsgI ->.
     * by move=> clog slog; move: eqpms;
         case/ClientLogBeforeClientFinishedDHE_P: clog;
         case/ServerLogBeforeClientCertificateVerifyRSA_P: slog.
@@ -1802,7 +1859,8 @@ Proof.
       - by rewrite (negbTE Nauth_si2).
       move=> pv' sess cs' cm' ex1' ex2' p' g' y' dhea' dhesign' gc.
       move=> _; rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
-      by case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
+      case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
+      by case/catIL=> /CertificateMsgI ->.
 Qed.
 
 (*
