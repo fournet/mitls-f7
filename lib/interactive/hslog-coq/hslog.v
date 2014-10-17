@@ -39,9 +39,9 @@ Section ExtraSeq.
     size s1 = size s2 -> s1 ++ r1 = s2 ++ r2 -> [/\ s1 = s2 & r1 = r2].
   Proof. by move=> eq_sz eq; have/catsI ->// := eq; move/catIs: eq=> ->. Qed.    
 
-  Lemma catIts (n : nat) (s1 s2 : n.-tuple T) (r1 r2 : seq T):
-    s1 ++ r1 = s2 ++ r2 -> s1 = s2.
-  Proof. by move/catIs; rewrite ?size_tuple => /(_ (erefl _)) /(val_inj). Qed.
+  Lemma catIt (n : nat) (s1 s2 : n.-tuple T) (r1 r2 : seq T):
+    s1 ++ r1 = s2 ++ r2 -> [/\ s1 = s2 & r1 = r2].
+  Proof. by case/catI; rewrite ?size_tuple // => /val_inj-> ->. Qed.
 
   Lemma size_take_le (n : nat) (s : seq T):
     size (take n s) <= n.
@@ -1964,6 +1964,24 @@ Proof.
     match goal with x: _ = _ |- _ => move: x end;
     rewrite -!catA; do! move/catILs; rewrite -[X in X=_]cats0;
     move/catsIL/MessageBytes_inj1).
+Qed.
+
+(* ==================================================================== *)
+Lemma DHEParamBytesI
+  (cr  sr  : random) (p  g  gs  : bytes)
+  (cr' sr' : random) (p' g' gs' : bytes)
+  (lg : log)
+:
+     size p  <= (2^16).-1 -> size g  <= (2^16).-1 -> size gs  <= (2^16).-1
+  -> size p' <= (2^16).-1 -> size g' <= (2^16).-1 -> size gs' <= (2^16).-1
+  -> lg = cr  ++ sr  ++ DHEParamBytes p  g  gs
+  -> lg = cr' ++ sr' ++ DHEParamBytes p' g' gs'
+  -> [/\ cr = cr', sr = sr', p = p', g = g' & gs = gs'].
+Proof.
+  move=> sz_p sz_g sz_gs sz_p' sz_g' sz_gs'.
+  move=> -> /catIt[->] /catIt[->]; rewrite /DHEParamBytes.
+  by case/catIB=> /VLBytes_inj->//;
+       case/catIB=> /VLBytes_inj ->// /VLBytes_inj ->.
 Qed.
 
 (*
