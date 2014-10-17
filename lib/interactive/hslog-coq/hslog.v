@@ -1170,8 +1170,6 @@ Inductive ServerLogBeforeClientKeyExchangeDHE
     & ServerLogBeforeClientCertificateDHE si lg.
 
 (* -------------------------------------------------------------------- *)
-(* Parameter RSAPMS: CertChain -> ProtocolVersion -> 48.-tuple byte -> bytes. *)
-
 Inductive ServerLogBeforeClientCertificateVerifyRSA
   (si : SessionInfo)
   (lg : log)
@@ -1185,8 +1183,6 @@ Inductive ServerLogBeforeClientCertificateVerifyRSA
    & ServerLogBeforeClientKeyExchangeRSA si' pv lg'.
 
 (* -------------------------------------------------------------------- *)
-(* Parameter DHEPMS: forall (p g gs gc r : bytes), bytes. *)
-
 Inductive ServerLogBeforeClientCertificateVerifyDHE
   (si : SessionInfo)
   (lg : log)
