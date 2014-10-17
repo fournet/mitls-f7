@@ -1451,6 +1451,7 @@ Inductive ClientLogBeforeClientFinishedResume
     & ClientLogBeforeServerFinishedResume cr sr si lg'.
 
 (* ==================================================================== *)
+(* High-level specification (proven to be equivalent                    *)
 Inductive ClientLogBeforeClientFinishedRSA_spec
   (si : SessionInfo)
   (lg : log)
@@ -1919,6 +1920,42 @@ Proof.
       move=> _; rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
       case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
       by case/catIL=> /CertificateMsgI ->.
+Qed.
+
+(* ==================================================================== *)
+(* Disjointness (Full / Resumption)                                     *)
+Lemma D1 cr sr si1 si2 lg:
+      ClientLogBeforeClientFinished si1 lg
+   -> ServerLogBeforeClientFinishedResume cr sr si2 lg
+   -> False.
+Proof.
+  move=> clog; case=> lg1 svd lgE [cpv csl cml ex1 ex2 csid lg1E].
+  by subst lg1; case: clog;
+      [ case/ClientLogBeforeClientFinishedRSA_P
+      | case/ClientLogBeforeClientFinishedDHE_P];
+     do? move=> ?; subst lg;
+     match goal with x: _ = _ |- _ => move: x end;
+     rewrite -!catA; do! move/catILs; rewrite -[X in X=_]cats0;
+     move/catsIL/MessageBytes_inj1.
+Qed.
+
+Lemma D2 cr sr si1 si2 lg:
+      ServerLogBeforeClientFinished si1 lg
+   -> ClientLogBeforeClientFinishedResume cr sr si2 lg
+   -> False.
+Proof.
+  move=> slog; case=> lg1 svd lgE; case=> lg2 ex2 lg1E.
+  case=> pv csid cs cm ex1 lg2E; subst lg2 lg1.
+  by case: slog; do! move=> ?;
+    (match goal with
+     | h: ServerLogBeforeClientCertificateVerify _ _ |- _ => case: h
+     end;
+     [ case/ServerLogBeforeClientCertificateVerifyRSA_P
+     | case/ServerLogBeforeClientCertificateVerifyDHE_P];
+    do? move=> ?; subst;
+    match goal with x: _ = _ |- _ => move: x end;
+    rewrite -!catA; do! move/catILs; rewrite -[X in X=_]cats0;
+    move/catsIL/MessageBytes_inj1).
 Qed.
 
 (*
