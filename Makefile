@@ -2,7 +2,7 @@
 
 # --------------------------------------------------------------------
 version    ?= 0.0.1
-name        = flexTLS
+name        = FlexTLS
 distname    = $(name)-$(version)
 f7distname  = $(name)-f7-$(version)
 
