@@ -1922,6 +1922,18 @@ Proof.
       by case/catIL=> /CertificateMsgI ->.
 Qed.
 
+(* -------------------------------------------------------------------- *)
+Theorem I2 cr1 cr2 sr1 sr2 si1 si2 lg:
+      ClientLogBeforeClientFinishedResume cr1 sr1 si1 lg
+   -> ServerLogBeforeClientFinishedResume cr2 sr2 si2 lg
+   -> [/\ cr1 = cr2, sr1 = sr2 & si1.(si_sessionID) = si2.(si_sessionID)].
+Proof.
+  case=> {lg} lg svd ->; case=> {lg} lg ex2 ->; case=> pv csid cs cm ex1 ->.
+  case=> lg' svd' eq [cpv csl cml ex1' ex2' csid' lg'E]; subst lg'.
+  move: eq; rewrite -!catA; case/catIL; move/ClientHelloMsgI=> ->.
+  by case/catIL; case/ServerHelloMsgI=> _ -> ->.
+Qed.
+
 (* ==================================================================== *)
 (* Disjointness (Full / Resumption)                                     *)
 Lemma D1 cr sr si1 si2 lg:
