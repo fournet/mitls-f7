@@ -103,12 +103,6 @@ Notation bytes   := (seq byte).
 Notation "n %:I" := (nat2byte n) (at level 2, format "n %:I").
 
 (* -------------------------------------------------------------------- *)
-Lemma nat2bytes_eq (s1 s2 : seq nat):
-      [seq x%:I       | x <- s1] = [seq x%:I       | x <- s2]
-   -> [seq divn x 256 | x <- s1] = [seq divn x 256 | x <- s2].
-Proof. Admitted.
-
-(* -------------------------------------------------------------------- *)
 Notation log := bytes (only parsing).
 
 (* -------------------------------------------------------------------- *)
@@ -1832,7 +1826,9 @@ Definition EQSI si si' := Eval simpl in
 Theorem I1 si1 si2 lg:
      ClientLogBeforeClientFinished si1 lg
   -> ServerLogBeforeClientFinished si2 lg
-  -> EQSI si1 si2.
+  -> [/\ EQSI si1 si2
+       & si2.(si_client_auth)
+           -> si1.(si_clientID) = si2.(si_clientID)].
 Proof.
   move=> clog; case.
   + (* RSA *)
@@ -1841,16 +1837,27 @@ Proof.
     case: slog; case: clog; rewrite -eq2 in auth_si2.
     * case/ClientLogBeforeClientFinishedRSA_P; last first.
         by rewrite -eq_auth auth_si2.
-      - admit.
+      - do 12! move=> ?; move=> auth_si1 lg2'E.
+        case/ServerLogBeforeClientCertificateVerifyRSA_P; last first.
+          by rewrite auth_si2.
+        do 10! move=> ?; move=> _ lg2'E'; move: lg2'E.
+        rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
+        move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
+        case/ServerHelloMsgI=> -> -> -> -> ->.
+        case/catIL; move/CertificateMsgI=> ->.
+        rewrite -[si_client_auth si2]eq2 eq_auth.
+        do 2! move/catILs; case/catIL; move/CertificateMsgI=> ->.
+        by rewrite -[si_pmsId si2]eq2 eqpms.
       - do 14! move=> ?; move=> auth_si1 lg2'E.
         case/ServerLogBeforeClientCertificateVerifyRSA_P; last first.
           by rewrite auth_si2.
         do 10! move=> ?; move=> _ lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> -> -> -> -> ->; case/catIL.
-        move/CertificateMsgI=> ->.
+        case/ServerHelloMsgI=> -> -> -> -> ->.
+        case/catIL; move/CertificateMsgI=> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
+        do 2! move/catILs; case/catIL; move/CertificateMsgI=> ->.
         by rewrite -[si_pmsId si2]eq2 eqpms.
     * by move=> clog slog; move: eqpms;
         case/ClientLogBeforeClientFinishedDHE_P: clog;
@@ -1860,7 +1867,17 @@ Proof.
         case/ServerLogBeforeClientCertificateVerifyDHE_P: slog.
     * case/ClientLogBeforeClientFinishedDHE_P; last first.
         by rewrite -eq_auth auth_si2.
-      - admit.
+      - do 18! move=> ?; move=> auth_si1 lg2'E.
+        case/ServerLogBeforeClientCertificateVerifyDHE_P; last first.
+          by rewrite auth_si2.
+        do 15! move=> ?; move=> auth_si2' lg2'E'; move: lg2'E.
+        rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
+        move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
+        case/ServerHelloMsgI=> -> -> -> -> ->; case/catIL.
+        move/CertificateMsgI=> ->; do 3! move/catILs.
+        case/catIL; move/CertificateMsgI=> ->.
+        rewrite -[si_client_auth si2]eq2 eq_auth.
+        by rewrite -[si_pmsId si2]eq2 eqpms.
       - do 20! move=> ?; move=> auth_si1 lg2'E.
         case/ServerLogBeforeClientCertificateVerifyDHE_P; last first.
           by rewrite auth_si2.
@@ -1868,7 +1885,8 @@ Proof.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
         case/ServerHelloMsgI=> -> -> -> -> ->; case/catIL.
-        move/CertificateMsgI=> ->.
+        move/CertificateMsgI=> ->; do 3! move/catILs.
+        case/catIL; move/CertificateMsgI=> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
         by rewrite -[si_pmsId si2]eq2 eqpms.
   + (* DHE *)
