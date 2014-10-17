@@ -1,8 +1,8 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-version    ?= 0.8.1
-name        = miTLS
+version    ?= 0.0.1
+name        = flexTLS
 distname    = $(name)-$(version)
 f7distname  = $(name)-f7-$(version)
 
