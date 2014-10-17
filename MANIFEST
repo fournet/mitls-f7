@@ -23,4 +23,4 @@ find:3rdparty:*.dll
 find:DB/lib:*.dll
 
 # VS Projects
-vs:tls.sln:CoreCrypto,DB,echo,HttpServer,lib,Platform,pwapp,TLSharp,OpenSSL
+vs:tls.sln:CoreCrypto,DB,echo,HttpServer,lib,Platform,pwapp,TLSharp,OpenSSL,FlexTLS,FlexApps
