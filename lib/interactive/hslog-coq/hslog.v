@@ -1,6 +1,6 @@
 (* --------------------------------------------------------------------  *)
 Require Import ssreflect eqtype ssrbool ssrnat ssrfun seq.
-Require Import fintype choice tuple ssralg ssrint zmodp.
+Require Import finset fintype choice tuple div ssralg ssrint zmodp.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -64,9 +64,49 @@ Section FinInj.
 End FinInj.
 
 (* -------------------------------------------------------------------- *)
-Notation byte    := 'Z_256.
+Module Bytes.
+  Definition bytesz : nat := nosimpl 256.
+
+  Lemma byteszE: bytesz = 256.
+  Proof. by []. Qed.
+
+  Definition byte := [finType of 'Z_bytesz].
+
+  Definition card_byte: #|byte| = bytesz.
+  Proof. by rewrite card_ord. Qed.
+
+  Definition nat2byte (n : nat ) : byte := inZp n.
+  Definition byte2nat (b : byte) : nat  := b.
+
+  Lemma byte2natK: cancel byte2nat nat2byte.
+  Proof. by case=> i /= lti; apply/eqP; rewrite eqE /= modn_small. Qed.
+
+  Lemma nat2byteK: {in iota 0 bytesz, cancel nat2byte byte2nat}.
+  Proof.
+    move=> i; rewrite mem_iota add0n => /andP [_] lt_i256.
+    by rewrite /nat2byte /= modn_small.
+  Qed.
+
+  Lemma byte_enumP:
+    enum byte =i [seq nat2byte i | i <- iota 0 256].
+  Proof.
+    move=> x; rewrite -!(mem_map val_inj) val_enum_ord.
+    rewrite -map_comp map_id_in // => i; rewrite mem_iota.
+    by case/andP=> _; rewrite add0n => lt_i_256 /=; rewrite modn_small.
+  Qed.
+End Bytes.
+
+Import Bytes.
+
+(* -------------------------------------------------------------------- *)
 Notation bytes   := (seq byte).
-Notation "n %:I" := (nosimpl (@inZp 256.-1 n)) (at level 2, format "n %:I").
+Notation "n %:I" := (nat2byte n) (at level 2, format "n %:I").
+
+(* -------------------------------------------------------------------- *)
+Lemma nat2bytes_eq (s1 s2 : seq nat):
+      [seq x%:I       | x <- s1] = [seq x%:I       | x <- s2]
+   -> [seq divn x 256 | x <- s1] = [seq divn x 256 | x <- s2].
+Proof. Admitted.
 
 (* -------------------------------------------------------------------- *)
 Notation log := bytes (only parsing).
@@ -1689,7 +1729,7 @@ Lemma TraceNonConfusion si1 si2 lg lg':
   -> ClientLogBeforeClientFinished          si2 (lg ++ lg')
   -> [/\ si1.(si_pmsId)       = si2.(si_pmsId)
        & si1.(si_client_auth) = si2.(si_client_auth)].
-Proof.                          (* ~45sec *)
+Proof.
   by do! case=> ?; repeat (
     match goal with
     | h: ServerLogBeforeClientCertificateVerifyRSA _ _ |- _ =>
