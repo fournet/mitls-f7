@@ -6,7 +6,7 @@ name        = flexTLS
 distname    = $(name)-$(version)
 f7distname  = $(name)-f7-$(version)
 
-TAR = tar --format=posix --owner=0 --group=0
+TAR = tar --format=gnu --owner=0 --group=0
 
 include Makefile.config
 
