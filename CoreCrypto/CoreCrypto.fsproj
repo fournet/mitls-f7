@@ -64,6 +64,8 @@
     <Compile Include="CoreACiphers.fs" />
     <Compile Include="CoreHMac.fsi" />
     <Compile Include="CoreHMac.fs" />
+    <Compile Include="CoreECDH.fsi" />
+    <Compile Include="CoreECDH.fs" />
     <Compile Include="CoreSig.fsi" />
     <Compile Include="CoreSig.fs" />
     <Compile Include="DHDB.fsi" />
