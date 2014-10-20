@@ -31,7 +31,7 @@ type FlexClientKeyShare =
     /// <returns> Updated state * FClientKeyShare message record </returns>
     static member receive (st:state,nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyShare =
         LogManager.GetLogger("file").Info("# CLIENT KEY SHARE : FlexClientKeyShare.receive");
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_client_key_exchange  ->
             (match HandshakeMessages.parseTLS13CKEOffers payload with

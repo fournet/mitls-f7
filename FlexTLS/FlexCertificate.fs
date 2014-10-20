@@ -33,7 +33,7 @@ type FlexCertificate =
         LogManager.GetLogger("file").Info("# CERTIFICATE : FlexCertificate.reveive");
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_certificate  ->  
             (match parseClientOrServerCertificate payload with

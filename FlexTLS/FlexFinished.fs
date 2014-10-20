@@ -39,7 +39,7 @@ type FlexFinished =
                 | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")
                 | Some(vd) -> vd
         in
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_finished  -> 
             if length payload <> 12 then

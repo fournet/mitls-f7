@@ -59,7 +59,7 @@ type FlexServerKeyShare =
     //BB : The spec is not sure that we should resend the group with the public exponent so we ignore it for now
     static member receive (st:state, group:dhGroup) : state * FServerKeyShare =
         LogManager.GetLogger("file").Info("# SERVER KEY SHARE : FlexServerKeyShare.receive");
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_server_key_exchange  ->
             (match HandshakeMessages.parseTLS13SKEDHE group payload with

@@ -25,6 +25,9 @@ type FlexConstants =
     /// <summary> Default TCP port, used to listen or to connect to </summary>
     static member defaultTCPPort = 443
 
+    /// <summary> Default TCP port for malicious server, used to listen </summary>
+    static member defaultTCPMaliciousPort = 6666
+
     /// <summary> Default protocol version </summary>
     static member defaultProtocolVersion = TLS_1p2
 

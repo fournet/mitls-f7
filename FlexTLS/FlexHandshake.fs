@@ -49,7 +49,7 @@ type FlexHandshake =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * PreHandshakeType * payload * full message * remainder of the buffer </returns>
-    static member getHSMessage (st:state) : state * HandshakeMessages.PreHandshakeType * bytes * bytes =
+    static member receive (st:state) : state * HandshakeMessages.PreHandshakeType * bytes * bytes =
         let buf = st.read.hs_buffer in
         match FlexHandshake.parseHSMessage buf with
         | Error(_) ->
@@ -59,7 +59,7 @@ type FlexHandshake =
                 let st,b = FlexRecord.getFragmentContent (st, ct, len) in
                 let buf = buf @| b in
                 let st = FlexState.updateIncomingHSBuffer st buf in
-                FlexHandshake.getHSMessage st
+                FlexHandshake.receive st
             | _ -> 
                 let _,b = FlexRecord.getFragmentContent (st, ct, len) in
                 failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b)))))
@@ -75,7 +75,7 @@ type FlexHandshake =
     /// <param name="fp"> Optional fragmentation policy applied to the message </param>
     /// <returns> Updated incoming state * Updated outgoing state * forwarded handshake message bytes </returns>
     static member forward (stin:state, stout:state) : state * state * bytes =
-        let stin,_,_,msg = FlexHandshake.getHSMessage(stin) in
+        let stin,_,_,msg = FlexHandshake.receive(stin) in
         let stout = FlexHandshake.send(stout,msg) in
         stin,stout,msg
 

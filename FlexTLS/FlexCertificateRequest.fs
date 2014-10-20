@@ -34,7 +34,7 @@ type FlexCertificateRequest =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
         let pv = si.protocol_version in
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_certificate_request  ->  
             (match parseCertificateRequest pv payload with

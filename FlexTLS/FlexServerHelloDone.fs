@@ -28,7 +28,7 @@ type FlexServerHelloDone =
     /// <returns> Updated state * FServerHelloDone message record </returns>
     static member receive (st:state) : state * FServerHelloDone =
         LogManager.GetLogger("file").Info("# SERVER HELLO DONE : FlexServerHelloDone.receive");
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_server_hello_done  -> 
             if length payload <> 0 then

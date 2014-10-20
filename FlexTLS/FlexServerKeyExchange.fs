@@ -90,7 +90,7 @@ type FlexServerKeyExchange =
     static member receiveDHE (st:state, pv:ProtocolVersion, cs:cipherSuite, ?minDHsize:nat*nat) : state * FServerKeyExchange =
         LogManager.GetLogger("file").Info("# SERVER KEY EXCHANGE : FlexServerKeyExchange.receiveDHE");
         let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_server_key_exchange  ->
             (match HandshakeMessages.parseServerKeyExchange_DHE FlexConstants.dhdb minDHsize pv cs payload with

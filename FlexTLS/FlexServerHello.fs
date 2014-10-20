@@ -127,7 +127,7 @@ type FlexServerHello =
     static member receive (st:state, cextL:list<clientExtension>, ?IsResuming:bool) : state * FServerHello * negotiatedExtensions =
         LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.reveive");
         let IsResuming = defaultArg IsResuming false in
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_server_hello  ->    
             (match parseServerHello payload with

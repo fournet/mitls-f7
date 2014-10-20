@@ -68,7 +68,7 @@ type FlexCertificateVerify =
             if not (log = empty_bytes) then true else false
         in
             
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_certificate_verify -> 
             let alg,signature =    

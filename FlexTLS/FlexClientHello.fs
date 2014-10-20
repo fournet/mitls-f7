@@ -128,7 +128,7 @@ type FlexClientHello =
     /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
     static member receive (st:state) : state * nextSecurityContext * FClientHello =
         LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.receive");
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_client_hello  ->    
             (match parseClientHello payload with

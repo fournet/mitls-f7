@@ -99,7 +99,7 @@ type FlexClientKeyExchange =
             | Correct(pk) -> pk
         in
         let si = {FlexConstants.nullSessionInfo with serverID = certl; protocol_version = pv} in
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_client_key_exchange  ->
             (match parseClientKeyExchange_RSA si payload with
@@ -299,7 +299,7 @@ type FlexClientKeyExchange =
         LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE : FlexClientKeyExchange.receiveDHE");
         let (p,g),gx = kexdh.pg,kexdh.gx in
         let dhp = {FlexConstants.nullDHParams with dhp = p; dhg = g} in
-        let st,hstype,payload,to_log = FlexHandshake.getHSMessage(st) in
+        let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_client_key_exchange  ->
             (match HandshakeMessages.parseClientKEXExplicit_DH dhp payload with
