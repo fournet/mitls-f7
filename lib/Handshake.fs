@@ -171,7 +171,7 @@ let resume next_sid poptions =
     match SessionDB.select sDB next_sid Client poptions.server_name with
     | None -> init Client poptions
     | Some (retrieved) ->
-    let (retrievedSinfo,retrievedMS) = retrieved in
+    let (retrievedSinfo,retrievedMS, pepoch) = retrieved in
     match retrievedSinfo.sessionID with
     | xx when length xx = 0 -> unexpected "[resume] a resumed session should always have a valid sessionID"
     | sid ->
@@ -246,7 +246,7 @@ let rekey (ci:ConnectionInfo) (state:hs_state) (ops:config) : bool * hs_state =
         | None -> (* Maybe session expired, or was never stored. Let's not resume *)
             rehandshake ci state ops
         | Some s ->
-            let (retrievedSinfo,retrievedMS) = s in
+            let (retrievedSinfo,retrievedMS,pepoch) = s in
 #if TLSExt_sessionHash
             if hasExtendedMS retrievedSinfo.extensions then
 #endif
@@ -314,10 +314,16 @@ let invalidateSession ci state =
             let sdb = SessionDB.remove state.sDB sid ci.role hint in
             {state with sDB=sdb}
 
-let getNextEpochs ci si crand srand =
-    let id_in  = nextEpoch ci.id_in  crand srand si in
-    let id_out = nextEpoch ci.id_out crand srand si in
+let getFullEpochs ci si  =
+    let id_in  = fullEpoch ci.id_in  si in
+    let id_out = fullEpoch ci.id_out si in
     {ci with id_in = id_in; id_out = id_out}
+
+let getAbbrEpochs ci si pe ai = 
+   let id_in  = abbrEpoch ci.id_in ai si pe in
+   let id_out = abbrEpoch ci.id_out ai si pe in
+    {ci with id_in = id_in; id_out = id_out}
+
 
 type outgoing =
   | OutIdle of nextState
@@ -342,8 +348,8 @@ let next_fragment ci state =
             | ClientWritingCCS (si,ms,log) ->
                 (let cr' = si.init_crand in
                 let sr' = si.init_srand in
-                Pi.assume (SentCCS(Client,cr',sr',si)); // ``We send client CCS for si''
-                let next_ci = getNextEpochs ci si cr' sr' in
+                Pi.assume (SentCCS(Client,si)); // ``We send client CCS for si''
+                let next_ci = getFullEpochs ci si in
                 let nki_in = id next_ci.id_in in
                 let nki_out = id next_ci.id_out in
                 let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
@@ -363,7 +369,8 @@ let next_fragment ci state =
                 (let cr' = epochCRand(e) in
                 let sr' = epochSRand(e) in
                 let si' = epochSI(e) in
-                Pi.assume (SentCCS(Client,cr',sr',si')); // ``We send client CCS for the resumption''
+                let ai = epochAI e in
+                Pi.assume (SentCCSAbbr(Client,ai)); // ``We send client CCS for the resumption''
                 let cvd = PRF.makeVerifyData si' ms Client log in
                 let cFinished = messageBytes HT_finished cvd in
                 let ki_out = ci.id_out in
@@ -379,7 +386,7 @@ let next_fragment ci state =
         | PSServer(sstate) ->
             (match sstate with
             | ServerWritingCCS (si,ms,e,w,cvd,log) ->
-                (Pi.assume (SentCCS(Server,si.init_crand,si.init_srand,si)); // ``We send server CCS for si''
+                (Pi.assume (SentCCS(Server,si)); // ``We send server CCS for si''
                 let svd = PRF.makeVerifyData si ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let ki_out = ci.id_out in
@@ -395,7 +402,8 @@ let next_fragment ci state =
                 (let si' = epochSI(we) in
                 let cr' = epochCRand(we) in
                 let sr' = epochSRand(we) in
-                Pi.assume (SentCCS(Server,cr',sr',si')); // ``We send server CCS for the resumption''
+                let ai = epochAI(we) in
+                Pi.assume (SentCCSAbbr(Server,ai)); // ``We send server CCS for the resumption''
                 let svd = PRF.makeVerifyData si' ms Server log in
                 let sFinished = messageBytes HT_finished svd in
                 let log = log @| sFinished in
@@ -440,14 +448,19 @@ let next_fragment ci state =
 #if verify
                     Pi.assume(EvSentFinishedFirst(ci,false));
 #endif
-                    if length si.sessionID = 0 then
+                    if length si.sessionID = 0
+#if TLSExt_sessionHash
+                       || (not (hasExtendedMS si.extensions))
+#endif
+                    then
                       (check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf;
                                               pstate = PSServer(ServerIdle(cvd,svd))}))
 
                     else
-                      (let sdb = SessionDB.insert state.sDB si.sessionID Server state.poptions.client_name (si,ms) in
+                      let pe = predEpoch e in
+                      (let sdb = SessionDB.insert state.sDB si.sessionID Server state.poptions.client_name (si,ms,pe) in
                       check_negotiation Server si state.poptions;
                       OutComplete(rg,f,
                                   {state with hs_outgoing = remBuf;
@@ -923,7 +936,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 For example, the session may have expired between us sending client hello, and now. *)
                             InError(AD_internal_error, perror __SOURCE_FILE__ __LINE__ "A session expried while it was being resumed",state)
                         | Some(storable) ->
-                        let (si,ms) = storable in
+                        let (si,ms,pe) = storable in
                         let log = log @| to_log in
                         (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
                         (* We know statically that this session supports extended master secret, because we never ask to
@@ -932,7 +945,9 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                           if si.protocol_version = sh_server_version then
                             if si.cipher_suite = sh_cipher_suite then
                                 if si.compression = sh_compression_method then
-                                    let next_ci = getNextEpochs ci si crand sh_random in
+                                    let aex = {si.extensions with ne_renegotiation_info = Some (cvd,svd)} in
+                                    let ai = {abbr_crand = crand; abbr_srand = sh_random; abbr_session_hash = si.session_hash; abbr_extensions = aex } in
+                                    let next_ci = getAbbrEpochs ci si pe ai in
                                     let nki_in = id next_ci.id_in in
                                     let nki_out = id next_ci.id_out in
                                     let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
@@ -1204,9 +1219,14 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             (match cState with
             | ServerFinished(si,ms,e,cvd,log) ->
                 if PRF.checkVerifyData si ms Server log payload then
+                    let pe = predEpoch ci.id_in in
                     (let sDB = 
-                        if length si.sessionID = 0 then state.sDB
-                        else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms)
+                        if length si.sessionID = 0
+#if TLSExt_sessionHash
+                           || (not (hasExtendedMS si.extensions))
+#endif
+                        then state.sDB
+                        else SessionDB.insert state.sDB si.sessionID Client state.poptions.server_name (si,ms,pe)
                     in
                     (* Should prove from checkVerifyData above *)
 #if verify                    
@@ -1382,19 +1402,21 @@ let negotiate cList sList =
     List.tryFind (fun s -> List.exists (fun c -> c = s) cList) sList
 
 let prepare_server_output_resumption ci state crand cExtL (sid:sessionID) storedSession cvd svd log =
-    let (si,ms) = storedSession in
+    let (si,ms,pe) = storedSession in
     let srand = Nonce.mkHelloRandom () in
     let (sExtL,nExtL) = negotiateServerExtensions cExtL state.poptions si.cipher_suite (cvd,svd) true in
     let ext = serverExtensionsBytes sExtL in
     let sHelloB = serverHelloBytes si srand ext in
 
     let log = log @| sHelloB in
-    let next_ci = getNextEpochs ci si crand srand in
+    let aex = {si.extensions with ne_renegotiation_info = Some (cvd,svd)} in
+    let ai = {abbr_crand = crand; abbr_srand = srand; abbr_session_hash = si.session_hash; abbr_extensions = aex } in
+    let next_ci = getAbbrEpochs ci si pe ai in
     let nki_in = id next_ci.id_in in
     let nki_out = id next_ci.id_out in
     let (reader,writer) = PRF.keyGenServer nki_in nki_out ms in
 #if verify
-    Pi.expect (ServerLogBeforeServerFinishedResume(crand,srand,si,log));
+    Pi.expect (ServerLogBeforeServerFinishedResume(ai,si,log));
 #endif
     {state with hs_outgoing = sHelloB;
                 pstate = PSServer(ServerWritingCCSResume(next_ci.id_out,writer,
@@ -1484,7 +1506,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                             (* Client asked for resumption, let's see if we can satisfy the request *)
                             match SessionDB.select state.sDB ch_session_id Server state.poptions.client_name with
                             | Some sentry -> 
-                                (let (storedSinfo,_)  = sentry in
+                                (let (storedSinfo,_,_abbr)  = sentry in
                                 if geqPV ch_client_version storedSinfo.protocol_version
                                   && List.memr ch_cipher_suites storedSinfo.cipher_suite
                                   && List.memr ch_compression_methods storedSinfo.compression 
@@ -1733,7 +1755,7 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
         | PSServer (sState) ->
             (match sState with
             | ClientCCS(si,ms,log) ->
-                let next_ci = getNextEpochs ci si si.init_crand si.init_srand in
+                let next_ci = getFullEpochs ci si in
                 let nki_in = id next_ci.id_in in
                 let nki_out = id next_ci.id_out in
                 let (reader,writer) = PRF.keyGenServer nki_in nki_out ms in

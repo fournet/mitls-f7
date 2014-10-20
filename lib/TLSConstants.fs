@@ -228,7 +228,7 @@ let versionBytes pv =
 
 let parseVersion (v:bytes) =
     match cbyte2 v with
-    | (3uy, 0uy) -> correct(SSL_3p0)
+    | ( 3uy, 0uy ) -> correct(SSL_3p0)
     | ( 3uy, 1uy ) -> correct(TLS_1p0)
     | ( 3uy, 2uy ) -> correct(TLS_1p1)
     | ( 3uy, 3uy ) -> correct(TLS_1p2)

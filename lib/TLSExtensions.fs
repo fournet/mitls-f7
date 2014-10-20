@@ -164,7 +164,7 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
                 if resuming then
                     correct(l)
                 else
-                    correct(NE_extended_ms::l)
+                    correct({l with ne_extended_ms = true})
             | SE_extended_padding ->
                 if resuming then
                     Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided extended padding in a resuming handshake")
@@ -172,12 +172,13 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
                     if isOnlyMACCipherSuite cs then
                         Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided extended padding for a MAC only ciphersuite")
                     else
-                        correct(NE_extended_padding::l)
+                        correct({l with ne_extended_padding = true})
         else
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
 let negotiateClientExtensions (cExtL:list<clientExtension>) (sExtL:list<serverExtension>) (resuming:bool) cs =
-    match Collections.List.fold (serverToNegotiatedExtension cExtL resuming cs) (correct []) sExtL with
+    let nes = {ne_extended_ms=false;ne_extended_padding=false;ne_renegotiation_info = None} in
+    match Collections.List.fold (serverToNegotiatedExtension cExtL resuming cs) (correct nes) sExtL with
     | Error(x,y) -> Error(x,y)
     | Correct(l) ->
         // Client-side specific extension negotiation
@@ -235,7 +236,7 @@ let parseServerExtension head payload =
             Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension")
     | (_,_) ->
         // A server can never send an extension the client doesn't support
-        Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extesion")
+        Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extension")
 
 let addOnceServer ext extList =
     if List.exists (sameServerExt ext) extList then
@@ -286,26 +287,27 @@ let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:
             else
                 Some(SE_extended_padding)
 
-let ClientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resuming:bool) cExt : option<negotiatedExtension> =
+let clientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resuming:bool)  neg cExt =
     match cExt with
-    | CE_renegotiation_info (_) -> None
+    | CE_renegotiation_info (_) -> neg
     | CE_extended_ms ->
         if resuming then
-            None
+            neg
         else
-            Some(NE_extended_ms)
+            {neg with ne_extended_ms = true}
     | CE_extended_padding ->
         if resuming then
-            None
+            neg
         else
             if isOnlyMACCipherSuite cs then
-                None
+                neg
             else
-                Some(NE_extended_padding)
+                {neg with ne_extended_padding = true}
 
-let negotiateServerExtensions cExtL cfg cs (cvd,svd) resuming =
+let negotiateServerExtensions cExtL cfg cs (cvd,svd) resuming  : serverExtension list  * negotiatedExtensions =
     let server = List.choose (ClientToServerExtension cfg cs (cvd,svd) resuming) cExtL in
-    let nego = List.choose (ClientToNegotiatedExtension cfg cs (cvd,svd) resuming) cExtL in
+    let negi = {ne_extended_padding=false;ne_extended_ms=false;ne_renegotiation_info=None} in
+    let nego = Collections.List.fold (clientToNegotiatedExtension cfg cs (cvd,svd) resuming) negi cExtL in
     (server,nego)
 
 let isClientRenegotiationInfo e =
@@ -330,21 +332,21 @@ let checkServerRenegotiationInfoExtension config (sExtL: list<serverExtension>) 
         let (cvd,svd) = x in
         equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
 
-let isExtendedMS e =
-    match e with
-    | NE_extended_ms -> true
-    | _ -> false
+//let isExtendedMS e = 
+//    match e with
+//    | NE_extended_ms -> true
+//    | _ -> false
 
-let hasExtendedMS extL =
-    List.exists isExtendedMS extL
+let hasExtendedMS extL = extL.ne_extended_ms = true
+//    List.exists isExtendedMS extL
 
-let isExtendedPadding e =
-    match e with
-    | NE_extended_padding -> true
-    | _ -> false
+//let isExtendedPadding e =
+//    match e with
+//    | NE_extended_padding -> true
+//    | _ -> false
 
-let hasExtendedPadding id =
-    List.exists isExtendedPadding id.ext
+let hasExtendedPadding id = id.ext.ne_extended_padding = true
+//    List.exists isExtendedPadding id.ext
 
 (* sigHashAlg parsing functions *)
 let sigHashAlgBytes alg =
