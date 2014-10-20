@@ -7,20 +7,21 @@ open Error
 open TLSInfo
 open TLSConstants
 
-open FlexTLS.FlexTypes
-open FlexTLS.FlexConstants
-open FlexTLS.FlexConnection
-open FlexTLS.FlexClientHello
-open FlexTLS.FlexClientKeyShare
-open FlexTLS.FlexServerHello
-open FlexTLS.FlexServerKeyShare
-open FlexTLS.FlexCertificate
-open FlexTLS.FlexServerHelloDone
-open FlexTLS.FlexCertificateVerify
-open FlexTLS.FlexCCS
-open FlexTLS.FlexFinished
-open FlexTLS.FlexState
-open FlexTLS.FlexSecrets
+open FlexTLS
+open FlexTypes
+open FlexConstants
+open FlexConnection
+open FlexClientHello
+open FlexClientKeyShare
+open FlexServerHello
+open FlexServerKeyShare
+open FlexCertificate
+open FlexServerHelloDone
+open FlexCertificateVerify
+open FlexCCS
+open FlexFinished
+open FlexState
+open FlexSecrets
 
 
 

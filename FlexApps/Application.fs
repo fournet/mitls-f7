@@ -4,7 +4,8 @@ module FlexApps.Application
 
 open NLog
 
-open FlexTLS.FlexTypes
+open FlexTLS
+open FlexTypes
 
 open FlexApps
 open Attack_Alert
