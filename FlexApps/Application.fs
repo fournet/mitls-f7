@@ -16,7 +16,7 @@ open Handshake_full_RSA
 open Handshake_full_DHE
 open Handshake_resumption
 open Handshake_tls13
-
+open Metrics_DHE
 
 
 
@@ -103,6 +103,10 @@ let main argv =
 //    printf "Running RSA server. Please connect to port 44204\n";
 //    let st = Handshake_full_DHE.server_with_client_auth("127.0.0.1","rsa.cert-01.mitls.org",44204) in
 //    printf "DHE server_with_client_auth finished\n";
+
+    (* Metrics for DH parameters of ServerKeyExchange *)
+    printf "Running Metrics for DH parameters\n";
+    Metrics_DHE.client_alexa_DHE("list.data");
 
     log.Info("STOP Running FlexTLS scenario");
     ignore (System.Console.ReadLine());
