@@ -98,9 +98,9 @@ type FlexServerKeyExchange =
             | Correct (_,dhp,gy,alg,signature) ->
                 let kexdh = {pg = (dhp.dhp,dhp.dhg); x = empty_bytes; gx = empty_bytes; gy = gy} in
                 let fske : FServerKeyExchange = { kex = DH(kexdh); payload = to_log; sigAlg = alg; signature = signature } in
-                LogManager.GetLogger("file").Debug(sprintf "--- Public Prime : %s" (Bytes.hexString(dhp.dhp)));
-                LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %s" (Bytes.hexString(dhp.dhg)));
-                LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(gy)));
+                LogManager.GetLogger("file").Debug(sprintf "---S Public Prime : %s" (Bytes.hexString(dhp.dhp)));
+                LogManager.GetLogger("file").Debug(sprintf "---S Public Generator : %s" (Bytes.hexString(dhp.dhg)));
+                LogManager.GetLogger("file").Debug(sprintf "---S Public Exponent : %s" (Bytes.hexString(gy)));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fske 
             )
@@ -184,7 +184,7 @@ type FlexServerKeyExchange =
 
         let p,g = dh.pg in
         LogManager.GetLogger("file").Debug(sprintf "--- Public Prime : %s" (Bytes.hexString(p)));
-        LogManager.GetLogger("file").Debug(sprintf "--- Public Group : %s" (Bytes.hexString(g)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Public Generator : %s" (Bytes.hexString(g)));
         LogManager.GetLogger("file").Debug(sprintf "--- Public Exponent : %s" (Bytes.hexString(dh.gx)));
         st,fske
     
