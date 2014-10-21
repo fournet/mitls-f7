@@ -34,6 +34,37 @@ type FlexConstants =
     /// <summary> Default fragmentation policy </summary>
     static member defaultFragmentationPolicy = All(fragmentLength)
 
+    /// <summary> Default DHE ciphersuites </summary>
+    static member defaultDHECiphersuites = [
+        TLS_DHE_DSS_WITH_3DES_EDE_CBC_SHA;
+        TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA;   
+        TLS_DHE_DSS_WITH_AES_128_CBC_SHA;   
+        TLS_DHE_RSA_WITH_AES_128_CBC_SHA;         
+        TLS_DHE_DSS_WITH_AES_256_CBC_SHA;   
+        TLS_DHE_RSA_WITH_AES_256_CBC_SHA;    
+        TLS_DHE_DSS_WITH_AES_128_CBC_SHA256;
+        TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
+        TLS_DHE_DSS_WITH_AES_256_CBC_SHA256;
+        TLS_DHE_RSA_WITH_AES_256_CBC_SHA256; 
+        TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+        TLS_DHE_RSA_WITH_AES_256_GCM_SHA384;
+        TLS_DHE_DSS_WITH_AES_128_GCM_SHA256;
+        TLS_DHE_DSS_WITH_AES_256_GCM_SHA384]
+
+    /// <summary> Default RSA ciphersuites </summary>
+    static member defaultRSACiphersuites = [
+        TLS_RSA_WITH_NULL_MD5;              
+        TLS_RSA_WITH_NULL_SHA;              
+        TLS_RSA_WITH_NULL_SHA256;           
+        TLS_RSA_WITH_RC4_128_MD5;           
+        TLS_RSA_WITH_RC4_128_SHA;           
+        TLS_RSA_WITH_3DES_EDE_CBC_SHA;      
+        TLS_RSA_WITH_AES_128_CBC_SHA;       
+        TLS_RSA_WITH_AES_256_CBC_SHA;       
+        TLS_RSA_WITH_AES_128_CBC_SHA256;    
+        TLS_RSA_WITH_AES_256_CBC_SHA256; 
+        TLS_RSA_WITH_AES_128_GCM_SHA256;    
+        TLS_RSA_WITH_AES_256_GCM_SHA384]
 
     /// <summary> All supported signature algorithms </summary>
     static member sigAlgs_ALL = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL);(SA_DSA, SHA)]
