@@ -27,15 +27,26 @@ type sVerifyData = bytes (* ServerFinished payload *)
 
 type sessionHash = bytes
 
+type serverName =
+| SNI_DNS of bytes
+| SNI_UNKNOWN of int * bytes 
+
 // Defined here to not depend on TLSExtension
 //type negotiatedExtension =
 //    | NE_extended_ms
 //    | NE_extended_padding
 
 //type negotiatedExtensions = list<negotiatedExtension>
-type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
-                             ne_renegotiation_info: (cVerifyData * sVerifyData) option}
+type negotiatedExtensions = {
+    ne_extended_ms: bool;
+    ne_extended_padding:bool;
+    ne_renegotiation_info: (cVerifyData * sVerifyData) option;
+    ne_supported_curves: ECGroup.ec_curve list option;
+    ne_supported_point_formats: ECGroup.point_format list option;
+    ne_server_names: serverName list option;
+}
 
+val ne_default : negotiatedExtensions
 
 type pmsId
 val pmsId: PMS.pms -> pmsId

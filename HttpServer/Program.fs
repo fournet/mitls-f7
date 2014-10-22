@@ -69,7 +69,7 @@ let cmdparse = fun () ->
     let defaultRoot = "htdocs"
     let defaultCert = "sessionDB"
     let defaultDHDB = "DHDB"
-    let defaultName = "mitls.example.org"
+    let defaultName = "localhost"
     
     let options  = ref {
         rootdir   = Path.Combine(mypath, defaultRoot);

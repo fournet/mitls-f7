@@ -96,7 +96,13 @@ let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
          || sigkeyalg = (SA_RSA, SHA    )
          || sigkeyalg = (SA_RSA, NULL   )
     | o when o.Value = OID_SHA256WithRSAEncryption ->
-        sigkeyalg = (SA_RSA, SHA256)
+        (* XXX Antoine *)
+        (* Unfortunately a certificate signed with SHA-256 must still be usable with the TLS PRF (MD5SHA1) *)
+        (* The logic here isn't so clear, we want to correlate with the supported algorithms extension no? *)
+        (* The connection between the certificate signature and cipher hash algorithms seems far-fetched *)
+            sigkeyalg = (SA_RSA, MD5SHA1)
+         || sigkeyalg = (SA_RSA, SHA)
+         || sigkeyalg = (SA_RSA, SHA256)
     | o when o.Value = OID_DSASignature ->
         sigkeyalg = (SA_DSA, SHA)
     | _ -> false

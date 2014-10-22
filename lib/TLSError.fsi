@@ -33,6 +33,7 @@ type alertDescription =
     | AD_user_cancelled_warning
     | AD_user_cancelled_fatal
     | AD_no_renegotiation
+    | AD_unrecognized_name
     | AD_unsupported_extension
 
 type Result<'a> = Error.optResult<alertDescription * string,'a>
