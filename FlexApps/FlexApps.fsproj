@@ -78,6 +78,7 @@
     <Compile Include="Handshake_tls13.fs" />
     <Compile Include="OpenSSL_tests.fs" />
     <Compile Include="Metrics_DHE.fs" />
+    <Compile Include="Attack_JavaLateCCS.fs" />
     <Compile Include="Application.fs" />
     <Content Include="packages.config" />
     <Content Include="NLog.config">
