@@ -72,13 +72,13 @@
     <Compile Include="Attack_FragmentClientHello.fs" />
     <Compile Include="Attack_EarlyCCS.fs" />
     <Compile Include="Attack_TripleHandshake.fs" />
+    <Compile Include="Attack_JavaLateCCS.fs" />
     <Compile Include="Handshake_full_RSA.fs" />
     <Compile Include="Handshake_full_DHE.fs" />
     <Compile Include="Handshake_resumption.fs" />
     <Compile Include="Handshake_tls13.fs" />
     <Compile Include="OpenSSL_tests.fs" />
     <Compile Include="Metrics_DHE.fs" />
-    <Compile Include="Attack_JavaLateCCS.fs" />
     <Compile Include="Application.fs" />
     <Content Include="packages.config" />
     <Content Include="NLog.config">
