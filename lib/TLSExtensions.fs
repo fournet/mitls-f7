@@ -13,12 +13,16 @@ type clientExtension =
 //    | CE_server_name of list<Cert.hint>
     | CE_extended_ms
     | CE_extended_padding
+    | CE_ec_point_format of list<ECGroup.point_format>
+    | CE_ec_curves of list<ECGroup.ec_curve>
 
 let sameClientExt a b =
     match a,b with
     | CE_renegotiation_info (_), CE_renegotiation_info (_) -> true
     | CE_extended_ms, CE_extended_ms -> true
     | CE_extended_padding, CE_extended_padding -> true
+    | CE_ec_curves _, CE_ec_curves _ -> true
+    | CE_ec_point_format _, CE_ec_point_format _ -> true
     | _,_ -> false
 
 type serverExtension =
@@ -26,12 +30,14 @@ type serverExtension =
 //    | SE_server_name of Cert.hint
     | SE_extended_ms
     | SE_extended_padding
+    | SE_ec_point_format of list<ECGroup.point_format>
 
 let sameServerExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), SE_renegotiation_info (_,_) -> true
     | SE_extended_ms, SE_extended_ms -> true
     | SE_extended_padding, SE_extended_padding -> true
+    | SE_ec_point_format _, SE_ec_point_format _ -> true
     | _,_ -> false
 
 let sameServerClientExt a b =
@@ -39,6 +45,7 @@ let sameServerClientExt a b =
     | SE_renegotiation_info (_,_), CE_renegotiation_info (_) -> true
     | SE_extended_ms, CE_extended_ms -> true
     | SE_extended_padding, CE_extended_padding -> true
+    | SE_ec_point_format _, CE_ec_point_format _ -> true
     | _,_ -> false
 
 let clientExtensionHeaderBytes ext =
@@ -47,12 +54,47 @@ let clientExtensionHeaderBytes ext =
 //    | CE_server_name (_)     -> abyte2 (0x00uy, 0x00uy)
     | CE_extended_ms           -> abyte2 (0x00uy, 0x17uy)
     | CE_extended_padding      -> abyte2 (0xBBuy, 0x8Fuy)
+    | CE_ec_point_format _     -> abyte2 (0x00uy, 0x0Buy)
+    | CE_ec_curves _           -> abyte2 (0x00uy, 0x0Auy)
+
+let compile_curve_list l =
+    let rec aux = function
+    | [] -> empty_bytes
+    | ECGroup.ECC_P256 :: r -> abyte2 (00uy, 23uy) @| aux r
+    | ECGroup.ECC_P384 :: r -> abyte2 (00uy, 24uy) @| aux r
+    | ECGroup.ECC_P521 :: r -> abyte2 (00uy, 25uy) @| aux r
+    | ECGroup.ECC_UNKNOWN(x) :: r -> bytes_of_int 2 x @| aux r
+    in vlbytes 2 (aux l)
+
+type CanFail =
+| ExFail of alertDescription * string
+| ExOK of list<ECGroup.ec_curve>
+
+let parse_curve_list b : Result<list<ECGroup.ec_curve>> =   
+    let rec aux b =
+        if equalBytes b empty_bytes then ExOK([])
+        elif (length b) % 2 = 1 then ExFail(AD_decode_error, "Bad encoding of curve list")
+        else let (u,v) = split b 2 in
+            (match aux v with
+            | ExFail(x,y) -> ExFail(x,y)
+            | ExOK(l) ->
+                let cur =
+                    (match cbyte2 u with
+                    | (0uy, 23uy) -> ECGroup.ECC_P256
+                    | (0uy, 24uy) -> ECGroup.ECC_P384
+                    | (0uy, 25uy) -> ECGroup.ECC_P521
+                    | _ -> ECGroup.ECC_UNKNOWN(int_of_bytes u))
+                in ExOK(cur :: l))
+    in (match aux b with
+    | ExFail(x,y) -> Error(x,y)
+    | ExOK(l) -> correct (l))
 
 let clientExtensionPayloadBytes ext =
     match ext with
     | CE_renegotiation_info(cvd) -> vlbytes 1 cvd
     | CE_extended_ms -> empty_bytes
     | CE_extended_padding -> empty_bytes
+    | CE_ec_curves(l) -> compile_curve_list l
 
 let clientExtensionBytes ext =
     let head = clientExtensionHeaderBytes ext in
@@ -77,6 +119,17 @@ let parseClientExtension head payload =
             let res = CE_renegotiation_info (cvd) in
             let res = correct res in
             Some(res))
+    | (0x00uy, 0x0Auy) -> // Supported EC curves
+        (match vlparse 2 payload with
+        | Error (x,y) -> Some(Error(x,y))
+        | Correct(ecl) ->
+            (match parse_curve_list ecl with
+            | Error (x,y) -> Some(Error(x,y))
+            | Correct(l) -> Some(correct (CE_ec_curves(l)))))
+    | (0x00uy, 0x0Buy) -> // Supported EC point formats
+        (match vlparse 2 payload with
+        | Error (x,y) -> Some(Error(x,y))
+        | Correct(ecpf) -> printf "Result = %A\n" (cbytes ecpf); Some(correct (CE_ec_point_format([]))))
 #if TLSExt_sessionHash
     | (0x00uy, 0x17uy) -> // extended_ms
         if equalBytes payload empty_bytes then
