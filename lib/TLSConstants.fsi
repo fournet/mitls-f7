@@ -19,6 +19,8 @@ type kexAlg =
     | DH_RSA
     | DHE_DSS
     | DHE_RSA
+    | ECDHE_RSA
+    | ECDHE_ECDSA
     | DH_anon
 
 type blockCipher =
@@ -93,6 +95,7 @@ val isNullCipherSuite: cipherSuite -> bool
 val isAnonCipherSuite: cipherSuite -> bool
 val isDHCipherSuite: cipherSuite -> bool
 val isDHECipherSuite: cipherSuite -> bool
+val isECDHECipherSuite: cipherSuite -> bool
 val isRSACipherSuite: cipherSuite -> bool
 val isOnlyMACCipherSuite: cipherSuite -> bool
 val contains_TLS_EMPTY_RENEGOTIATION_INFO_SCSV: cipherSuites -> bool
@@ -159,6 +162,16 @@ type cipherSuiteName =
     | TLS_DHE_RSA_WITH_AES_128_CBC_SHA256
     | TLS_DHE_DSS_WITH_AES_256_CBC_SHA256
     | TLS_DHE_RSA_WITH_AES_256_CBC_SHA256
+
+    | TLS_ECDHE_RSA_WITH_RC4_128_SHA
+    | TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA
+    | TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+    | TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+    | TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+    | TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+
+    | TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+    | TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
 
     | TLS_DH_anon_WITH_RC4_128_MD5       
     | TLS_DH_anon_WITH_3DES_EDE_CBC_SHA  

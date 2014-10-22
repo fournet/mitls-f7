@@ -166,6 +166,7 @@
     <Compile Include="DHGroup.fs" />
     <Compile Include="ECGroup.fsi" />
     <Compile Include="ECGroup.fs" />
+    <Compile Include="CommonDH.fs" />
     <None Include="PMS.fs7" />
     <Compile Include="PMS.fsi" />
     <Compile Include="PMS.fs" />

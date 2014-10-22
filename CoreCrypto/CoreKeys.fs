@@ -18,5 +18,5 @@ type dhskey = bytes
 
 type ecpoint = { ecx : bytes; ecy : bytes; }
 type ecdhparams = { curve_name: string; }
-type ecdhpkey = ecpoint * ecdhparams
-type ecdhskey = bytes * ecdhparams
+type ecdhpkey = ecpoint
+type ecdhskey = bytes

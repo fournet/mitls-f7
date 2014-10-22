@@ -1,5 +1,7 @@
 ﻿module CoreECDH
 
+open Bytes
+open CoreKeys
 open Org.BouncyCastle.Math
 open Org.BouncyCastle.Crypto
 open Org.BouncyCastle.Crypto.Digests
@@ -10,3 +12,6 @@ open Org.BouncyCastle.Math.EC
 open Org.BouncyCastle.Security
 
 val getcurve : string -> FpCurve * ECDomainParameters * FpPoint
+val gen_key : ecdhparams -> ecdhskey * ecdhpkey
+val agreement : ecdhparams -> ecdhskey -> ecdhpkey -> bytes
+val serialize : ecdhpkey -> bytes

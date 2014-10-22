@@ -360,7 +360,10 @@ type config = {
 	(* DH groups database *)
 	dhDBFileName: string;
 	dhDefaultGroupFileName: string;
-    dhPQMinLength: nat * nat
+    dhPQMinLength: nat * nat;
+
+    (* ECDH settings *)
+    ecdhGroups: ECGroup.ec_curve list;
     }
 
 let defaultConfig ={
@@ -392,7 +395,9 @@ let defaultConfig ={
 
     dhDBFileName = "dhparams-db.bin";
     dhDefaultGroupFileName = "default-dh.pem";
-    dhPQMinLength = (1024, 160)
+    dhPQMinLength = (1024, 160);
+
+    ecdhGroups = [ECGroup.ECC_P256; ECGroup.ECC_P384; ECGroup.ECC_P521];
     }
 
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)

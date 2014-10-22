@@ -299,10 +299,10 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
                 if List.exists (fun x->match x with CE_server_name _ -> true | _ -> false) cExtL then correct(l)
                 else Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server sent an SNI acknowledgement without an SNI provided")
             | SE_ec_point_format(spf) ->
-                (if List.exists (fun x->match x with CE_ec_point_format _ -> true | _ -> false) cExtL then
+                if resuming then
                     correct l
                 else
-                    Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server sent an EC curve point extension that wasn't negotiated"))
+                    correct {l with ne_supported_point_formats = Some spf}
             | SE_extended_ms ->
                 if resuming then
                     correct(l)
@@ -427,7 +427,8 @@ let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:
         | Some _ -> Some(SE_server_name)
         | _ -> None)
     | CE_ec_point_format(l) ->
-        if resuming then None else Some(SE_ec_point_format [ECGroup.ECP_UNCOMPRESSED])
+        if resuming then None
+        else Some(SE_ec_point_format [ECGroup.ECP_UNCOMPRESSED])
     | CE_ec_curves(l) -> None
     | CE_extended_ms -> Some(SE_extended_ms)
     | CE_extended_padding ->
@@ -444,10 +445,14 @@ let clientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyD
     | CE_renegotiation_info (_) -> neg
     | CE_ec_curves l ->
         if resuming then neg
-        else {neg with ne_supported_curves = Some l}
+        else
+            let nl = List.filter (fun x -> List.exists ((=)x) cfg.ecdhGroups) l in
+            {neg with ne_supported_curves = Some nl}
     | CE_ec_point_format l ->
         if resuming then neg
-        else {neg with ne_supported_point_formats = Some l}
+        else
+            let nl = List.filter (fun x -> x = ECGroup.ECP_UNCOMPRESSED) l in
+            {neg with ne_supported_point_formats = Some nl}
     | CE_server_name l ->
         {neg with ne_server_names = Some l}
     | CE_extended_ms ->

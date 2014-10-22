@@ -2,6 +2,9 @@
 
 module ECGroup
 
+open Bytes
+open CoreKeys
+
 type ec_curve =
 | ECC_P256
 | ECC_P384
@@ -14,3 +17,6 @@ type point_format =
 | ECP_UNCOMPRESSED
 | ECP_UNKNOWN of int
 
+type point = ecpoint
+
+val getParams : ec_curve -> ecdhparams

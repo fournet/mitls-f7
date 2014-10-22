@@ -174,7 +174,10 @@ type config = {
 	(* DH groups database *)
 	dhDBFileName: string;
 	dhDefaultGroupFileName: string;
-    dhPQMinLength: nat * nat
+    dhPQMinLength: nat * nat;
+
+    (* ECDH settings *)
+    ecdhGroups: ECGroup.ec_curve list;
     }
 
 val defaultConfig: config

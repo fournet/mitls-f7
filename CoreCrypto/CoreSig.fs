@@ -137,19 +137,8 @@ let DSA_gen () =
 
 (* ------------------------------------------------------------------------ *)
 let ECDSA_gen () =
-    let curve, ecdom, basep = CoreECDH.getcurve ""
-    let ecparam = new ECKeyGenerationParameters(ecdom, new SecureRandom())
-    let gen = new ECKeyPairGenerator()
-    gen.Init(ecparam)
-    let keys = gen.GenerateKeyPair()
-    let pk = (keys.Public :?> ECPublicKeyParameters)
-    let sk = (keys.Private :?> ECPrivateKeyParameters)
-    let x = pk.Q.X.ToBigInteger()
-    let y = pk.Q.Y.ToBigInteger()
-    let parms = { CoreKeys.curve_name = "secp256r1"; }
-    let pub = { CoreKeys.ecx = bytes_of_bigint x; CoreKeys.ecy = bytes_of_bigint y; }
-    let priv = bytes_of_bigint sk.D
-    (PK_ECDH (pub, parms), SK_ECDH (priv, parms))
+    let sk, pk = CoreECDH.gen_key {curve_name = "secp256r1";}
+    (PK_ECDH(pk), SK_ECDH(sk))
 
 let getsigalg = function
     | None -> "NONEwithECDSA"
@@ -161,15 +150,14 @@ let getsigalg = function
         | _ -> failwith "Hash algorithm not supported with ECDSA"
 
 let ECDSA_sign (sk : CoreKeys.ecdhskey) (ahash : sighash option) (t : text) =
-    let (D, parms) = sk
-    let curve, ecdom, basep = CoreECDH.getcurve parms.curve_name
+    let curve, ecdom, basep = CoreECDH.getcurve "secp256r1"
     let signer = SignerUtilities.GetSigner(getsigalg ahash)
-    signer.Init(true, new ECPrivateKeyParameters(bytes_to_bigint D, ecdom))
+    signer.Init(true, new ECPrivateKeyParameters(bytes_to_bigint sk, ecdom))
     signer.BlockUpdate(cbytes t, 0, length t)
     abytes (signer.GenerateSignature())
 
-let ECDSA_verify ((P, parms) : CoreKeys.ecdhpkey) (h : sighash option) (t : text) (s : sigv) =
-    let curve, ecdom, basep = CoreECDH.getcurve parms.curve_name
+let ECDSA_verify (P : CoreKeys.ecdhpkey) (h : sighash option) (t : text) (s : sigv) =
+    let curve, ecdom, basep = CoreECDH.getcurve "secp256r1"
     let signer = SignerUtilities.GetSigner(getsigalg h)
     let ECPx = new FpFieldElement(curve.Q, bytes_to_bigint P.ecx)
     let ECPy = new FpFieldElement(curve.Q, bytes_to_bigint P.ecy)

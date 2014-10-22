@@ -77,7 +77,8 @@ let sampleDH dhp (gx:DHGroup.elt) (gy:DHGroup.elt) =
     #endif
 
 let coerceDH (dhp:dhparams) (gx:DHGroup.elt) (gy:DHGroup.elt) b = ConcreteDHPMS(b) 
+let coerceECDH (dhe:ecdhparams) (gx:ECGroup.point) (gy:ECGroup.point) b = ConcreteDHPMS(b) 
 
 type pms = 
   | RSAPMS of RSAKey.pk * ProtocolVersion * rsapms
-  | DHPMS of bytes * bytes * elt * elt * dhpms
+  | DHPMS of CommonDH.parameters * CommonDH.element * CommonDH.element * dhpms
