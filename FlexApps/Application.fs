@@ -105,8 +105,8 @@ let main argv =
 //    printf "DHE server_with_client_auth finished\n";
 
     (* Metrics for DH parameters of ServerKeyExchange *)
-    printf "Running Metrics for DH parameters\n";
-    Metrics_DHE.client_alexa_DHE("list.data");
+//    printf "Running Metrics for DH parameters\n";
+//    Metrics_DHE.run_multi("list.data");
 
     log.Info("STOP Running FlexTLS scenario");
     ignore (System.Console.ReadLine());
