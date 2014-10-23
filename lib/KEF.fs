@@ -53,6 +53,13 @@ let private accessDHPMS (p:bytes) (g:bytes) (gx:DHGroup.elt) (gy:DHGroup.elt) (p
   #endif
   | ConcreteDHPMS(b) -> b 
 
+let private accessECDHPMS (p:ecdhparams) (gx:ECGroup.point) (gy:ECGroup.point) (pms:dhpms) = 
+  match pms with 
+  #if ideal
+  | IdealDHPMS(b) -> b.seed
+  #endif
+  | ConcreteDHPMS(b) -> b 
+
 let private accessPMS (pms:PMS.pms) =
   match pms with
   | PMS.RSAPMS(pk,cv,rsapms) ->  accessRSAPMS pk cv rsapms
@@ -61,6 +68,11 @@ let private accessPMS (pms:PMS.pms) =
         {CommonDH.dhe_p = Some gx; CommonDH.dhe_ec = None;},
         {CommonDH.dhe_p = Some gy; CommonDH.dhe_ec = None;},
         dhpms) -> accessDHPMS p g gx gy dhpms
+  | PMS.DHPMS(
+        CommonDH.DHP_EC(ecp),
+        {CommonDH.dhe_ec = Some gx; CommonDH.dhe_p = None;},
+        {CommonDH.dhe_ec = Some gy; CommonDH.dhe_p = None;},
+        dhpms) -> accessECDHPMS ecp gx gy dhpms
   | _ -> failwith "(impossible)"
 
 #if ideal

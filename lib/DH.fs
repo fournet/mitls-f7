@@ -61,12 +61,12 @@ let genKey (dhp : parameters) : element * secret =
 let serverGenDH filename dhdb minSize =
     let (dhdb,dhp) = defaultDHparams filename dhdb minSize in
     let (e,s) = genKey (DHP_P(dhp)) in 
-    (dhdb,DHP_P dhp, e, s)
+    (Some dhdb, DHP_P dhp, e, s)
 
 let serverGenECDH curve =
     let dhp = DHP_EC(getParams curve) in
     let (e,s) = genKey dhp in
-    (dhp, e, s)
+    ((None : DHDB.dhdb option), dhp, e, s)
 
 let clientGenExp (dhp : parameters) (gs : element) =
     let (gc,c) = genKey dhp in

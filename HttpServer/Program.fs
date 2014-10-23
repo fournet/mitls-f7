@@ -19,6 +19,7 @@ let tlsoptions sessionDBDir dhDBDir serverName clientName = {
 
     TLSInfo.ciphersuites =
         TLSConstants.cipherSuites_of_nameList [
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
             TLSConstants.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA;
             TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
             TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
@@ -49,7 +50,7 @@ let tlsoptions sessionDBDir dhDBDir serverName clientName = {
     TLSInfo.dhDefaultGroupFileName = Path.Combine(dhDBDir, "default-dh.pem")
     TLSInfo.dhPQMinLength = TLSInfo.defaultConfig.dhPQMinLength
 
-    TLSInfo.ecdhGroups = TLSInfo.defaultConfig.ecdhGroups
+    TLSInfo.ecdhGroups =  TLSInfo.defaultConfig.ecdhGroups
 }
 
 type options = {

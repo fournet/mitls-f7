@@ -1314,7 +1314,10 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
         (*KB DH-PMS-KEM (server 1) *)
         let (dhdb, dhp, gx, x) = 
             if isECDHECipherSuite si.cipher_suite then
-                failwith "No ECDH"
+                let curve = match si.extensions.ne_supported_curves with
+                | Some (c :: _) -> c
+                | _ -> failwith "(impossible)" in
+                DH.serverGenECDH curve
             else
                 let parameters_filename = state.poptions.dhDefaultGroupFileName in
                 let ops = state.poptions in
@@ -1322,7 +1325,9 @@ let prepare_server_output_full_DHE (ci:ConnectionInfo) state si certAlgs sExtL l
                 DH.serverGenDH parameters_filename state.dhdb dhstrength  in
 
         //~ pms-KEM: (dhp,gx),((dhp,gx),x) = keygen_DHE()
-        let state = {state with dhdb = dhdb} in
+        let state = match dhdb with
+        | Some x -> {state with dhdb = x}
+        | None -> state in
 
         let dheB = CommonDH.serializeKX dhp gx in
         let toSign = si.init_crand @| si.init_srand @| dheB in
@@ -1372,7 +1377,9 @@ let prepare_server_output_full_DH_anon (ci:ConnectionInfo) (state:hs_state) (si:
     let ops = state.poptions in
     let dhstrength = ops.dhPQMinLength in
     let (dhdb, dhp, y, x) = DH.serverGenDH default_params_filename state.dhdb dhstrength in
-    let state = {state with dhdb = dhdb} in
+    let state = match dhdb with
+    | Some x -> {state with dhdb = x}
+    | None -> state in
 
     let serverKEXB = serverKeyExchangeBytes_DH_anon dhp y in
  

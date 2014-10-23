@@ -466,11 +466,12 @@ let clientKEXExplicitBytes_DH y =
     messageBytes HT_client_key_exchange yb
 
 let parseClientKEXExplicit_DH dhp data =
-    if length data >= 2 then
-        match vlparse 2 data with
+    let kxlen = match dhp with CommonDH.DHP_EC _ -> 1 | CommonDH.DHP_P _ -> 2 in
+    if length data >= kxlen then
+        match vlparse kxlen data with
         | Error(z) -> Error(z)
         | Correct(y) ->
-            match CommonDH.checkElement dhp ({CommonDH.dhe_nil with dhe_p=Some y}) with
+            match CommonDH.checkElement dhp y with
             | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
             | Some(y) -> correct y
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")

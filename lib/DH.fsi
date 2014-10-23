@@ -11,8 +11,8 @@ open CommonDH
 val leak  : parameters -> element -> secret -> bytes
 val coerce: parameters -> element -> bytes -> secret
 
-val serverGenDH: string -> DHDB.dhdb -> nat * nat -> DHDB.dhdb * parameters * element * secret
-val serverGenECDH: ECGroup.ec_curve -> parameters * element * secret
+val serverGenDH: string -> DHDB.dhdb -> nat * nat -> DHDB.dhdb option * parameters * element * secret
+val serverGenECDH: ECGroup.ec_curve -> DHDB.dhdb option * parameters * element * secret
 
 val clientGenExp: parameters -> element -> (element * PMS.dhpms)
 val serverExp: parameters -> element -> element -> secret -> PMS.dhpms 

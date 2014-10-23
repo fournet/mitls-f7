@@ -55,8 +55,23 @@ let getcurve =
     | "secp521r1" -> secp521r1
     | _ -> failwith "Unknown curve"
 
+let ptlength =
+    function
+    | "secp256r1" -> 32
+    | "secp384r1" -> 48
+    | "secp521r1" -> 66
+    | _ -> failwith "Unknown curve"
+
 let bytes_to_bigint (b : bytes) = new BigInteger(1, cbytes b)
-let bytes_of_bigint (b : BigInteger) = abytes (b.ToByteArrayUnsigned())
+let bytes_of_bigint (b : BigInteger) (p:ecdhparams) =
+    let rec pad (b:bytes) =
+        function
+        | n when n>0 -> pad ((abyte 0uy) @| b) (n-1)
+        | _ -> b in
+    let cl = ptlength p.curve_name in
+    let b = abytes (b.ToByteArrayUnsigned()) in
+    let l = length b in
+    pad b (cl-l)
 
 let gen_key (p:ecdhparams) : (ecdhskey * ecdhpkey) =
     let curve, ecdom, basep = getcurve p.curve_name
@@ -68,8 +83,8 @@ let gen_key (p:ecdhparams) : (ecdhskey * ecdhpkey) =
     let sk = (keys.Private :?> ECPrivateKeyParameters)
     let x = pk.Q.X.ToBigInteger()
     let y = pk.Q.Y.ToBigInteger()
-    let pub = { ecx = bytes_of_bigint x; ecy = bytes_of_bigint y; }
-    let priv = bytes_of_bigint sk.D
+    let pub = { ecx = bytes_of_bigint x p; ecy = bytes_of_bigint y p; }
+    let priv = abytes (sk.D.ToByteArrayUnsigned())
     (priv, pub)
 
 let serialize (p:ecpoint) : bytes =
@@ -81,4 +96,17 @@ let agreement (p:ecdhparams) (sk : ecdhskey) (pk : ecdhpkey) : bytes =
     let puby = new FpFieldElement(curve.Q, bytes_to_bigint pk.ecy)
     let pubP = new FpPoint(curve, pubx, puby)
     let mul = pubP.Multiply(bytes_to_bigint sk)
-    serialize {ecx = bytes_of_bigint (mul.X.ToBigInteger()); ecy = bytes_of_bigint (mul.Y.ToBigInteger());}
+    bytes_of_bigint (mul.X.ToBigInteger()) p
+
+let is_on_curve (p:ecdhparams) (e:ecpoint) : bool =
+    try
+        let curve, ecdom, basep = getcurve p.curve_name
+        let X = bytes_to_bigint e.ecx
+        let Y = bytes_to_bigint e.ecy
+        if X.CompareTo(curve.Q) > 0 || Y.CompareTo(curve.Q) > 0 then false
+        else
+            (* ADL: TODO XXX Looks like this doesn't check that the point is on curve *)
+            let P = curve.CreatePoint(X, Y, false)
+            not P.IsInfinity
+    with
+        _ -> false

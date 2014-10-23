@@ -15,3 +15,4 @@ val getcurve : string -> FpCurve * ECDomainParameters * FpPoint
 val gen_key : ecdhparams -> ecdhskey * ecdhpkey
 val agreement : ecdhparams -> ecdhskey -> ecdhpkey -> bytes
 val serialize : ecdhpkey -> bytes
+val is_on_curve : ecdhparams -> ecpoint -> bool

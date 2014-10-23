@@ -35,12 +35,18 @@ let get_ec (e:element) =
 let serializeKX (p:parameters) (e:element) : bytes =
     match p with
     | DHP_P(dhp) -> (vlbytes 2 dhp.dhp) @| (vlbytes 2 dhp.dhg) @| (vlbytes 2 (get_p e))
-    | DHP_EC(ecp) -> abyte 0uy
+    | DHP_EC(ecp) ->
+           abyte 3uy (* Named curve *)
+        @| ECGroup.curve_id ecp
+        @| ECGroup.serialize_point ecp (get_ec e)
 
-let checkElement (p:parameters) (e:element) : element option =
+let checkElement (p:parameters) (b:bytes) : element option =
     match p with
     | DHP_P(dhp) ->
-        match DHGroup.checkElement dhp (get_p e) with
+        match DHGroup.checkElement dhp b with
         | None -> None
         | Some x -> Some {dhe_nil with dhe_p = Some x}
-    | DHP_EC(ecp) -> None
+    | DHP_EC(ecp) ->
+        match ECGroup.parse_point ecp b with
+        | None -> None
+        | Some p -> Some {dhe_nil with dhe_ec = Some p}

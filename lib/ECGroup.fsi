@@ -20,3 +20,6 @@ type point_format =
 type point = ecpoint
 
 val getParams : ec_curve -> ecdhparams
+val curve_id : ecdhparams -> bytes
+val serialize_point : ecdhparams -> point -> bytes
+val parse_point : ecdhparams -> bytes -> point option
