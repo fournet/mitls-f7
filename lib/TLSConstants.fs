@@ -261,7 +261,7 @@ let nullCipherSuite = NullCipherSuite
 let isNullCipherSuite cs =
     cs = NullCipherSuite
 
-let cipherSuiteBytes cs = 
+let cipherSuiteBytes cs =
     match cs with
     | NullCipherSuite                                     -> abyte2 ( 0x00uy, 0x00uy )
                                                       
@@ -302,7 +302,7 @@ let cipherSuiteBytes cs =
     | CipherSuite (ECDHE_RSA, CS_MtE (AES_128_CBC, SHA))  -> abyte2 ( 0xc0uy, 0x13uy )
     | CipherSuite (ECDHE_RSA, CS_MtE (AES_128_CBC, SHA256)) -> abyte2 ( 0xc0uy, 0x27uy )
     | CipherSuite (ECDHE_RSA, CS_MtE (AES_256_CBC, SHA))  -> abyte2 ( 0xc0uy, 0x14uy )
-    | CipherSuite (ECDHE_RSA, CS_MtE (AES_256_CBC, SHA256)) -> abyte2 ( 0xc0uy, 0x28uy )
+    | CipherSuite (ECDHE_RSA, CS_MtE (AES_256_CBC, SHA384)) -> abyte2 ( 0xc0uy, 0x28uy )
 
     | CipherSuite (ECDHE_RSA, CS_AEAD(AES_128_GCM, SHA256)) -> abyte2 ( 0xc0uy, 0x2fuy )
     | CipherSuite (ECDHE_RSA, CS_AEAD(AES_256_GCM, SHA384)) -> abyte2 ( 0xc0uy, 0x30uy )

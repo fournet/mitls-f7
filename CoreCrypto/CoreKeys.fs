@@ -16,7 +16,11 @@ type dhparams = { dhp : bytes; dhg : bytes; dhq : bytes; safe_prime : bool }
 type dhpkey = bytes
 type dhskey = bytes
 
+type ecprime = { ecp_prime : string; ecp_order : string; ecp_a : string; ecp_b : string; ecp_gx : string; ecp_gy : string; ecp_bytelen : int; ecp_id : bytes; }
+type eccurve =
+| EC_PRIME of ecprime
+
 type ecpoint = { ecx : bytes; ecy : bytes; }
-type ecdhparams = { curve_name: string; }
+type ecdhparams = { curve: eccurve; compression: bool; }
 type ecdhpkey = ecpoint
 type ecdhskey = bytes

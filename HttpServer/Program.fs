@@ -20,14 +20,24 @@ let tlsoptions sessionDBDir dhDBDir serverName clientName = {
     TLSInfo.ciphersuites =
         TLSConstants.cipherSuites_of_nameList [
             TLSConstants.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
             TLSConstants.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA;
-            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
-            TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
             TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
             TLSConstants.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA;
-            TLSConstants.TLS_RSA_WITH_RC4_128_SHA;
-            TLSConstants.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+            TLSConstants.TLS_RSA_WITH_AES_256_GCM_SHA384;
             TLSConstants.TLS_RSA_WITH_AES_128_GCM_SHA256;
+            TLSConstants.TLS_RSA_WITH_AES_256_CBC_SHA256;
+            TLSConstants.TLS_RSA_WITH_AES_256_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_RC4_128_SHA;
         ]
 
     TLSInfo.compressions = [ TLSConstants.NullCompression ]

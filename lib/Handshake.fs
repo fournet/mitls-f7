@@ -1039,7 +1039,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     InError(x,y,state)
                 | Correct(v) ->
                     let (dhdb, dhp, y, alg, signature) = v in
-                    let state = {state with dhdb = dhdb} in
+                    let state = match dhdb with Some x -> {state with dhdb = x} | None -> state in
                     let vk = Cert.get_chain_public_signing_key si.serverID alg in
                     match vk with
                     | Error z ->
@@ -1069,7 +1069,7 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                 | Correct(v) ->
                     let (dhdb,dhp,y) = v in
                     let log = log @| to_log in
-                    let state = {state with dhdb = dhdb} in
+                    let state = match dhdb with Some x -> {state with dhdb = x} | None -> state in
                     recv_fragment_client ci 
                       {state with pstate = PSClient(ServerHelloDoneDH_anon(si,dhp,y,log))} 
                       agreedVersion)

@@ -14,7 +14,7 @@ type clientExtension =
     | CE_extended_ms
     | CE_extended_padding
     | CE_ec_point_format of list<ECGroup.point_format>
-    | CE_ec_curves of list<ECGroup.ec_curve>
+    | CE_ec_curves of list<ECGroup.ec_all_curve>
 
 let sameClientExt a b =
     match a,b with
@@ -102,15 +102,15 @@ let compile_curve_list l =
     let rec aux =
         function
         | [] -> empty_bytes
-        | ECGroup.ECC_P256 :: r -> abyte2 (00uy, 23uy) @| aux r
-        | ECGroup.ECC_P384 :: r -> abyte2 (00uy, 24uy) @| aux r
-        | ECGroup.ECC_P521 :: r -> abyte2 (00uy, 25uy) @| aux r
-        | ECGroup.ECC_EXPLICIT_PRIME :: r -> abyte2 (255uy, 01uy) @| aux r
-        | ECGroup.ECC_EXPLICIT_BINARY :: r -> abyte2 (255uy, 02uy) @| aux r
-        | ECGroup.ECC_UNKNOWN(x) :: r -> bytes_of_int 2 x @| aux r
+        | ECGroup.EC_CORE c :: r ->
+            let cid = ECGroup.curve_id (ECGroup.getParams c) in
+            cid @| aux r
+        | ECGroup.EC_EXPLICIT_PRIME :: r -> abyte2 (255uy, 01uy) @| aux r
+        | ECGroup.EC_EXPLICIT_BINARY :: r -> abyte2 (255uy, 02uy) @| aux r
+        | ECGroup.EC_UNKNOWN(x) :: r -> bytes_of_int 2 x @| aux r
     in vlbytes 2 (aux l)
 
-let parse_curve_list b : Result<list<ECGroup.ec_curve>> =   
+let parse_curve_list b : Result<list<ECGroup.ec_all_curve>> =   
     let rec aux b =
         if equalBytes b empty_bytes then ExOK([])
         elif (length b) % 2 = 1 then ExFail(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Bad encoding of curve list")
@@ -120,12 +120,12 @@ let parse_curve_list b : Result<list<ECGroup.ec_curve>> =
             | ExOK(l) ->
                 let cur =
                     (match cbyte2 u with
-                    | (0uy, 23uy) -> ECGroup.ECC_P256
-                    | (0uy, 24uy) -> ECGroup.ECC_P384
-                    | (0uy, 25uy) -> ECGroup.ECC_P521
-                    | (255uy, 1uy) -> ECGroup.ECC_EXPLICIT_PRIME
-                    | (255uy, 2uy) -> ECGroup.ECC_EXPLICIT_BINARY
-                    | _ -> ECGroup.ECC_UNKNOWN(int_of_bytes u))
+                    | (0uy, 23uy) -> ECGroup.EC_CORE ECGroup.ECC_P256
+                    | (0uy, 24uy) -> ECGroup.EC_CORE ECGroup.ECC_P384
+                    | (0uy, 25uy) -> ECGroup.EC_CORE ECGroup.ECC_P521
+                    | (255uy, 1uy) -> ECGroup.EC_EXPLICIT_PRIME
+                    | (255uy, 2uy) -> ECGroup.EC_EXPLICIT_BINARY
+                    | _ -> ECGroup.EC_UNKNOWN(int_of_bytes u))
                 in
                     if List.exists ((=)cur) l then ExFail(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Duplicate curve")
                     else ExOK(cur :: l))
@@ -286,6 +286,11 @@ let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD =
 #if TLSExt_extendedPadding
     let res = CE_extended_padding :: res in
 #endif
+    let res = 
+        let curves = List.map (fun x -> ECGroup.EC_CORE x) cfg.ecdhGroups in
+        if curves <> [] && List.exists (fun x -> isECDHECipherSuite x) cfg.ciphersuites then
+            CE_ec_point_format([ECGroup.ECP_UNCOMPRESSED]) :: CE_ec_curves(curves) :: res
+        else res in
     res
 
 let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negotiatedExtensions>=
@@ -380,7 +385,14 @@ let parseServerExtension head payload =
             correct(SE_extended_padding)
         else
             Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension")
-    | (_,_) ->
+    | (0uy, 0x0Buy) -> // Supported EC point format
+        (match vlparse 1 payload with
+        | Error (x,y) -> Error(x,y)
+        | Correct(ecpf) ->
+            (match parse_ecpf_list ecpf with
+            | Error (x,y) -> Error(x,y)
+            | Correct(l) -> correct (SE_ec_point_format(l))))
+        | (_,_) ->
         // A server can never send an extension the client doesn't support
         Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extension")
 
@@ -446,8 +458,13 @@ let clientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyD
     | CE_ec_curves l ->
         if resuming then neg
         else
-            let nl = List.filter (fun x -> List.exists ((=)x) cfg.ecdhGroups) l in
-            {neg with ne_supported_curves = Some nl}
+            let rec okcurves = function
+            | ECGroup.EC_CORE(x) :: r ->
+                let rl = okcurves r in
+                if List.exists ((=)x) cfg.ecdhGroups then x::rl else rl
+            | x :: r -> okcurves r
+            | [] -> [] in
+            {neg with ne_supported_curves = Some (okcurves l)}
     | CE_ec_point_format l ->
         if resuming then neg
         else

@@ -3,6 +3,7 @@ open Bytes
 
 (* ------------------------------------------------------------------------ *)
 open System
+open CoreKeys
 
 open Org.BouncyCastle.Math
 open Org.BouncyCastle.Crypto
@@ -136,8 +137,31 @@ let DSA_gen () =
      SK_DSA (bytes_of_bigint skey.X, bytes_of_dsaparams dsaparams.P dsaparams.Q dsaparams.G))
 
 (* ------------------------------------------------------------------------ *)
+
+let p256 = 
+    let p = new BigInteger("115792089210356248762697446949407573530086143415290314195533631308867097853951", 10)
+    let curve =
+        new FpCurve(p,
+                    p.Subtract(new BigInteger("3",10)),
+                    new BigInteger("5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b", 16))
+    let basepx = new FpFieldElement(p, new BigInteger("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", 16))
+    let basepy = new FpFieldElement(p, new BigInteger("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", 16))
+    let basep = new FpPoint(curve, basepx, basepy)
+    let dom = new ECDomainParameters(curve, basep, new BigInteger("115792089210356248762697446949407573529996955224135760342422259061068512044369"))
+    (curve, dom, basep)
+
 let ECDSA_gen () =
-    let sk, pk = CoreECDH.gen_key {curve_name = "secp256r1";}
+    let p256 = EC_PRIME {
+            ecp_prime = "115792089210356248762697446949407573530086143415290314195533631308867097853951";
+            ecp_order = "115792089210356248762697446949407573529996955224135760342422259061068512044369";
+            ecp_a = "115792089210356248762697446949407573530086143415290314195533631308867097853948"; // p-3
+            ecp_b = "5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b";
+            ecp_gx = "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296";
+            ecp_gy = "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5";
+            ecp_bytelen = 32;
+            ecp_id = abyte2 (0uy, 23uy);
+        } in
+    let sk, pk = CoreECDH.gen_key {curve = p256; CoreKeys.compression = false; }
     (PK_ECDH(pk), SK_ECDH(sk))
 
 let getsigalg = function
@@ -150,14 +174,14 @@ let getsigalg = function
         | _ -> failwith "Hash algorithm not supported with ECDSA"
 
 let ECDSA_sign (sk : CoreKeys.ecdhskey) (ahash : sighash option) (t : text) =
-    let curve, ecdom, basep = CoreECDH.getcurve "secp256r1"
+    let curve, ecdom, basep = p256
     let signer = SignerUtilities.GetSigner(getsigalg ahash)
     signer.Init(true, new ECPrivateKeyParameters(bytes_to_bigint sk, ecdom))
     signer.BlockUpdate(cbytes t, 0, length t)
     abytes (signer.GenerateSignature())
 
 let ECDSA_verify (P : CoreKeys.ecdhpkey) (h : sighash option) (t : text) (s : sigv) =
-    let curve, ecdom, basep = CoreECDH.getcurve "secp256r1"
+    let curve, ecdom, basep = p256
     let signer = SignerUtilities.GetSigner(getsigalg h)
     let ECPx = new FpFieldElement(curve.Q, bytes_to_bigint P.ecx)
     let ECPy = new FpFieldElement(curve.Q, bytes_to_bigint P.ecy)

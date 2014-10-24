@@ -129,6 +129,6 @@ let serverExp (dhp : parameters) (gs : element) (gc : element) (sk : secret) =
 
 let serialize (e:element) : bytes =
     match e with
-    | {dhe_p = Some x; dhe_ec = None; } -> x
-    | {dhe_p = None; dhe_ec = Some p; } -> CoreECDH.serialize p
+    | {dhe_p = Some x; dhe_ec = None; } -> TLSConstants.vlbytes 2 x
+    | {dhe_p = None; dhe_ec = Some p; } -> TLSConstants.vlbytes 1 (CoreECDH.serialize p)
     | _ -> failwith "(impossible)"

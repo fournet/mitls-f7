@@ -462,8 +462,7 @@ let parseClientKeyExchange_RSA si data =
     parseEncpmsVersion si.protocol_version data 
 
 let clientKEXExplicitBytes_DH y =
-    let yb = vlbytes 2 y in
-    messageBytes HT_client_key_exchange yb
+    messageBytes HT_client_key_exchange y
 
 let parseClientKEXExplicit_DH dhp data =
     let kxlen = match dhp with CommonDH.DHP_EC _ -> 1 | CommonDH.DHP_P _ -> 2 in
@@ -525,7 +524,18 @@ let parseDigitallySigned expectedAlgs payload pv =
 
 let parseDHEParams cs dhdb minSize payload =
     if isECDHECipherSuite cs then
-        failwith "Can't decode ECDHE yet!"
+        if length payload >= 7 then 
+            let (curve, point) = split payload 3 in
+            match ECGroup.parse_curve curve with
+            | None -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Unsupported curve")
+            | Some(ecp) ->
+                match vlsplit 1 point with
+                | Error(z) -> Error(z)
+                | Correct(rawpoint, payload) ->
+                    match ECGroup.parse_point ecp rawpoint with
+                    | None -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Invalid EC point received")
+                    | Some p -> correct (None, CommonDH.DHP_EC(ecp), {CommonDH.dhe_nil with dhe_ec = Some p;}, payload)
+        else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else
         if length payload >= 2 then 
             match vlsplit 2 payload with
@@ -556,7 +566,7 @@ let parseDHEParams cs dhdb minSize payload =
                             // AP: and this looks like linked to the following error.
                             let p' = dhp.dhp in
     #endif
-                            correct (dhdb, CommonDH.DHP_P(dhp), {CommonDH.dhe_nil with dhe_p = Some y}, payload)
+                            correct (Some dhdb, CommonDH.DHP_P(dhp), {CommonDH.dhe_nil with dhe_p = Some y}, payload)
                 else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
