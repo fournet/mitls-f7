@@ -69,7 +69,8 @@ let parse_cmd () =
         clientname    = defaultCN;
         localaddr     = IPEndPoint(IPAddress.Loopback, defaultPort);
         sessiondir    = Path.Combine(mypath, defaultDB);
-        dhdir         = Path.Combine(mypath, defaultDH); }
+        dhdir         = Path.Combine(mypath, defaultDH);
+        insecure      = false }
 
     let isclient = ref false
 
@@ -126,6 +127,9 @@ let parse_cmd () =
     let o_server_name (name : string) =
         options := { !options with servername = name }
 
+    let o_insecure () =
+        options := { !options with insecure = true}
+
     let o_list () =
         let all = [ ("ciphers"     , Array.toList (Array.map (fun (k, _) -> k) cs_map));
                     ("TLS versions", Array.toList (Array.map (fun (k, _) -> k) vr_map)); ]
@@ -149,7 +153,8 @@ let parse_cmd () =
             "--client-name"  , ArgType.String o_client_name, "\tTLS client name (default: None, anonymous client)"
             "--server-name"  , ArgType.String o_server_name, (sprintf "\tTLS server name (default: %s)" defaultSN)
             "--list"         , ArgType.Unit   o_list       , "\t\t\tPrint supported versions/ciphers and exit"
-            "--client"       , ArgType.Set    isclient     , "\t\t\tAct as a client instead of a server" ]
+            "--client"       , ArgType.Set    isclient     , "\t\t\tAct as a client instead of a server"
+            "--insecure"     , ArgType.Unit   o_insecure   , "\t\t\tDo not check peer's certificate"]
         in
             specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
 
