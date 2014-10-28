@@ -26,13 +26,13 @@ open FlexHandshake
 /// </summary>
 /// <param name="fsh"> FServerHello message record </param>
 /// <returns> Ciphersuite </returns>
-let getSuite (fsh:FServerHello) =
-    match fsh.suite with
+let getCiphersuite (fsh:FServerHello) =
+    match fsh.ciphersuite with
     | None ->
         (match FlexConstants.names_of_cipherSuites TLSInfo.defaultConfig.ciphersuites with
         | Error(x,y) -> failwith "Cannot extract ciphersuites from the default config"
         | Correct(css) -> css.Head)
-    | Some(suite) -> suite
+    | Some(ciphersuite) -> ciphersuite
 
 /// <summary>
 /// Extract the protocol version from a FServerHello message record
@@ -91,7 +91,7 @@ type FlexServerHello =
                     init_srand = fsh.rand;
                     protocol_version = getPV fsh;
                     sessionID = fsh.sid;
-                    cipher_suite = cipherSuite_of_name (getSuite fsh);
+                    cipher_suite = cipherSuite_of_name (getCiphersuite fsh);
                     compression = fsh.comp;
                     extensions = negExts;
                   } 
@@ -150,7 +150,7 @@ type FlexServerHello =
                 let fsh = { pv = Some(pv);
                             rand = sr;
                             sid = sid;
-                            suite = Some(csname);
+                            ciphersuite = Some(csname);
                             comp = cm;
                             ext = Some(sextL);
                             payload = to_log; 
@@ -160,7 +160,7 @@ type FlexServerHello =
                 LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
                 LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
                 LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
-                LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" fsh.suite);
+                LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" fsh.ciphersuite);
                 LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
                 LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
@@ -187,7 +187,7 @@ type FlexServerHello =
         let fsh = { pv = Some(si.protocol_version);
                     rand = si.init_srand;
                     sid = si.sessionID;
-                    suite = Some(csname);
+                    ciphersuite = Some(csname);
                     comp = si.compression;
                     ext = Some(sExtL);
                     payload = payload;
@@ -211,7 +211,7 @@ type FlexServerHello =
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let cfg = defaultArg cfg defaultConfig in
 
-        let st,si,fsh = FlexServerHello.send(st,nsc.si,fch.pv,fch.suites,fch.comps,(FlexClientHello.getExt fch),fsh,cfg,fp=fp) in
+        let st,si,fsh = FlexServerHello.send(st,nsc.si,fch.pv,fch.ciphersuites,fch.comps,(FlexClientHello.getExt fch),fsh,cfg,fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;
@@ -264,12 +264,12 @@ type FlexServerHello =
 
                 // Ciphersuite
                 let nCs =
-                    match fsh.suite with
+                    match fsh.ciphersuite with
                     | None ->
                         (match Handshake.negotiate (cipherSuites_of_nameList csuites) cfg.ciphersuites with
                         | Some(nCs) -> nCs
                         | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation"))
-                    | Some(suite) -> TLSConstants.cipherSuite_of_name suite
+                    | Some(ciphersuite) -> TLSConstants.cipherSuite_of_name ciphersuite
                 in
                 
                 // Compression
@@ -323,7 +323,7 @@ type FlexServerHello =
         LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
         LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
         LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
-        LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" fsh.suite);
+        LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" fsh.ciphersuite);
         LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
         st,fsh

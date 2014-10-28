@@ -40,7 +40,7 @@ type Handshake_full_RSA =
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
-            suites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
+            ciphersuites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
@@ -85,13 +85,13 @@ type Handshake_full_RSA =
         let st,nsc,fch   = FlexClientHello.receive(st) in
 
         // Sanity check: our preferred ciphersuite is there
-        if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.suites) then
+        if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.ciphersuites) then
             failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
         else
 
         // Ensure we send our preferred ciphersuite
         let fsh = { FlexConstants.nullFServerHello with 
-            suite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+            ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
 
         let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc,fsh) in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
@@ -138,7 +138,7 @@ type Handshake_full_RSA =
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
-            suites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
+            ciphersuites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
@@ -192,14 +192,14 @@ type Handshake_full_RSA =
         let st,nsc,fch   = FlexClientHello.receive(st) in
 
         // Sanity check: our preferred ciphersuite and protovol version are there
-        if ( not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.suites) ) || fch.pv <> TLS_1p2 then
+        if ( not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.ciphersuites) ) || fch.pv <> TLS_1p2 then
             failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
         else
 
         // Ensure we send our preferred ciphersuite
         let sh = { FlexConstants.nullFServerHello with
             pv = Some(TLS_1p2); 
-            suite = Some(TLS_RSA_WITH_AES_128_CBC_SHA) } in
+            ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA) } in
 
         let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in

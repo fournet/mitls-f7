@@ -171,7 +171,7 @@ type FClientHello = {
     /// <summary> Session identifier. A non-empty byte array indicates that the client wants resumption </summary>
     sid: bytes;
     /// <summary> List of ciphersuite names supported by the client </summary>
-    suites: list<cipherSuiteName>;
+    ciphersuites: list<cipherSuiteName>;
     /// <summary> List of compression mechanisms supported by the client </summary>
     comps: list<Compression>;
     /// <summary> List of extensions proposed by the client; None: user asks for default; Some<list>: user gives value. A returned client hello always has Some<list>. </summary>
@@ -191,7 +191,7 @@ type FServerHello = {
     /// <summary> Session identifier. A non-empty byte array indicates that the server accepted resumption </summary>
     sid: bytes;
     /// <summary> Ciphersuite selected by the server </summary>
-    suite: option<cipherSuiteName>;
+    ciphersuite: option<cipherSuiteName>;
     /// <summary> Compression selected by the server </summary>
     comp: Compression;
     /// <summary> List of extensions agreed by the server </summary>

@@ -45,11 +45,11 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     (* sid = Is there a sid ? If no, get the default empty one *)
     let sid = fch.sid in
     
-    (* suites = Is there some ? If no, check config *)
-    // FIXME : There is a corner case when the user sets fch suites to default because it should have priority over cfg.ciphersuites
-    let suites =
-        match fch.suites = FlexConstants.nullFClientHello.suites with
-        | false -> fch.suites
+    (* ciphersuites = Is there some ? If no, check config *)
+    // FIXME : There is a corner case when the user sets fch ciphersuites to default because it should have priority over cfg.ciphersuites
+    let ciphersuites =
+        match fch.ciphersuites = FlexConstants.nullFClientHello.ciphersuites with
+        | false -> fch.ciphersuites
         | true -> (match FlexConstants.names_of_cipherSuites cfg.ciphersuites with
             | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(csl) -> csl)
@@ -66,7 +66,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     (* Update cfg with correct informations *)
     let cfg = { cfg with 
                 maxVer = pv;
-                ciphersuites = TLSConstants.cipherSuites_of_nameList suites;
+                ciphersuites = TLSConstants.cipherSuites_of_nameList ciphersuites;
                 compressions = comps;
               }
     in
@@ -84,7 +84,7 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
     let fch = { pv = pv;
                 rand = rand;
                 sid = sid;
-                suites = suites;
+                ciphersuites = ciphersuites;
                 comps = comps;
                 ext = ext;
                 payload = empty_bytes;
@@ -136,7 +136,7 @@ type FlexClientHello =
             | Correct (pv,cr,sid,clientCipherSuites,cm,cextL) -> 
                 let csnames = match FlexConstants.names_of_cipherSuites clientCipherSuites with
                     | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-                    | Correct(suites) -> suites
+                    | Correct(ciphersuites) -> ciphersuites
                 in
                 let cextL =
                     match parseClientExtensions cextL clientCipherSuites with
@@ -147,7 +147,7 @@ type FlexClientHello =
                             pv = pv;
                             rand = cr;
                             sid = sid;
-                            suites = csnames;
+                            ciphersuites = csnames;
                             comps = cm;
                             ext = Some(cextL);
                             payload = to_log;
@@ -166,7 +166,7 @@ type FlexClientHello =
                 LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fch.pv);
                 LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
                 LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
-                LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
+                LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.ciphersuites);
                 LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
                 LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fch));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
@@ -245,7 +245,7 @@ type FlexClientHello =
         LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fch.pv);
         LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
         LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
-        LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.suites);
+        LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.ciphersuites);
         LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fch));
         st,fch

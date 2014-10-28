@@ -39,7 +39,7 @@ type Metrics_DHE =
 
         // Ensure we use DHE
         let fch = {FlexConstants.nullFClientHello with
-            suites = FlexConstants.defaultDHECiphersuites } in
+            ciphersuites = FlexConstants.defaultDHECiphersuites } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
@@ -50,17 +50,18 @@ type Metrics_DHE =
         let kexdh = 
             match nsc.keys.kex with
             | DH(kexdh) -> kexdh
+            | _ -> failwith "This metric has only been implemented for DHE"
         in
         kexdh.pg,kexdh.gy
 
-    static member client_alexa_DHE (filePath:string) : unit =
+    static member run_multi (filePath:string) : unit =
         System.IO.File.ReadLines(filePath) |>
-        Seq.iter(fun x -> 
-            printfn  "%s" x;
+        Seq.iter(fun domain -> 
+            printfn  "%s" domain;
             try
-                let domain = "www." + x in 
+                let domain = "www." + domain in 
                 let (p,g),gx = Metrics_DHE.client(domain) in
-                let outFile = new System.IO.StreamWriter(domain + ".data") in
+                let outFile = new System.IO.StreamWriter("data/dhparams/" + domain) in
                 outFile.WriteLine(sprintf "Website : %s" domain);
                 outFile.WriteLine(sprintf "DH p : %s" (Bytes.hexString(p)));
                 outFile.WriteLine(sprintf "DH g : %s" (Bytes.hexString(g)));

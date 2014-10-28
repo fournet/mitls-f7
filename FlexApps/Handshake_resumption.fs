@@ -44,19 +44,19 @@ type Handshake_resumption =
         // Start TCP connection with the server
         let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
 
-        let suite = 
+        let ciphersuite = 
             match name_of_cipherSuite si.cipher_suite with
             | Error(ad,x) -> failwith x
             | Correct(csn) -> csn
         in
-        let fch          = {FlexConstants.nullFClientHello with sid = si.sessionID; suites = [suite] } in
+        let fch          = {FlexConstants.nullFClientHello with sid = si.sessionID; ciphersuites = [ciphersuite] } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
 
         // Check whether the server authorized or refused the resumption and if the data is matching previous session
         if not (si.sessionID = fsh.sid) then failwith "Server refused resumption" else
-        if not (suite = getSuite fsh) then failwith "Server resumption data doesn't match previous session" else
+        if not (ciphersuite = getSuite fsh) then failwith "Server resumption data doesn't match previous session" else
         if not (si.protocol_version = getPV fsh) then failwith "Server resumption data doesn't match previous session" else
 
         // Install the new keys according to the previous master secret

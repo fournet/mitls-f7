@@ -126,7 +126,7 @@ type FlexConstants =
         pv = defaultConfig.maxVer;
         rand = empty_bytes; 
         sid = empty_bytes;
-        suites = (match FlexConstants.names_of_cipherSuites defaultConfig.ciphersuites with
+        ciphersuites = (match FlexConstants.names_of_cipherSuites defaultConfig.ciphersuites with
         | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct(s) -> s);
         comps = defaultConfig.compressions;
@@ -145,7 +145,7 @@ type FlexConstants =
         pv = None;
         rand = empty_bytes; 
         sid = empty_bytes;
-        suite = None;
+        ciphersuite = None;
         comp = defaultConfig.compressions.Head;
         ext = None;
         payload = empty_bytes;

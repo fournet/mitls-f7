@@ -46,12 +46,12 @@ type LateCCS =
             let st,nsc,fch   = FlexClientHello.receive(st) in
 
             // Sanity check: our preferred ciphersuite is there
-            if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.suites) then
+            if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.ciphersuites) then
                 failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
             else
 
             let fsh = { FlexConstants.nullFServerHello with 
-                suite = Some(TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+                ciphersuite = Some(TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
             let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc,fsh) in
             let log         = fch.payload @| fsh.payload in
             let st, nsc, fc = FlexCertificate.send(st, Server, chain, nsc) in
