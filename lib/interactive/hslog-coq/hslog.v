@@ -1326,7 +1326,7 @@ Inductive ClientLogBeforeCertificateRequestRSA
 : Prop :=
 | ClientLogBeforeCertificateRequestRSA_E si' lg' of
      lg = lg' ++ CertificateMsg si.(si_serverID)
-   & EqExceptServerID si si'
+   & EqExceptServerID si' si
    & ClientLogBeforeServerCertificate si' lg'.
 
 (* -------------------------------------------------------------------- *)
@@ -1336,7 +1336,7 @@ Inductive ClientLogBeforeServerKeyExchangeDHE
 : Prop :=
 | ClientLogBeforeServerKeyExchangeDHE_E si' lg' of
      lg = lg' ++ CertificateMsg si.(si_serverID)
-   & EqExceptServerID si si'
+   & EqExceptServerID si' si
    & ClientLogBeforeServerCertificate si' lg'.
 
 (* -------------------------------------------------------------------- *)
@@ -1860,7 +1860,12 @@ Proof. by move/MessageBytes_inj2_take; invert_log E 1%N => /val_inj. Qed.
 Lemma ServerHelloMsgI pv1 pv2 rd1 rd2 id1 id2 cs1 cs2 cp1 cp2 ex1 ex2:
         ServerHelloMsg pv1 rd1 id1 cs1 cp1 ex1
       = ServerHelloMsg pv2 rd2 id2 cs2 cp2 ex2
-  -> [/\ pv1 = pv2, rd1 = rd2, id1 = id2, cs1 = cs2 & cp1 = cp2 ].
+  ->    pv1 = pv2
+     /\ rd1 = rd2
+     /\ id1 = id2
+     /\ cs1 = cs2
+     /\ cp1 = cp2
+     /\ take (2^24 - 70)%N ex1 = take (2^24 - 70)%N ex2.
 Proof.
   move/MessageBytes_inj2_take.
   invert_log E 0%N => /PVBytes_inj ->.
@@ -1868,7 +1873,7 @@ Proof.
   invert_log E 0%N => /val_inj ->.
   invert_log E 0%N => /VCSBytes_inj ->.
   invert_log E 0%N => /CPBytes_inj ->.
-  done.
+  by move: (2^24)%N => n; rewrite -!subn1 -!subnDA.
 Qed.
 
 (* -------------------------------------------------------------------- *)
@@ -1956,7 +1961,7 @@ Proof.
         do 10! move=> ?; move=> _ lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> -> -> -> -> ->.
+        case/ServerHelloMsgI=> -> []-> []-> []-> []-> _.
         case/catIL; move/CertificateMsgI=> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
         do 2! move/catILs; case/catIL; move/CertificateMsgI=> ->.
@@ -1967,7 +1972,7 @@ Proof.
         do 10! move=> ?; move=> _ lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> pveq -> -> eqcs ->; rewrite pveq eqcs.
+        case/ServerHelloMsgI=> pveq []-> []-> []eqcs []-> _; rewrite pveq eqcs.
         case/catIL; move/CertificateMsgI=> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
         do 2! move/catILs; case/catIL; move/CertificateMsgI=> ->.
@@ -1989,7 +1994,7 @@ Proof.
         do 15! move=> ?; move=> auth_si2' lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> -> -> -> -> ->; case/catIL.
+        case/ServerHelloMsgI=> -> []-> []-> []-> []-> _; case/catIL.
         move/CertificateMsgI=> ->; do 3! move/catILs.
         case/catIL; move/CertificateMsgI=> ->.
         rewrite -[si_client_auth si2]eq2 eq_auth.
@@ -2000,7 +2005,7 @@ Proof.
         do 15! move=> ?; move=> auth_si2' lg2'E'; move: lg2'E.
         rewrite lg2'E' -!catA /EQSI eq2; case/catIL.
         move/ClientHelloMsgI; rewrite !eq2 => ->; case/catIL.
-        case/ServerHelloMsgI=> eqpv -> -> eqcs ->; case/catIL.
+        case/ServerHelloMsgI=> eqpv []-> []-> []eqcs []-> _; case/catIL.
         move/CertificateMsgI=> ->; do 3! move/catILs.
         case/catIL; move/CertificateMsgI=> ->; rewrite eqpv eqcs.
         case/catIL=> _; move/CertificateVerifyMsgI=> h.
@@ -2020,7 +2025,7 @@ Proof.
       - by rewrite (negbTE Nauth_si2).
       move=> pv' sess cs' cm' ex1' ex2' encpms' _.
       rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
-      case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
+      case/catIL=> /ServerHelloMsgI []-> []-> []-> []-> []-> _.
       case/catIL=> /CertificateMsgI ->.
       by do !split=> //; case: H.
     * by move=> clog slog; move: eqpms;
@@ -2037,7 +2042,7 @@ Proof.
       - by rewrite (negbTE Nauth_si2).
       move=> pv' sess cs' cm' ex1' ex2' p' g' y' dhea' dhesign' gc.
       move=> _; rewrite {}lgE /EQSI; case/catIL => /ClientHelloMsgI ->.
-      case/catIL=> /ServerHelloMsgI [-> -> -> -> ->].
+      case/catIL=> /ServerHelloMsgI []-> []-> []-> []-> []-> _.
       by case/catIL=> /CertificateMsgI ->; do !split=>//; case: H.
 Qed.
 
@@ -2050,7 +2055,7 @@ Proof.
   case=> {lg} lg svd ->; case=> {lg} lg ex2 ->; case=> pv csid cs cm ex1 ->.
   case=> lg' svd' eq [cpv csl cml ex1' ex2' csid' lg'E]; subst lg'.
   move: eq; rewrite -!catA; case/catIL; move/ClientHelloMsgI=> ->.
-  by case/catIL; case/ServerHelloMsgI=> _ -> ->.
+  by case/catIL; case/ServerHelloMsgI=> _ []-> []->.
 Qed.
 
 (* ==================================================================== *)

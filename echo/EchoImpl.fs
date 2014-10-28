@@ -16,6 +16,7 @@ type options = {
     localaddr     : IPEndPoint;
     sessiondir    : string;
     dhdir         : string;
+    insecure      : bool;
 }
 
 (* ------------------------------------------------------------------------ *)
@@ -52,7 +53,7 @@ let tlsoptions (options : options) = {
 }
 
 (* ------------------------------------------------------------------------ *)
-let client_handler ctxt (peer : Socket) = fun () ->
+let client_handler ctxt (peer : Socket) insecure = fun () ->
     use peer     = peer
     let endpoint = peer.RemoteEndPoint
 
@@ -60,8 +61,14 @@ let client_handler ctxt (peer : Socket) = fun () ->
     try
         try
             use netstream = new NetworkStream (peer, false)
-            use tlsstream = new TLStream.TLStream
-                              (netstream, ctxt, TLStream.TLSServer, false)
+            use tlsstream =
+                if insecure then
+                    new TLStream.TLStream
+                              (netstream, ctxt, TLStream.TLSServer,
+                               own = false, certQuery = (fun _ _ -> true))
+                else
+                    new TLStream.TLStream
+                              (netstream, ctxt, TLStream.TLSServer, own = false)
 
             Console.Error.WriteLine((tlsstream.GetSessionInfoString()));
 
@@ -96,7 +103,7 @@ let server (options : options) =
         while true do
             let peer = listener.AcceptSocket () in
                 try
-                    let thread = new Thread(new ThreadStart(client_handler ctxt peer)) in
+                    let thread = new Thread(new ThreadStart(client_handler ctxt peer options.insecure)) in
                         thread.IsBackground <- true;
                         thread.Start()
                 with
@@ -117,7 +124,11 @@ let client (options : options) =
 
     socket.Connect(options.localaddr)
 
-    use tlsstream = new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient)
+    use tlsstream =
+        if options.insecure then
+            new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient, certQuery = (fun _ _ -> true))
+        else
+            new TLStream.TLStream(socket.GetStream(), ctxt, TLStream.TLSClient)
 
     Console.Error.WriteLine((tlsstream.GetSessionInfoString()));
 

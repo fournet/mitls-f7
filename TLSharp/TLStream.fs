@@ -10,10 +10,11 @@ type TLSBehavior =
     | TLSClient
     | TLSServer
 
-type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
+type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID, ?certQuery) =
     inherit Stream()
 
     let own = defaultArg own true
+    let certQuery = defaultArg certQuery (fun q advice -> advice)
 
     let mutable inbuf   : bytes = empty_bytes
     let mutable outbuf  : bytes = empty_bytes
@@ -42,7 +43,7 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
         | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
-            if advice then
+            if certQuery q advice then
                 match TLS.authorize conn q with
                 | TLS.ReadError (adOpt,err) ->
                     closed <- true
@@ -83,7 +84,7 @@ type TLStream (s:System.IO.Stream, options, b, ?own, ?sessionID) =
         | TLS.Fatal ad -> closed <- true; raise (IOException(sprintf "TLS-HS: Received fatal alert: %A" ad))
         | TLS.Warning (conn,ad) -> closed <- true; raise (IOException(sprintf "TLS-HS: Received warning alert: %A" ad))
         | TLS.CertQuery (conn,q,advice) ->
-            if advice then
+            if certQuery q advice then
                 match TLS.authorize conn q with
                 | TLS.ReadError (adOpt,err) ->
                     closed <- true
