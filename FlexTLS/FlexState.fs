@@ -36,6 +36,11 @@ type FlexState =
         let read_s = {st.read with keys = keys} in
         {st with read = read_s}
 
+    /// <summary> Update the state with verify data on the reading channel </summary>
+    static member updateIncomingVerifyData (st:state) (verify_data:bytes) : state =
+        let read_s = {st.read with verify_data = Some(verify_data)} in
+        {st with read = read_s}
+
     /// <summary> Update the state with the initial epoch protocol version </summary>
     /// <remarks> The user typically doesn't need to invoke this function. It is invoked when receiving a
     /// ServerHello message, to set the protocol version for the first handshake on a connection. </remarks>
@@ -94,8 +99,14 @@ type FlexState =
         {st with write = write_s}
 
     /// <summary> Update the state with new keys </summary>
+    /// <remarks> This field is informational only; the new keys will not be used to encrypt future messages.
     static member updateOutgoingKeys (st:state) (keys:keys) : state =
         let write_s = {st.write with keys = keys} in
+        {st with write = write_s}
+
+    /// <summary> Update the state with verify data on the writing channel </summary>
+    static member updateOutgoingVerifyData (st:state) (verify_data:bytes) : state =
+        let write_s = {st.write with verify_data = Some(verify_data)} in
         {st with write = write_s}
 
     /// <summary> Update the state initial epoch protocol version </summary>

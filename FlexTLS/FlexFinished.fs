@@ -11,6 +11,7 @@ open HandshakeMessages
 
 open FlexTypes
 open FlexConstants
+open FlexState
 open FlexHandshake
 open FlexSecrets
 
@@ -47,7 +48,8 @@ type FlexFinished =
                 LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(payload)));
                 failwith (perror __SOURCE_FILE__ __LINE__ "unexpected payload length"))
             else
-                // Check the verify data value
+                // Store then check the verify data value
+                let st = FlexState.updateIncomingVerifyData st verify_data in
                 if not (verify_data = payload) then failwith "Log message received doesn't match" else
                 let ff = {  verify_data = payload; 
                             payload = to_log;
@@ -103,6 +105,7 @@ type FlexFinished =
                 | Some(vd) -> vd
         in
         let payload,ff = FlexFinished.prepare verify_data in
+        let st = FlexState.updateOutgoingVerifyData st verify_data in
         let st = FlexHandshake.send(st,payload,fp) in
 
         LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
