@@ -56,7 +56,7 @@ type Handshake_resumption =
 
         // Check whether the server authorized or refused the resumption and if the data is matching previous session
         if not (si.sessionID = fsh.sid) then failwith "Server refused resumption" else
-        if not (ciphersuite = getSuite fsh) then failwith "Server resumption data doesn't match previous session" else
+        if not (ciphersuite = getCiphersuite fsh) then failwith "Server resumption data doesn't match previous session" else
         if not (si.protocol_version = getPV fsh) then failwith "Server resumption data doesn't match previous session" else
 
         // Install the new keys according to the previous master secret
