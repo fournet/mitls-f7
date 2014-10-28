@@ -189,7 +189,7 @@ type FServerHello = {
     /// <summary> Server random bytes </summary>
     rand: bytes;
     /// <summary> Session identifier. A non-empty byte array indicates that the server accepted resumption </summary>
-    sid: bytes;
+    sid: option<bytes>;
     /// <summary> Ciphersuite selected by the server </summary>
     ciphersuite: option<cipherSuiteName>;
     /// <summary> Compression selected by the server </summary>

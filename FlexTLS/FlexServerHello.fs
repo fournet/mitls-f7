@@ -55,6 +55,16 @@ let getExt (fsh:FServerHello) =
     | Some(l) -> l
 
 /// <summary>
+/// Extract the session id from a FServerHello message record
+/// </summary>
+/// <param name="fsh"> FServerHello message record </param>
+/// <returns> Session ID, or an empty byte array if None</returns>
+let getSID (fsh:FServerHello) =
+    match fsh.sid with
+    | None -> empty_bytes
+    | Some(sid) -> sid
+
+/// <summary>
 /// Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing
 /// </summary>
 /// <param name="st"> State of the current Handshake </param>
@@ -90,7 +100,7 @@ type FlexServerHello =
         let si  = { nsc.si with 
                     init_srand = fsh.rand;
                     protocol_version = getPV fsh;
-                    sessionID = fsh.sid;
+                    sessionID = getSID fsh;
                     cipher_suite = cipherSuite_of_name (getCiphersuite fsh);
                     compression = fsh.comp;
                     extensions = negExts;
@@ -149,7 +159,7 @@ type FlexServerHello =
                 in
                 let fsh = { pv = Some(pv);
                             rand = sr;
-                            sid = sid;
+                            sid = Some(sid);
                             ciphersuite = Some(csname);
                             comp = cm;
                             ext = Some(sextL);
@@ -157,12 +167,12 @@ type FlexServerHello =
                           } 
                 in
                 let st = fillStateEpochInitPvIFIsEpochInit st fsh in
-                LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
-                LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" (getPV fsh));
+                LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(getSID fsh)));
                 LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
-                LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" fsh.ciphersuite);
+                LogManager.GetLogger("file").Info(sprintf "--- Ciphersuite : %A" (getCiphersuite fsh));
                 LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
-                LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
+                LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fsh));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 st,fsh,negExts
             )
@@ -186,7 +196,7 @@ type FlexServerHello =
         let payload = HandshakeMessages.serverHelloBytes si si.init_srand ext in
         let fsh = { pv = Some(si.protocol_version);
                     rand = si.init_srand;
-                    sid = si.sessionID;
+                    sid = Some(si.sessionID);
                     ciphersuite = Some(csname);
                     comp = si.compression;
                     ext = Some(sExtL);
@@ -256,10 +266,9 @@ type FlexServerHello =
                 
                 // SessionID
                 let sid =
-                    if fsh.sid = empty_bytes then
-                        Nonce.random 32
-                    else
-                        fsh.sid
+                    match fsh.sid with
+                    | None -> Nonce.random 32
+                    | Some(sid) -> sid
                 in
 
                 // Ciphersuite
@@ -320,12 +329,12 @@ type FlexServerHello =
         let st = FlexHandshake.send(st,fsh.payload,fp) in
 
         let ext = serverExtensionsBytes sExtL in
-        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fsh.pv);
-        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fsh.sid)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" (getPV fsh));
+        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(getSID fsh)));
         LogManager.GetLogger("file").Debug(sprintf "--- Server Random : %s" (Bytes.hexString(fsh.rand)));
-        LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" fsh.ciphersuite);
+        LogManager.GetLogger("file").Info(sprintf  "--- Ciphersuite : %A" (getCiphersuite fsh));
         LogManager.GetLogger("file").Debug(sprintf "--- Compression : %A" fsh.comp);
-        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" fsh.ext);
+        LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fsh));
         st,fsh
 
     end
