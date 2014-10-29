@@ -179,8 +179,23 @@ type FlexClientHello =
         let cfg = defaultArg cfg defaultConfig in
         
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
-        let st,fch = FlexClientHello.send(st,(getPV fch),(getCiphersuites fch),(getCompressions fch),fch.rand,(getSID fch),(getExt fch),fp) in
-        
+        let extl =
+            match fch.ext with
+            | Some(extl) -> extl
+            | None -> 
+                let shadow_ci = { role = Client;
+                           id_rand = fch.rand;
+                           id_in =  st.read.epoch;
+                           id_out = st.write.epoch}
+                in
+                let verify_data =
+                    match st.write.verify_data with
+                    | None -> empty_bytes
+                    | Some(vd) -> vd
+                in
+                TLSExtensions.prepareClientExtensions cfg shadow_ci verify_data
+        in
+        let st,fch = FlexClientHello.send(st,(getPV fch),(getCiphersuites fch),(getCompressions fch),fch.rand,(getSID fch),extl,fp) in
         let ext_offers = 
             match TLSExtensions.getOfferedDHGroups (getExt fch) with
             | None -> []
