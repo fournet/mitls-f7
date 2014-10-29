@@ -11,7 +11,6 @@ open FlexApps
 open Attack_Alert
 open Attack_FragmentClientHello
 open Attack_EarlyCCS
-open Attack_JavaLateCCS
 open Attack_TripleHandshake
 open Handshake_full_RSA
 open Handshake_full_DHE
@@ -27,9 +26,6 @@ let main argv =
     (* Log facility*)
     let log = LogManager.GetLogger("file") in
     log.Info("START Running FlexTLS scenario");
-
-    (* OpenSSL tests *)
-//    OpenSSL_tests.opensslTest 2443 "127.0.0.1" 2444;
 
     (* Alert attack *)
 //    let st = Attack_Alert.run "www.google.com" in
@@ -48,14 +44,6 @@ let main argv =
     (* Early CCS attack MITM *)
 //    let sst,cst = Attack_EarlyCCS.runMITM("0.0.0.0","127.0.0.1",4433) in
 //    printf "Early CCS attack finished\n";
-
-    (* Java Late CCS attack as Server *)
-//    let sst,cst = LateCCS.server("0.0.0.0") in
-//    printf "Java Late CCS attack finished\n";
-
-    (* Java Late CCS attack MITM *)
-//    let sst,cst = LateCCS.runMITM("www.inria.fr") in
-//    printf "Java Late CCS attack finished\n";
 
     (* Triple handshake attack MITM *)
 //    let sst,cst = Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"127.0.0.1",4433) in
