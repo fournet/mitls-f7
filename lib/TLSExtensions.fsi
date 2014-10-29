@@ -26,6 +26,7 @@ val serverExtensionsBytes: list<serverExtension> -> bytes
 // Extension-specific
 val checkClientRenegotiationInfoExtension: config -> list<clientExtension> -> cVerifyData -> bool
 val checkServerRenegotiationInfoExtension: config -> list<serverExtension> -> cVerifyData -> sVerifyData -> bool
+val isClientRenegotiationInfo: clientExtension -> option<cVerifyData>
 
 #if TLSExt_sessionHash
 val hasExtendedMS: negotiatedExtensions -> bool

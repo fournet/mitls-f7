@@ -101,9 +101,11 @@ type FlexClientHello =
     /// Receive a ClientHello message from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
+    /// <param name="checkVD"> Flag to enable or ignore the check on the verify data if the renegotiation indication is in the client extension list </param>
     /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
-    static member receive (st:state) : state * nextSecurityContext * FClientHello =
+    static member receive (st:state, ?checkVD:bool) : state * nextSecurityContext * FClientHello =
         LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.receive");
+        let checkVD = defaultArg checkVD true in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_client_hello  ->    
@@ -117,7 +119,13 @@ type FlexClientHello =
                 let cextL =
                     match parseClientExtensions cextL clientCipherSuites with
                     | Error(ad,x) -> failwith x
-                    | Correct(extL)-> extL
+                    | Correct(extL)-> 
+                        if checkVD then
+                            if TLSExtensions.checkClientRenegotiationInfoExtension ({TLSInfo.defaultConfig with safe_renegotiation = true}) extL st.read.verify_data then 
+                                extL
+                            else
+                                 failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Check for renegotiation verify data failed" ))
+                        else extL
                 in
                 let fch = { FlexConstants.nullFClientHello with
                             pv = Some(pv);
@@ -162,7 +170,7 @@ type FlexClientHello =
         let exts = clientExtensionsBytes cExtL in
         let css = TLSConstants.cipherSuites_of_nameList csnames in
         let payload = HandshakeMessages.clientHelloBytes2 pv css comps crand csid exts in
-        { FlexConstants.nullFClientHello with rand = crand; sid = Some(csid); ext = Some(cExtL); payload = payload }
+        { pv = Some(pv); ciphersuites = Some(csnames); comps = Some(comps); rand = crand; sid = Some(csid); ext = Some(cExtL); payload = payload }
 
 
     /// <summary>
@@ -178,6 +186,12 @@ type FlexClientHello =
         let fch = defaultArg fch FlexConstants.nullFClientHello in
         let cfg = defaultArg cfg defaultConfig in
         
+        let crand =
+            if fch.rand = empty_bytes then
+                (Nonce.mkHelloRandom (getPV fch))
+            else
+                fch.rand
+        in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
         let extl =
             match fch.ext with
@@ -188,14 +202,9 @@ type FlexClientHello =
                            id_in =  st.read.epoch;
                            id_out = st.write.epoch}
                 in
-                let verify_data =
-                    match st.write.verify_data with
-                    | None -> empty_bytes
-                    | Some(vd) -> vd
-                in
-                TLSExtensions.prepareClientExtensions cfg shadow_ci verify_data
+                TLSExtensions.prepareClientExtensions cfg shadow_ci st.write.verify_data
         in
-        let st,fch = FlexClientHello.send(st,(getPV fch),(getCiphersuites fch),(getCompressions fch),fch.rand,(getSID fch),extl,fp) in
+        let st,fch = FlexClientHello.send(st,(getPV fch),(getCiphersuites fch),(getCompressions fch),crand,(getSID fch),extl,fp) in
         let ext_offers = 
             match TLSExtensions.getOfferedDHGroups (getExt fch) with
             | None -> []
@@ -205,7 +214,7 @@ type FlexClientHello =
                 in
                 List.map dh13 gl
         in
-        let si  = { FlexConstants.nullSessionInfo with init_crand = fch.rand } in
+        let si  = { FlexConstants.nullSessionInfo with init_crand = crand } in
         let nsc = { FlexConstants.nullNextSecurityContext with
                     si = si;
                     crand = fch.rand; 

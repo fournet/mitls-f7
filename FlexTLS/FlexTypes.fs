@@ -115,7 +115,7 @@ type channel = {
     /// <summary> Initially chosen protocol version before negotiation </summary>
     epoch_init_pv: ProtocolVersion;
     /// <summary> Verify data of the channel </summary>
-    verify_data: option<bytes>;
+    verify_data: bytes;
     /// <summary> Buffer for messages of the Handshake content type </summary>
     hs_buffer: bytes;
     /// <summary> Buffer for messages of the Alert content type </summary>

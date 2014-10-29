@@ -38,7 +38,7 @@ type FlexState =
 
     /// <summary> Update the state with verify data on the reading channel </summary>
     static member updateIncomingVerifyData (st:state) (verify_data:bytes) : state =
-        let read_s = {st.read with verify_data = Some(verify_data)} in
+        let read_s = {st.read with verify_data = verify_data} in
         {st with read = read_s}
 
     /// <summary> Update the state with the initial epoch protocol version </summary>
@@ -106,7 +106,7 @@ type FlexState =
 
     /// <summary> Update the state with verify data on the writing channel </summary>
     static member updateOutgoingVerifyData (st:state) (verify_data:bytes) : state =
-        let write_s = {st.write with verify_data = Some(verify_data)} in
+        let write_s = {st.write with verify_data = verify_data} in
         {st with write = write_s}
 
     /// <summary> Update the state initial epoch protocol version </summary>
