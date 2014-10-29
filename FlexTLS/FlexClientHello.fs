@@ -217,7 +217,7 @@ type FlexClientHello =
         LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(getSID fch)));
         LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
         LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" (getCiphersuites fch));
-        LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" (getCompressions));
+        LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" (getCompressions fch));
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fch));
         st,fch
     
