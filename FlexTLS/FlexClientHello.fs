@@ -179,7 +179,7 @@ type FlexClientHello =
         let cfg = defaultArg cfg defaultConfig in
         
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
-        let st,fch = FlexClientHello.send(st,(getPV fch),(getCiphersuites fch),(getCompressions fch),fch.rand,(getSID fch),cextL,fp) in
+        let st,fch = FlexClientHello.send(st,(getPV fch),(getCiphersuites fch),(getCompressions fch),fch.rand,(getSID fch),(getExt fch),fp) in
         
         let ext_offers = 
             match TLSExtensions.getOfferedDHGroups (getExt fch) with
