@@ -89,6 +89,9 @@ other Unix platforms the Mono store is used.
 The following are guidelines on how to import certificates into
 the store, according to your platform.
 
+For missing files at runtime of a DH scenario please create a 
+default-dh.pem file with static parameters.
+
 ** 4.a. Microsoft Windows
 
 Add a CA certificate to the store by using the certutil command
