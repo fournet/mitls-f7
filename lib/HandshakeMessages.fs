@@ -311,6 +311,18 @@ let clientHelloBytes poptions crand session ext =
     let data = cVerB @| (random @| (csessB @| (ccsuitesB @| (ccompmethB @| ext)))) in
     messageBytes HT_client_hello data
 
+//BB TODO : Merge clientHelloBytes and clientHelloBytes2
+let clientHelloBytes2 pv css comps crand session ext =
+    let cVerB      = versionBytes pv in
+    let random     = crand in
+    let csessB     = vlbytes 1 session in
+    let csb = cipherSuitesBytes css in
+    let ccsuitesB  = vlbytes 2 csb in
+    let cmb = compressionMethodsBytes comps in
+    let ccompmethB = vlbytes 1 cmb in
+    let data = cVerB @| (random @| (csessB @| (ccsuitesB @| (ccompmethB @| ext)))) in
+    messageBytes HT_client_hello data
+
 let serverHelloBytes sinfo srand ext = 
     let verB = versionBytes sinfo.protocol_version in
     let sidB = vlbytes 1 sinfo.sessionID in
