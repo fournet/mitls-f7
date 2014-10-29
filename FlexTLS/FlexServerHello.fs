@@ -134,8 +134,9 @@ type FlexServerHello =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record * Negociated extensions </returns>
-    static member receive (st:state, cextL:list<clientExtension>, ?IsResuming:bool) : state * FServerHello * negotiatedExtensions =
+    static member receive (st:state, cextL:list<clientExtension>, ?checkVD:bool, ?IsResuming:bool) : state * FServerHello * negotiatedExtensions =
         LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.reveive");
+        let checkVD = defaultArg checkVD true in
         let IsResuming = defaultArg IsResuming false in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
@@ -150,7 +151,10 @@ type FlexServerHello =
                 let sextL = 
                     match parseServerExtensions sexts with
                     | Error(ad,x) -> failwith x
-                    | Correct(sextL)-> sextL
+                    | Correct(sextL)-> 
+                        if not (checkVD && TLSExtensions.checkServerRenegotiationInfoExtension ({TLSInfo.defaultConfig with safe_renegotiation = true}) sextL st.write.verify_data st.read.verify_data) then 
+                            failwith (perror __SOURCE_FILE__ __LINE__ "Check for renegotiation verify data failed")
+                        else sextL
                 in
                 let negExts = 
                     match negotiateClientExtensions cextL sextL IsResuming cs with
@@ -221,7 +225,15 @@ type FlexServerHello =
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let cfg = defaultArg cfg defaultConfig in
 
-        let st,si,fsh = FlexServerHello.send(st,nsc.si,(getPV fsh),(FlexClientHello.getCiphersuites fch),(FlexClientHello.getCompressions fch),(FlexClientHello.getExt fch),fsh,cfg,fp=fp) in
+        let cvd,svd = 
+            match List.tryPick TLSExtensions.isClientRenegotiationInfo (FlexClientHello.getExt fch) with
+            | None -> empty_bytes,empty_bytes
+            | Some(_) -> 
+                if st.read.verify_data = empty_bytes || st.read.verify_data = empty_bytes then
+                    failwith (perror __SOURCE_FILE__ __LINE__ "Missing renegotiation indication while the client asked for it")
+                else st.read.verify_data,st.write.verify_data
+        in
+        let st,si,fsh = FlexServerHello.send(st,nsc.si,(getPV fsh),(FlexClientHello.getCiphersuites fch),(FlexClientHello.getCompressions fch),(FlexClientHello.getExt fch),fsh,cfg,(cvd,svd),fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;
