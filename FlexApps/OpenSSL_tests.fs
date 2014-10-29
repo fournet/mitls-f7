@@ -15,7 +15,7 @@ let opensslTest myport dst port =
     // Connect to victim
     let st,cfg = FlexConnection.clientOpenTcpConnection(dst,port=port) in
     // Forward the received client hello
-    let _ = FlexRecord.send(st.ns,st.write.epoch,st.write.record,TLSConstants.Handshake,ch.payload,ch.pv) in
+    let _ = FlexRecord.send(st.ns,st.write.epoch,st.write.record,TLSConstants.Handshake,ch.payload,(FlexClientHello.getPV ch)) in
 
     // ... add here additional standard HS messages ...
 

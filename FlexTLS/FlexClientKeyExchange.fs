@@ -60,7 +60,7 @@ type FlexClientKeyExchange =
     static member receiveRSA (st:state, nsc:nextSecurityContext, fch:FClientHello, ?checkPV:bool, ?sk:RSAKey.sk) : state * nextSecurityContext * FClientKeyExchange =
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk nsc.si.serverID in
-        FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv,checkPV,sk)
+        FlexClientKeyExchange.receiveRSA(st,nsc,FlexClientHello.getPV fch,checkPV,sk)
 
     /// <summary>
     /// Receive RSA ClientKeyExchange from the network stream
@@ -124,7 +124,7 @@ type FlexClientKeyExchange =
     /// <param name="fch"> Client hello containing the desired protocol version </param>
     /// <returns> FClientKeyExchange bytes * Updated state * FClientKeyExchange message record </returns>
     static member prepareRSA (st:state, nsc:nextSecurityContext, fch:FClientHello): bytes * state * nextSecurityContext * FClientKeyExchange =
-        FlexClientKeyExchange.prepareRSA(st,nsc,fch.pv)
+        FlexClientKeyExchange.prepareRSA(st,nsc,FlexClientHello.getPV fch)
 
     /// <summary>
     /// Prepare RSA ClientKeyExchange but will not send it to the network stream
@@ -190,7 +190,7 @@ type FlexClientKeyExchange =
     /// <returns> Updated state * FClientKeyExchange message record </returns>
     static member sendRSA (st:state, nsc:nextSecurityContext, fch:FClientHello, ?fp:fragmentationPolicy): state * nextSecurityContext * FClientKeyExchange =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        FlexClientKeyExchange.sendRSA(st,nsc,fch.pv,fp)
+        FlexClientKeyExchange.sendRSA(st,nsc,FlexClientHello.getPV fch,fp)
 
     /// <summary>
     /// Overload : Send RSA ClientKeyExchange to the network stream,

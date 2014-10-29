@@ -41,8 +41,8 @@ type Handshake_tls13 =
 
         // We want to ensure a ciphersuite
         let fch = {FlexConstants.nullFClientHello with
-            pv = cfg.maxVer;
-            ciphersuites = [TLS_DHE_RSA_WITH_AES_128_GCM_SHA256] } in
+            pv = Some(cfg.maxVer);
+            ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_GCM_SHA256]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch,cfg) in
         let st,nsc,fcks  = FlexClientKeyShare.send(st,nsc) in
@@ -87,7 +87,7 @@ type Handshake_tls13 =
         let st,_ = FlexConnection.serverOpenTcpConnection(address,cn,port,cfg.maxVer) in
 
         let st,nsc,fch   = FlexClientHello.receive(st) in
-        if not ( List.exists (fun x -> x = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) fch.ciphersuites ) then
+        if not ( List.exists (fun x -> x = TLS_DHE_RSA_WITH_AES_128_GCM_SHA256) (FlexClientHello.getCiphersuites fch)) then
             failwith (perror __SOURCE_FILE__ __LINE__ "Unsuitable ciphersuite")
         else
 

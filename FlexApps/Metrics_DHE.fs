@@ -39,7 +39,7 @@ type Metrics_DHE =
 
         // Ensure we use DHE
         let fch = {FlexConstants.nullFClientHello with
-            ciphersuites = FlexConstants.defaultDHECiphersuites } in
+            ciphersuites = Some(FlexConstants.defaultDHECiphersuites) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in

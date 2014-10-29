@@ -49,7 +49,7 @@ type Handshake_resumption =
             | Error(ad,x) -> failwith x
             | Correct(csn) -> csn
         in
-        let fch          = {FlexConstants.nullFClientHello with sid = si.sessionID; ciphersuites = [ciphersuite] } in
+        let fch          = {FlexConstants.nullFClientHello with sid = Some(si.sessionID); ciphersuites = Some([ciphersuite]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
@@ -97,7 +97,7 @@ type Handshake_resumption =
 
         // Retreive session information and master secret if resumption is possible
         let si,ms =
-            match SessionDB.select sDB fch.sid Client server_name with
+            match SessionDB.select sDB (FlexClientHello.getSID fch) Client server_name with
             | None -> failwith "Unable to resume a requested session"
             | Some(si,ams) -> si,(PRF.leak (msi si) ams)
         in

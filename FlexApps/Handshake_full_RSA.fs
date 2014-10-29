@@ -40,7 +40,7 @@ type Handshake_full_RSA =
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
-            ciphersuites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
+            ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
@@ -85,7 +85,7 @@ type Handshake_full_RSA =
         let st,nsc,fch   = FlexClientHello.receive(st) in
 
         // Sanity check: our preferred ciphersuite is there
-        if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.ciphersuites) then
+        if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) (FlexClientHello.getCiphersuites fch)) then
             failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
         else
 
@@ -138,7 +138,7 @@ type Handshake_full_RSA =
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
-            ciphersuites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
+            ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
@@ -192,7 +192,7 @@ type Handshake_full_RSA =
         let st,nsc,fch   = FlexClientHello.receive(st) in
 
         // Sanity check: our preferred ciphersuite and protovol version are there
-        if ( not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.ciphersuites) ) || fch.pv <> TLS_1p2 then
+        if ( not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) (FlexClientHello.getCiphersuites fch)) ) || (FlexClientHello.getPV fch) <> TLS_1p2 then
             failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
         else
 
@@ -208,7 +208,7 @@ type Handshake_full_RSA =
 
         // Client authentication
         let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-        let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,fch.pv) in
+        let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(st,nsc,(FlexClientHello.getPV fch)) in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fcreq.payload @| fshd.payload @| fcertC.payload @| fcke.payload in
         let st,fcver     = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
         let st,_,_       = FlexCCS.receive(st) in

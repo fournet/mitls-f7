@@ -221,7 +221,7 @@ type FlexServerHello =
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let cfg = defaultArg cfg defaultConfig in
 
-        let st,si,fsh = FlexServerHello.send(st,nsc.si,fch.pv,fch.ciphersuites,fch.comps,(FlexClientHello.getExt fch),fsh,cfg,fp=fp) in
+        let st,si,fsh = FlexServerHello.send(st,nsc.si,(getPV fsh),(FlexClientHello.getCiphersuites fch),(FlexClientHello.getCompressions fch),(FlexClientHello.getExt fch),fsh,cfg,fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;

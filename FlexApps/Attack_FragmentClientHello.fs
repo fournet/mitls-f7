@@ -39,7 +39,7 @@ type Attack_FragmentClientHello =
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
-            ciphersuites = [TLS_RSA_WITH_AES_128_CBC_SHA] } in
+            ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch,fp=fp) in
         let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
@@ -70,7 +70,7 @@ type Attack_FragmentClientHello =
 
         // Receive the Client Hello and check that the protocol version is high enough
         let sst,nsc,sch = FlexClientHello.receive(sst) in
-        if not (sch.pv = TLS_1p2 || sch.pv = TLS_1p1) then
+        if not (FlexClientHello.getPV sch = TLS_1p2 || FlexClientHello.getPV sch = TLS_1p1) then
             failwith "Fragmented ClientHello should use TLS > 1.0 to demonstrate the downgrade"
         else
                 

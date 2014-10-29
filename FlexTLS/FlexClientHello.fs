@@ -21,76 +21,57 @@ open FlexHandshake
 
 
 /// <summary>
-/// Establish a desired set of values from provided FClientHello record and config
+/// Extract the ciphersuites from a FClientHello message record
 /// </summary>
-/// <param name="fch"> Desired client hello </param>
-/// <param name="cfg"> Desired config </param>
-/// <returns> Updated FClientHello record * Updated config </returns>
-let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * config =
-    (* pv = Is there some pv ? If no, check config maxVer *)
-    // FIXME : There is a corner case when the user sets fch pv to default because it should have priority over cfg.maxVer
-    let pv =
-        match fch.pv = FlexConstants.nullFClientHello.pv with
-        | false -> fch.pv
-        | true -> cfg.maxVer
-    in
+/// <param name="ch"> FClientHello message record </param>
+/// <returns> Ciphersuites </returns>
+let getCiphersuites (ch:FClientHello) =
+    match ch.ciphersuites with
+    | None ->
+        (match FlexConstants.names_of_cipherSuites TLSInfo.defaultConfig.ciphersuites with
+        | Error(x,y) -> failwith "Cannot extract ciphersuites from the default config"
+        | Correct(css) -> css)
+    | Some(ciphersuites) -> ciphersuites
 
-    (* rand = Is there random bytes ? If no, create some *)
-    let rand =
-        match fch.rand = FlexConstants.nullFClientHello.rand with
-        | false -> fch.rand
-        | true -> Nonce.mkHelloRandom(pv)
-    in
+/// <summary>
+/// Extract the protocol version from a FClientHello message record
+/// </summary>
+/// <param name="ch"> FClientHello message record </param>
+/// <returns> Protocol version </returns>
+let getPV (ch:FClientHello) =
+    match ch.pv with
+    | None -> TLSInfo.defaultConfig.maxVer
+    | Some(pv) -> pv
 
-    (* sid = Is there a sid ? If no, get the default empty one *)
-    let sid = fch.sid in
-    
-    (* ciphersuites = Is there some ? If no, check config *)
-    // FIXME : There is a corner case when the user sets fch ciphersuites to default because it should have priority over cfg.ciphersuites
-    let ciphersuites =
-        match fch.ciphersuites = FlexConstants.nullFClientHello.ciphersuites with
-        | false -> fch.ciphersuites
-        | true -> (match FlexConstants.names_of_cipherSuites cfg.ciphersuites with
-            | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct(csl) -> csl)
-    in
+/// <summary>
+/// Extract the compression list from a FClientHello message record
+/// </summary>
+/// <param name="ch"> FClientHello message record </param>
+/// <returns> List of client supported compressions </returns>
+let getCompressions (ch:FClientHello) =
+    match ch.comps with
+    | None -> TLSInfo.defaultConfig.compressions
+    | Some(l) -> l
 
-    (* comps = Is there some ? If no, check config *)
-    // FIXME : There is a corner case when the user sets fch comps to default because it should have priority over cfg.compressions
-    let comps =
-        match fch.comps = FlexConstants.nullFClientHello.comps with
-        | false -> fch.comps
-        | true -> cfg.compressions
-    in
+/// <summary>
+/// Extract the extension list from a FClientHello message record
+/// </summary>
+/// <param name="ch"> FClientHello message record </param>
+/// <returns> List of client extensions </returns>
+let getExt (ch:FClientHello) =
+    match ch.ext with
+    | None -> []
+    | Some(l) -> l
 
-    (* Update cfg with correct informations *)
-    let cfg = { cfg with 
-                maxVer = pv;
-                ciphersuites = TLSConstants.cipherSuites_of_nameList ciphersuites;
-                compressions = comps;
-              }
-    in
-
-    (* ext = Is there some ? If no, generate using config *)
-    let ext =
-        match fch.ext with
-        | Some(_) -> fch.ext
-        | None -> 
-            let ci = initConnection Client rand in
-            Some(prepareClientExtensions cfg ci empty_bytes)
-    in
-
-    (* Update fch with correct informations and sets payload to empty bytes *)
-    let fch = { pv = pv;
-                rand = rand;
-                sid = sid;
-                ciphersuites = ciphersuites;
-                comps = comps;
-                ext = ext;
-                payload = empty_bytes;
-              } 
-    in
-    (fch,cfg)
+/// <summary>
+/// Extract the session id from a FClientHello message record
+/// </summary>
+/// <param name="ch"> FClientHello message record </param>
+/// <returns> Session ID, or an empty byte array if None</returns>
+let getSID (ch:FClientHello) =
+    match ch.sid with
+    | None -> empty_bytes
+    | Some(sid) -> sid
 
 /// <summary>
 /// Update channel's Epoch Init Protocol version to the one chosen by the user if we are in an InitEpoch, else do nothing 
@@ -100,20 +81,14 @@ let fillFClientHelloANDConfig (fch:FClientHello) (cfg:config) : FClientHello * c
 /// <returns> Updated state of the handshake </returns>
 let fillStateEpochInitPvIFIsEpochInit (st:state) (fch:FClientHello) : state =
     if TLSInfo.isInitEpoch st.read.epoch then
-        let st = FlexState.updateIncomingRecordEpochInitPV st fch.pv in
-        let st = FlexState.updateOutgoingRecordEpochInitPV st fch.pv in
+        let st = FlexState.updateIncomingRecordEpochInitPV st (getPV fch) in
+        let st = FlexState.updateOutgoingRecordEpochInitPV st (getPV fch) in
         st
     else
         st
 
-/// <summary>
-/// Get the extension list from the given client hello, or an empty list if None.
-/// </summary>
-/// <param name="ch">The given client hello</param>
-let getExt (ch:FClientHello) =
-    match ch.ext with
-    | None -> []
-    | Some(e) -> e
+
+
 
 /// <summary>
 /// Module receiving, sending and forwarding TLS Client Hello messages.
@@ -144,11 +119,11 @@ type FlexClientHello =
                     | Correct(extL)-> extL
                 in
                 let fch = { FlexConstants.nullFClientHello with
-                            pv = pv;
+                            pv = Some(pv);
                             rand = cr;
-                            sid = sid;
-                            ciphersuites = csnames;
-                            comps = cm;
+                            sid = Some(sid);
+                            ciphersuites = Some(csnames);
+                            comps = Some(cm);
                             ext = Some(cextL);
                             payload = to_log;
                           } 
@@ -163,11 +138,11 @@ type FlexClientHello =
                           } 
                 in
                 let st = fillStateEpochInitPvIFIsEpochInit st fch in
-                LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fch.pv);
-                LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
+                LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" (getPV fch));
+                LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(getSID fch)));
                 LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
-                LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.ciphersuites);
-                LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
+                LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" (getCiphersuites fch));
+                LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" (getCompressions fch));
                 LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fch));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
                 (st,nsc,fch)
@@ -184,11 +159,8 @@ type FlexClientHello =
     /// <returns> FClientHello message record </returns>
     static member prepare (cfg:config, crand:bytes, csid:bytes, cExtL:list<clientExtension>) : FClientHello =
         let exts = clientExtensionsBytes cExtL in
-        let fch,cfg = fillFClientHelloANDConfig  FlexConstants.nullFClientHello cfg in
-
         let payload = HandshakeMessages.clientHelloBytes cfg crand csid exts in
-        let fch = { fch with rand = crand; sid = csid; ext = Some(cExtL); payload = payload } in
-        fch
+        { FlexConstants.nullFClientHello with rand = crand; sid = Some(csid); ext = Some(cExtL); payload = payload }
 
 
     /// <summary>
@@ -204,11 +176,10 @@ type FlexClientHello =
         let fch = defaultArg fch FlexConstants.nullFClientHello in
         let cfg = defaultArg cfg defaultConfig in
         
-        let fch,cfg = fillFClientHelloANDConfig fch cfg in
         let st = fillStateEpochInitPvIFIsEpochInit st fch in
-
-        let st,fch = FlexClientHello.send(st,cfg,fch.rand,fch.sid,getExt fch,fp) in
+        let st,fch = FlexClientHello.send(st,cfg,fch.rand,getSID fch,getExt fch,fp) in
         
+        // TODO : Improve handleing of extensions
         let offers = 
             match TLSExtensions.getOfferedDHGroups (getExt fch) with
             | None -> []
@@ -242,11 +213,11 @@ type FlexClientHello =
         let fch = FlexClientHello.prepare(cfg,crand,csid,cExtL) in
         let st = FlexHandshake.send(st,fch.payload,fp) in
 
-        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" fch.pv);
-        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(fch.sid)));
+        LogManager.GetLogger("file").Debug(sprintf "--- Protocol Version : %A" (getPV fch));
+        LogManager.GetLogger("file").Debug(sprintf "--- Sid : %s" (Bytes.hexString(getSID fch)));
         LogManager.GetLogger("file").Debug(sprintf "--- Client Random : %s" (Bytes.hexString(fch.rand)));
-        LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" fch.ciphersuites);
-        LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" fch.comps);
+        LogManager.GetLogger("file").Debug(sprintf "--- Ciphersuites : %A" (getCiphersuites fch));
+        LogManager.GetLogger("file").Debug(sprintf "--- Compressions : %A" (getCompressions));
         LogManager.GetLogger("file").Debug(sprintf "--- Extensions : %A" (getExt fch));
         st,fch
     

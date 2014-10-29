@@ -165,15 +165,15 @@ type FHelloRequest = {
 /// </summary>
 type FClientHello = {
     /// <summary> Protocol version </summary>
-    pv: ProtocolVersion;
+    pv: option<ProtocolVersion>;
     /// <summary> Client random bytes </summary>
     rand: bytes;
     /// <summary> Session identifier. A non-empty byte array indicates that the client wants resumption </summary>
-    sid: bytes;
+    sid: option<bytes>;
     /// <summary> List of ciphersuite names supported by the client </summary>
-    ciphersuites: list<cipherSuiteName>;
+    ciphersuites: option<list<cipherSuiteName>>;
     /// <summary> List of compression mechanisms supported by the client </summary>
-    comps: list<Compression>;
+    comps: option<list<Compression>>;
     /// <summary> List of extensions proposed by the client; None: user asks for default; Some<list>: user gives value. A returned client hello always has Some<list>. </summary>
     ext: option<list<clientExtension>>;
     /// <summary> Message Bytes </summary>

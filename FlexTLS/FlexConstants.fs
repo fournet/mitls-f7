@@ -123,13 +123,13 @@ type FlexConstants =
     /// - All extensions enabled by the default configuration
     /// </remarks>
     static member nullFClientHello : FClientHello = {   
-        pv = defaultConfig.maxVer;
+        pv = Some(defaultConfig.maxVer);
         rand = empty_bytes; 
-        sid = empty_bytes;
+        sid = None;
         ciphersuites = (match FlexConstants.names_of_cipherSuites defaultConfig.ciphersuites with
         | Error(_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-        | Correct(s) -> s);
-        comps = defaultConfig.compressions;
+        | Correct(s) -> Some(s));
+        comps = Some(defaultConfig.compressions);
         ext = None;
         payload = empty_bytes;
     }

@@ -46,7 +46,7 @@ type LateCCS =
             let st,nsc,fch   = FlexClientHello.receive(st) in
 
             // Sanity check: our preferred ciphersuite is there
-            if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) fch.ciphersuites) then
+            if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) (FlexClientHello.getCiphersuites fch)) then
                 failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
             else
 
