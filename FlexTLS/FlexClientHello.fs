@@ -118,7 +118,7 @@ type FlexClientHello =
                 in
                 let cextL =
                     match parseClientExtensions cextL clientCipherSuites with
-                    | Error(ad,x) -> failwith x
+                    | Error(ad,x) -> [] //BB FIXME : Temporary patch until improved support for extension is merged
                     | Correct(extL)-> 
                         if checkVD then
                             if TLSExtensions.checkClientRenegotiationInfoExtension ({TLSInfo.defaultConfig with safe_renegotiation = true}) extL st.read.verify_data then 
