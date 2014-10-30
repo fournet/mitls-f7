@@ -28,34 +28,34 @@ type FlexFinished =
     /// Receive a Finished message from the network stream and check the verify_data on demand
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="verify_data"> Optional verify_data that will be checked if provided </param>
+    /// <param name="verify_data"> Optional expected verify_data that will be checked if provided </param>
+    /// <param name="logRoleNSC"> Optional log, role, and next security context used to compute an expected verify data (has priority over the verify_data optional parameter) </param>
     /// <returns> Updated state * FFinished message record </returns>
     static member receive (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext) : state * FFinished = 
         LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.receive");
         let verify_data =
             match logRoleNSC with
-            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
-            | None ->
-                match verify_data with
-                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")
-                | Some(vd) -> vd
+            | Some(log,role,nsc) -> Some(FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log)
+            | None -> verify_data
         in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_finished  -> 
+            LogManager.GetLogger("file").Debug(sprintf "--- Verify data: %A" (Bytes.hexString(payload)));
             if length payload <> 12 then
-                (LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
-                LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(payload)));
-                failwith (perror __SOURCE_FILE__ __LINE__ "unexpected payload length"))
+                (failwith (perror __SOURCE_FILE__ __LINE__ "unexpected payload length"))
             else
-                // Store then check the verify data value
-                let st = FlexState.updateIncomingVerifyData st verify_data in
-                if not (verify_data = payload) then failwith "Log message received doesn't match" else
+                // check the verify_data if the user provided one; then store what we received
+                (match verify_data with
+                | None -> ()
+                | Some(verify_data) ->
+                    if not (verify_data = payload) then
+                    LogManager.GetLogger("file").Debug(sprintf "--- Expected verify data : %A" (Bytes.hexString(verify_data)));    
+                    failwith "Verify data do not match");
+                let st = FlexState.updateIncomingVerifyData st payload in
                 let ff = {  verify_data = payload; 
                             payload = to_log;
                 } in
-                LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
-                LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %A" (Bytes.hexString(ff.payload)));
                 st,ff
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
