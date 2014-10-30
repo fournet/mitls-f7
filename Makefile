@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-version    ?= 0.0.1
+version    ?= 0.0.1preview
 name        = FlexTLS
 distname    = $(name)-$(version)
 f7distname  = $(name)-f7-$(version)
