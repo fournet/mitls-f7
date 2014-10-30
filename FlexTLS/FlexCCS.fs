@@ -32,15 +32,12 @@ type FlexCCS =
         let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in
         match ct with
         | Change_cipher_spec ->
-            (match len with
-            | 1 ->
-                let st,payload = FlexRecord.getFragmentContent(st,Change_cipher_spec,1) in
-                if payload = HandshakeMessages.CCSBytes then
-                    (LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
-                    st,{payload = payload },payload)
-                else
-                    failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected CCS content")
-            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected CCS length: %d" len)))
+            let st,payload = FlexRecord.getFragmentContent(st,Change_cipher_spec,len) in
+            if payload = HandshakeMessages.CCSBytes then
+                (LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+                st,{payload = payload },payload)
+            else
+                failwith (perror __SOURCE_FILE__ __LINE__ "Unexpected CCS content")
         | _ -> 
             let _,b = FlexRecord.getFragmentContent (st, ct, len) in
             failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b))))
