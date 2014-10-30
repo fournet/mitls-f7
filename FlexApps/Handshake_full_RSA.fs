@@ -30,11 +30,15 @@ type Handshake_full_RSA =
     class
 
     (* Run a full Handshake RSA with server side authentication only *)
-    static member client (server_name:string, ?port:int) : state =
+    static member client (server_name:string, ?port:int, ?st:state) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
-
-        // Start TCP connection with the server
-        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
+        
+        // Start TCP connection with the server if no state is provided by the user
+        let st,_ = 
+            match st with
+            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port)
+            | Some(st) -> st,TLSInfo.defaultConfig
+        in
 
         // Typical RSA key exchange messages
 
