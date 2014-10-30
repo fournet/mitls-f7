@@ -159,7 +159,7 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
     | Correct(l) ->
         if List.exists (sameServerClientExt sExt) cExtL then
             match sExt with
-            | SE_renegotiation_info (_,_) -> correct (l)
+            | SE_renegotiation_info (cvd,svd) -> correct ({l with ne_renegotiation_info=Some(cvd,svd)})
             | SE_extended_ms ->
                 if resuming then
                     correct(l)
@@ -289,7 +289,7 @@ let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:
 
 let clientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resuming:bool)  neg cExt =
     match cExt with
-    | CE_renegotiation_info (_) -> neg
+    | CE_renegotiation_info (_) -> {neg with ne_renegotiation_info=Some(cvd,svd)}
     | CE_extended_ms ->
         if resuming then
             neg

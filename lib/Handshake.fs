@@ -941,12 +941,10 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                         (* Check that protocol version, ciphersuite and compression method are indeed the correct ones *)
                         (* We know statically that this session supports extended master secret, because we never ask to
                            resume sessions for which the extension was not negotiated *)
-                        (* AP if si.sessionID = sh_session_id then This should come as a post-condition from SessionDB.select *)
                           if si.protocol_version = sh_server_version then
                             if si.cipher_suite = sh_cipher_suite then
                                 if si.compression = sh_compression_method then
-                                    let aex = {si.extensions with ne_renegotiation_info = Some (cvd,svd)} in
-                                    let ai = {abbr_crand = crand; abbr_srand = sh_random; abbr_session_hash = si.session_hash; abbr_extensions = aex } in
+                                    let ai = {abbr_crand = crand; abbr_srand = sh_random; abbr_session_hash = si.session_hash; abbr_vd = Some (cvd,svd) } in
                                     let next_ci = getAbbrEpochs ci si pe ai in
                                     let nki_in = id next_ci.id_in in
                                     let nki_out = id next_ci.id_out in
@@ -967,8 +965,6 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Ciphersuite negotiation",state)
                           else 
                               InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Protocol version negotiation",state))
-                        (*AP else 
-                            InError(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Session ID from DB mismatch",state) *)
                     else
                         (* we did not request resumption, or the server didn't accept it: do a full handshake *)
                         (* define the sinfo we're going to establish *)
@@ -1409,8 +1405,7 @@ let prepare_server_output_resumption ci state crand cExtL (sid:sessionID) stored
     let sHelloB = serverHelloBytes si srand ext in
 
     let log = log @| sHelloB in
-    let aex = {si.extensions with ne_renegotiation_info = Some (cvd,svd)} in
-    let ai = {abbr_crand = crand; abbr_srand = srand; abbr_session_hash = si.session_hash; abbr_extensions = aex } in
+    let ai = {abbr_crand = crand; abbr_srand = srand; abbr_session_hash = si.session_hash; abbr_vd = nExtL.ne_renegotiation_info } in
     let next_ci = getAbbrEpochs ci si pe ai in
     let nki_in = id next_ci.id_in in
     let nki_out = id next_ci.id_out in

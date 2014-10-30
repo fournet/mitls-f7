@@ -88,7 +88,7 @@ type abbrInfo =
     {abbr_crand: crand;
      abbr_srand: srand;
      abbr_session_hash: sessionHash;
-     abbr_extensions: negotiatedExtensions}
+     abbr_vd: (cVerifyData * sVerifyData) option}
 
 type preEpoch 
 

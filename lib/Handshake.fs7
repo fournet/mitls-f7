@@ -168,11 +168,11 @@ private definition !msi,r,b. PRF.VerifyData(msi,r,b)
         ServerLogBeforeServerFinished(si,b)) \/
        (?si,ai. msi = MsI(si) /\
         r = Client /\
-        SentCCSAbbr(Client,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_extensions = ai.extensions}) /\
+        SentCCSAbbr(Client,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd}) /\
         ClientLogBeforeClientFinishedResume(ai,si,b)) \/
        (?si,ai. msi = MsI(si) /\
         r = Server /\
-        SentCCSAbbr(Server,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_extensions = ai.extensions}) /\
+        SentCCSAbbr(Server,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd}) /\
         ServerLogBeforeServerFinishedResume(ai,si,b)))
 
 
@@ -184,11 +184,11 @@ ask !si,b. PRF.VerifyData(MsI(si),Server,b) /\
 
 ask !ai,si,b. PRF.VerifyData(MsI(si),Client,b) /\
     ServerLogBeforeClientFinishedResume(ai,si,b) 
-    => SentCCSAbbr(Client,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_extensions = ai.extensions})
+    => SentCCSAbbr(Client,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd})
 
 ask !ai,si,b. PRF.VerifyData(MsI(si),Server,b) /\
     ClientLogBeforeServerFinishedResume(ai,si,b) 
-    => SentCCSAbbr(Server,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_extensions = ai.extensions})
+    => SentCCSAbbr(Server,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd})
 
 (*
 ask !si,si',b. PRF.VerifyData(MsI(si),Server,b) /\
