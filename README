@@ -82,16 +82,21 @@ both build out of the box if all requirements of miTLS are satisfied.
 The FlexApps project stores the scenarios; Application.fs
 is the file where the calls to those can be commented/uncommented.
 
+miTLS and FlexTLS require DH parameters to be loaded from some files.
+Currently FlexTLS does not allow
+you to specify where to find these files, instead it looks for them
+in the current directory.
+Sample DH files with default parameters are provided
+in the data/dh directory. Copy all the content of this directory
+into the current directory from which the FlexApps executable is
+ran (if you don't, an error will remind you to do so ;-) )
+
 To use certificates, miTLS and flexTLS rely on certificate stores.
 On Windows, the Windows store handles management of those. For
 other Unix platforms the Mono store is used.
 
 The following are guidelines on how to import certificates into
 the store, according to your platform.
-
-A DH scenario requires default DH parameters to be loaded from file.
-A sample default-dh.pem file with default parameters is provided
-in the data/dh directory.
 
 ** 4.a. Microsoft Windows
 
