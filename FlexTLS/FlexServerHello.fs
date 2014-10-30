@@ -150,7 +150,7 @@ type FlexServerHello =
                 in
                 let sextL = 
                     match parseServerExtensions sexts with
-                    | Error(ad,x) -> failwith x
+                    | Error(ad,x) -> [] //BB FIXME : Temporary patch until improved support for extension is merged
                     | Correct(sextL)-> 
                         if not (checkVD && TLSExtensions.checkServerRenegotiationInfoExtension ({TLSInfo.defaultConfig with safe_renegotiation = true}) sextL st.write.verify_data st.read.verify_data) then 
                             failwith (perror __SOURCE_FILE__ __LINE__ "Check for renegotiation verify data failed")
@@ -225,15 +225,7 @@ type FlexServerHello =
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let cfg = defaultArg cfg defaultConfig in
 
-        let cvd,svd = 
-            match List.tryPick TLSExtensions.isClientRenegotiationInfo (FlexClientHello.getExt fch) with
-            | None -> empty_bytes,empty_bytes
-            | Some(_) -> 
-                if st.read.verify_data = empty_bytes || st.read.verify_data = empty_bytes then
-                    failwith (perror __SOURCE_FILE__ __LINE__ "Missing renegotiation indication while the client asked for it")
-                else st.read.verify_data,st.write.verify_data
-        in
-        let st,si,fsh = FlexServerHello.send(st,nsc.si,(getPV fsh),(FlexClientHello.getCiphersuites fch),(FlexClientHello.getCompressions fch),(FlexClientHello.getExt fch),fsh,cfg,(cvd,svd),fp=fp) in
+        let st,si,fsh = FlexServerHello.send(st,nsc.si,(getPV fsh),(FlexClientHello.getCiphersuites fch),(FlexClientHello.getCompressions fch),(FlexClientHello.getExt fch),fsh,cfg,fp=fp) in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;
@@ -248,13 +240,11 @@ type FlexServerHello =
     /// <param name="si"> Session Info of the currently negotiated next security context </param>
     /// <param name="cextL"> Client extensions list </param>
     /// <param name="cfg"> Optional Configuration of the server </param>
-    /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated negotiated session information * FServerHello message record </returns>
-    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?fsh:FServerHello, ?cfg:config, ?verify_datas:(cVerifyData * sVerifyData), ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
+    static member send (st:state, si:SessionInfo, cpv: ProtocolVersion, csuites:list<cipherSuiteName>, ccomps:list<Compression>, cextL:list<clientExtension>, ?fsh:FServerHello, ?cfg:config, ?fp:fragmentationPolicy) : state * SessionInfo * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let cfg = defaultArg cfg defaultConfig in
-        let verify_datas = defaultArg verify_datas (empty_bytes,empty_bytes) in
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
         let srand =
             if fsh.rand = empty_bytes then
@@ -300,7 +290,7 @@ type FlexServerHello =
                 let (sExtL, nExtL) =
                     match fsh.ext with
                     | None ->
-                        negotiateServerExtensions cextL cfg nCs verify_datas false
+                        negotiateServerExtensions cextL cfg nCs (st.read.verify_data,st.write.verify_data) false
                     | Some(sExtL) ->
                         match negotiateClientExtensions cextL sExtL false nCs with
                         | Error(x,y) -> sExtL,[]
@@ -319,7 +309,7 @@ type FlexServerHello =
                 in
                 si,sExtL
             else
-                let (sExtL, nExtL) = negotiateServerExtensions cextL cfg si.cipher_suite verify_datas true in
+                let (sExtL, nExtL) = negotiateServerExtensions cextL cfg si.cipher_suite (st.read.verify_data,st.write.verify_data) true in
                 si,sExtL
         in
 
