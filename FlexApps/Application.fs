@@ -13,6 +13,7 @@ open Attack_FragmentClientHello
 open Attack_EarlyCCS
 open Attack_JavaLateCCS
 open Attack_TripleHandshake
+open Attack_SmallSubgroup_DHE
 open Handshake_full_RSA
 open Handshake_full_DHE
 open Handshake_resumption
@@ -60,6 +61,26 @@ let main argv =
     (* Triple handshake attack MITM *)
 //    let sst,cst = Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"127.0.0.1",4433) in
 //    printf "Triple handshake attack finished\n";
+
+    (* Small subgroup attack for DHE *)
+    ignore(LogManager.DisableLogging());
+    // Test with local OpenSSL server using MODP 1024-bit group:
+    // $ openssl s_server -accept 443 -dhparam modp1024.pem
+    //
+    // -----BEGIN DH PARAMETERS-----
+    // MIIBCAKBgQCxC4+WoIDgHd6S3l6uXVTsUsmfvPsGo8aaap3KUtI7YWBz4oZ1oj0Y
+    // mDjvHi7mUsAT7LSuqQYRIySXXDzUm4O/rMvdfZDEvXCYSI6cIZpzck7/1vrlZEc4
+    // +qMaT/VbzMChUa9fDci0vUW/N982XBpl5oz9p21NpwjfH7K8LkpDcQKBgQCk0cvV
+    // w/00EmdlpELvuZkF+BBN0lisUH/WQGz/FCZtMSZv6h5cQVZLd35pD1UE8hMWAhe0
+    // sBuIal6RVH+eJ0n01/vX07mpLuGQnQ0iY/gKdqaiTAh6CR9THb8KAWm2oorWYqTR
+    // jnOvoy13nVkY0IvIhY9Nzvl8KiSFXm7rIrOy5Q==
+    // -----END DH PARAMETERS-----
+    //
+    Attack_SmallSubgroup_DHE.run(true, 223,
+           "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
+           "223",
+           "localhost");
+    ignore(LogManager.EnableLogging());
 
     (* Experimental TLS 1.3 full handshake as Client *)
 //    printf "Starting TLS 1.3 client\n";
