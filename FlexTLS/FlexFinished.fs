@@ -50,8 +50,8 @@ type FlexFinished =
                 | None -> ()
                 | Some(verify_data) ->
                     if not (verify_data = payload) then
-                    LogManager.GetLogger("file").Debug(sprintf "--- Expected verify data : %A" (Bytes.hexString(verify_data)));    
-                    failwith "Verify data do not match");
+                    (LogManager.GetLogger("file").Debug(sprintf "--- Expected verify data : %A" (Bytes.hexString(verify_data)));
+                    failwith "Verify data do not match"));
                 let st = FlexState.updateIncomingVerifyData st payload in
                 let ff = {  verify_data = payload; 
                             payload = to_log;
