@@ -177,6 +177,11 @@ type FlexRecord =
         let msgb,rem = splitPayloadFP payload fp in
         LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(msgb)));
         let k,b = FlexRecord.encrypt (e,pv,k,ct,msgb) in
+        let b = 
+            match fp with
+            | Stop -> empty_bytes
+            | _ -> b
+        in
         match Tcp.write ns b with
         | Error x -> failwith x
         | Correct() -> 
@@ -187,6 +192,7 @@ type FlexRecord =
                 else
                     FlexRecord.send(ns,e,k,ct,rem,pv,fp)
             | One(fs) -> (k,rem)
+            | Stop -> (k,empty_bytes)
        
 
     /// <summary>
@@ -201,7 +207,11 @@ type FlexRecord =
     static member send_raw (ns:NetworkStream, ct:ContentType, pv:ProtocolVersion, payload:bytes, ?fp:fragmentationPolicy) : bytes =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let b,rem = splitPayloadFP payload fp in
-        let fragb = Record.makePacket ct pv b in
+        let fragb = 
+            match fp with
+            | Stop -> empty_bytes
+            | _ -> Record.makePacket ct pv b 
+        in
         LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
         match Tcp.write ns fragb with
         | Error x -> failwith x
@@ -213,4 +223,5 @@ type FlexRecord =
                 else
                     FlexRecord.send_raw(ns,ct,pv,rem,fp)
             | One(fs) -> rem
+            | Stop -> empty_bytes
     end

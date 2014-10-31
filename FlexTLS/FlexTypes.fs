@@ -16,6 +16,8 @@ open TLSExtensions
 /// The value represents the length of the fragments that will be sent
 /// </summary>
 type fragmentationPolicy =
+    /// <summary> Will prevent the data to be sent on the network stream </summary>
+    | Stop
     /// <summary> Will send All fragments, each of length LEN bytes </summary>
     | All of int
     /// <summary> Will send One fragment of length LEN bytes </summary>
