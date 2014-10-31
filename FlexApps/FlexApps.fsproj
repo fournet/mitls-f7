@@ -88,7 +88,7 @@
   </ItemGroup>
   <ItemGroup>
     <Reference Include="BouncyCastle.Crypto">
-      <HintPath>..\..\cvk\samples\protocols\tls\3rdparty\BouncyCastle.Crypto.dll</HintPath>
+      <HintPath>..\3rdparty\BouncyCastle.Crypto.dll</HintPath>
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
