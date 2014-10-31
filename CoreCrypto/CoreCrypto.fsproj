@@ -35,18 +35,26 @@
     <DocumentationFile>bin\Release\CoreCrypto.XML</DocumentationFile>
     <NoWarn>62</NoWarn>
   </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="BouncyCastle.Crypto">
-      <HintPath>..\3rdparty\BouncyCastle.Crypto.dll</HintPath>
-    </Reference>
-    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="mscorlib" />
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Numerics" />
-  </ItemGroup>
+  <Choose>
+    <When Condition="'$(VisualStudioVersion)' == '11.0'">
+      <PropertyGroup>
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </When>
+    <Otherwise>
+      <PropertyGroup>
+        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
+      </PropertyGroup>
+    </Otherwise>
+  </Choose>
+  <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" />
+  <Target Name="AfterClean">
+    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
+      <Output ItemName="ToDel" TaskParameter="Include" />
+    </CreateItem>
+    <Delete Files="$(OutDir)\$(Name).XML" />
+    <Delete Files="@(ToDel)" />
+  </Target>
   <ItemGroup>
     <Compile Include="CryptoProvider.fs" />
     <Compile Include="BCCryptoProvider.fs" />
@@ -72,8 +80,23 @@
     <Compile Include="CoreDH.fs" />
     <Compile Include="DER.fsi" />
     <Compile Include="DER.fs" />
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="BouncyCastle.Crypto">
+      <HintPath>..\3rdparty\BouncyCastle.Crypto.dll</HintPath>
+    </Reference>
+    <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="mscorlib" />
+    <Reference Include="MsgPack">
+      <HintPath>..\packages\MsgPack.Cli.0.5.5\lib\net40-client\MsgPack.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Numerics" />
     <ProjectReference Include="..\DB\DB.fsproj">
       <Name>DB</Name>
       <Project>{cad78b05-0adc-433b-954b-1f31fc6477f6}</Project>
@@ -90,24 +113,4 @@
       <Private>True</Private>
     </ProjectReference>
   </ItemGroup>
-  <Choose>
-    <When Condition="'$(VisualStudioVersion)' == '11.0'">
-      <PropertyGroup>
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\..\Microsoft SDKs\F#\3.0\Framework\v4.0\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup>
-        <FSharpTargetsPath>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\FSharp\Microsoft.FSharp.Targets</FSharpTargetsPath>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
-  <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" />
-  <Target Name="AfterClean">
-    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
-      <Output ItemName="ToDel" TaskParameter="Include" />
-    </CreateItem>
-    <Delete Files="$(OutDir)\$(Name).XML" />
-    <Delete Files="@(ToDel)" />
-  </Target>
 </Project>

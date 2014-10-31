@@ -1,9 +1,11 @@
 ﻿module DHDB
 
 open System.IO
-open System.Runtime.Serialization.Formatters.Binary
+//open System.Runtime.Serialization.Formatters.Binary
 
 open Bytes
+
+open MsgPack.Serialization
 
 type Key   = bytes * bytes
 type Value = bytes * bool
@@ -14,27 +16,27 @@ type dhdb = {
 
 (* ------------------------------------------------------------------------------- *)
 let bytes_of_key (k : Key) : byte[] =
-    let bf = new BinaryFormatter () in
+    let bf = MessagePackSerializer.Get<byte[] * byte[]> () in
     let m  = new MemoryStream () in
-    let p, g = k in
-        bf.Serialize(m, (cbytes p, cbytes g)); m.ToArray ()
+    let p, g = k in    
+        bf.Pack(m, (cbytes p, cbytes g)); m.ToArray ()
 
 let key_of_bytes (k : byte[]) : Key =
-    let bf = new BinaryFormatter () in
+    let bf = MessagePackSerializer.Get<byte[] * byte[]> () in
     let m  = new MemoryStream(k) in
-    let p, g = bf.Deserialize(m) :?> byte[] * byte[] in
+    let p, g = bf.Unpack(m) in
         (abytes p, abytes g)
             
 let bytes_of_value (v : Value) : byte[] =
-    let bf = new BinaryFormatter () in
+    let bf = MessagePackSerializer.Get<byte[] * bool> () in
     let m  = new MemoryStream () in
     let (q,b) = v in
-        bf.Serialize(m, (cbytes q, b)); m.ToArray ()
+        bf.Pack(m, (cbytes q, b)); m.ToArray ()
       
 let value_of_bytes (v : byte[]) : Value =
-    let bf = new BinaryFormatter () in
+    let bf = MessagePackSerializer.Get<byte[] * bool> () in
     let m  = new MemoryStream(v) in
-    let (q,b) = bf.Deserialize(m) :?> byte[] * bool in
+    let (q,b) = bf.Unpack(m) in
         (abytes q, b)
 
 (* ------------------------------------------------------------------------------- *)
