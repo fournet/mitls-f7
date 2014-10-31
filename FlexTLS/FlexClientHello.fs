@@ -159,6 +159,36 @@ type FlexClientHello =
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
  
     /// <summary>
+    /// Forward ClientHello message from one connection to another
+    /// </summary>
+    /// <param name="stin"> State of the incoming side </param>
+    /// <param name="stout"> State of the outgoing side </param>
+    /// <param name="fp"> Optional Fragmentation policy for the message </param>
+    /// <param name="unaltered"> Optional flag to know if the user wants to forward the parsed version or the raw bytes </param>
+    /// <returns> State of incoming side * NSC of incoming side * State of outgoing side * NSC of outgoing side * Message parsed * Message bytes </returns>
+    static member forward (stin:state, stout:state, ?fp:fragmentationPolicy, ?unaltered:bool) : state * nextSecurityContext * state * nextSecurityContext * FClientHello * bytes =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let unaltered = defaultArg unaltered true in
+
+        // We always want to receive and parse the data
+        let stin,nscin,chin = FlexClientHello.receive(stin) in
+
+        // We always want to get back the state, nsc and parsed message
+        let stout,nscout,chout =
+            // We don't expect any differences between chin and chout but some things might not be parsed
+            // So we set unaltered true by default
+            if unaltered then
+                // We forward the bytes at the handshake level with a fp we choose but then we dont have a new st or nsc
+                let _ = FlexHandshake.send(stout,chin.payload,fp=fp) in
+                // We compute the new state and nextSecurityContext but we set fp to Stop to prevent sending data twice
+                FlexClientHello.send(stout,chin,fp=Stop)
+            else
+                // We send the message we parsed
+                FlexClientHello.send(stout,chin,fp=fp)
+        in
+        stin,nscin,stout,nscout,chout,chin.payload
+
+    /// <summary>
     /// Prepare ClientHello message bytes that will not be sent to the network stream
     /// </summary>
     /// <param name="cfg"> Desired config </param>
