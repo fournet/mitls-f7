@@ -73,7 +73,7 @@ type FlexRecord =
             | Correct(ct,pv,len) -> ct,pv,len,header
 
     /// <summary>
-    /// Reads and decrypts a fragment
+    /// Get N bytes from the network stream and decrypts it as a fragment
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="ct"> Content type of the fragment </param>
@@ -91,6 +91,16 @@ type FlexRecord =
                 let fragb = TLSFragment.reprFragment id ct rg frag in
                 LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
                 (st,fragb)
+
+    /// <summary>
+    /// Receive a fragment by reading a header and a payload from the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <returns> State * ContentType * ProtocolVersion * Lenght of the record payload * Fragment header bytes * Fragment payload bytes </returns>
+    static member receive (st:state) : state * ContentType * ProtocolVersion * int * bytes * bytes =
+        let ct,pv,len,header = FlexRecord.parseFragmentHeader st in
+        let st,payload = FlexRecord.getFragmentContent (st,ct,len) in
+        st,ct,pv,len,header,payload
 
     /// <summary>
     /// Encrypt data 
