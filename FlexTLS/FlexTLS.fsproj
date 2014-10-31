@@ -70,6 +70,7 @@
     <Compile Include="FlexClientKeyExchange.fs" />
     <Compile Include="FlexCertificateVerify.fs" />
     <Compile Include="FlexFinished.fs" />
+    <Compile Include="FlexStatefulAPI.fs" />
     <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
