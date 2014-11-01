@@ -26,7 +26,9 @@ open FlexState
 /// <returns> size of the fragment to be applied </returns>
 let fs_of_fp fp =
     match fp with
-    | All(n) | One(n) -> n
+    | All(n) 
+    | One(n) -> n
+    | Stop -> 0
 
 /// <summary>
 /// Split any payload depending on the fragmentation size
