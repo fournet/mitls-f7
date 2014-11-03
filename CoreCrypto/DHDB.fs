@@ -1,13 +1,11 @@
 ﻿module DHDB
 
 open System.IO
-//open System.Runtime.Serialization.Formatters.Binary
 
 open Bytes
 
-open MsgPack.Serialization
-
 type Key   = bytes * bytes
+type IntKey = cbytes * cbytes
 type Value = bytes * bool
 
 type dhdb = {
@@ -15,29 +13,8 @@ type dhdb = {
 }
 
 (* ------------------------------------------------------------------------------- *)
-let bytes_of_key (k : Key) : byte[] =
-    let bf = MessagePackSerializer.Get<byte[] * byte[]> () in
-    let m  = new MemoryStream () in
-    let p, g = k in    
-        bf.Pack(m, (cbytes p, cbytes g)); m.ToArray ()
-
-let key_of_bytes (k : byte[]) : Key =
-    let bf = MessagePackSerializer.Get<byte[] * byte[]> () in
-    let m  = new MemoryStream(k) in
-    let p, g = bf.Unpack(m) in
-        (abytes p, abytes g)
-            
-let bytes_of_value (v : Value) : byte[] =
-    let bf = MessagePackSerializer.Get<byte[] * bool> () in
-    let m  = new MemoryStream () in
-    let (q,b) = v in
-        bf.Pack(m, (cbytes q, b)); m.ToArray ()
-      
-let value_of_bytes (v : byte[]) : Value =
-    let bf = MessagePackSerializer.Get<byte[] * bool> () in
-    let m  = new MemoryStream(v) in
-    let (q,b) = bf.Unpack(m) in
-        (abytes q, b)
+let intkey_to_key (a,b) = abytes(a),abytes(b)
+let key_to_intkey (a,b) = cbytes(a),cbytes(b)
 
 (* ------------------------------------------------------------------------------- *)
 let create (filename:string) =
@@ -49,7 +26,7 @@ let create (filename:string) =
 
 (* ------------------------------------------------------------------------------- *)
 let remove self key =
-    let key = bytes_of_key key in
+    let key = DB.serialize<IntKey> (key_to_intkey key) in
   
     let db  = DB.opendb self.filename in
 
@@ -61,11 +38,11 @@ let remove self key =
 
 (* ------------------------------------------------------------------------------- *)
 let select self key =
-    let key = bytes_of_key key in
+    let key = DB.serialize<IntKey> (key_to_intkey key) in
 
     let select (db : DB.db) =
         DB.get db key
-            |> Option.map value_of_bytes
+            |> Option.map DB.deserialize<Value>
           
     let db = DB.opendb self.filename in
 
@@ -76,12 +53,12 @@ let select self key =
 
 (* ------------------------------------------------------------------------------- *)
 let insert self key v =
-    let key = bytes_of_key key in
+    let key = DB.serialize<IntKey> (key_to_intkey key) in
   
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()
-        | None   -> DB.put db key (bytes_of_value v) in
+        | None   -> DB.put db key (DB.serialize<Value> v) in
 
     let db = DB.opendb self.filename in
 
@@ -100,7 +77,8 @@ let keys self =
         finally
             DB.closedb db
     in
-        List.map key_of_bytes aout
+        List.map DB.deserialize<IntKey> aout
+        |> List.map intkey_to_key
 
 (* ------------------------------------------------------------------------------- *)
 let merge self db1 =

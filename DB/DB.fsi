@@ -4,6 +4,9 @@ type db
 
 exception DBError of string
 
+val serialize<'T> : 'T -> byte[]
+val deserialize<'T> : byte[] -> 'T
+
 val opendb  : string -> db
 val closedb : db -> unit
 val attach  : db -> string -> string -> db

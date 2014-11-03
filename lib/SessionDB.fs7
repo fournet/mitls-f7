@@ -16,6 +16,7 @@ type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.maste
     (r = Server /\ si.client_auth = true => Authorize(r,si))}
 
 type SessionIndex = sessionID * Role * Cert.hint
+type IntKey = cbytes * Role * Cert.hint
 type entry = sid:sessionID * r:Role *  Cert.hint * (;sid,r) StorableSession 
 type t = entry list 
 

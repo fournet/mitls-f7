@@ -11,11 +11,24 @@ type SQLiteConnection = SqliteConnection
 open System.Data.SQLite
 #endif
 
+open MsgPack.Serialization
+
 exception DBError of string
 
 type db = DB of SQLiteConnection
 
 let _db_lock = new Object()
+
+(* Serialization/Deserialization functions *)
+let serialize<'T> (o: 'T) : byte[] =
+    let bf = MessagePackSerializer.Get<'T> () in
+    let m  = new MemoryStream () in
+    bf.Pack(m, o); m.ToArray ()
+
+let deserialize<'T> (b:byte[]): 'T =
+    let bf = MessagePackSerializer.Get<'T> () in
+    let m  = new MemoryStream(b) in
+    bf.Unpack(m)
 
 module Internal =
     let wrap (cb : unit -> 'a) =
