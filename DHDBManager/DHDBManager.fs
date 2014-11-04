@@ -1,7 +1,6 @@
 ﻿module DHDBManager
 
 open Bytes
-open System
 open System.IO
 
 open Microsoft.FSharp.Text
@@ -14,18 +13,17 @@ type dh_params =
  | DH  of bytes * bytes
  | DHX of bytes * bytes * bytes
 
-type command = 
+type _command = 
   | Check
-  | Dump
-  | Insert
-  | Import  
+  | Dump of string
+  | Insert of string
+  | Import of string
+
+type command = option<_command>
 
 type options = {
     command: command;
-    dbfile:  string;  
-    dbfile2: string;
-    pemfile: string;
-    dumpdir: string;
+    dbfile:  string;
     minplen: int;
     minqlen: int;
     confidence: int;
@@ -153,7 +151,7 @@ let dump db dir =
         for (p,g) in keys do
             match DHDB.select db (p,g) with
             | None -> failwith "unexpected"
-            | Some(q,b) ->
+            | Some(q,_) ->
                 save_params_to_file (sprintf "%s/dhparams_%u.pem" dir !n) (DHX(p,q,g));
                 n := !n + 1u
 
@@ -193,18 +191,15 @@ let cmdParse () =
     let defaultDBFile  = TLSInfo.defaultConfig.dhDBFileName
     let defaultMinPlen = fst TLSInfo.defaultConfig.dhPQMinLength
     let defaultMinQlen = snd TLSInfo.defaultConfig.dhPQMinLength
-    let defaultDumpDir = "dhdb_dump"
+    let defaultConfidence = 80
   
     let options = ref {
-        command = Dump;
+        command = None;
         dbfile  = Path.Combine(mypath, defaultDBFile); 
-        dbfile2 = "";
-        pemfile = "";
-        dumpdir = Path.Combine(mypath, defaultDumpDir);
         minplen = defaultMinPlen;
         minqlen = defaultMinQlen; 
         force   = false; 
-        confidence = 80; }
+        confidence = defaultConfidence; }
 
     let o_dbfile = fun s ->
         options := { !options with dbfile = s }
@@ -213,19 +208,19 @@ let cmdParse () =
         if not (File.Exists s) then
             let msg = sprintf "File not found: %s" s in
                 raise (ArgError msg);
-        options := { !options with command = Insert; pemfile = s }
+        options := { !options with command = Some(Insert(s)) }
 
     let o_dumpdir = fun s ->
-        options := { !options with command = Dump; dumpdir = s }
+        options := { !options with command = Some(Dump(s)) }
         
     let o_dbfile2 = fun s ->
         if not (File.Exists s) then
             let msg = sprintf "File not found: %s" s in
                 raise (ArgError msg);
-        options := { !options with command = Import; dbfile2 = s }
+        options := { !options with command = Some(Import(s)) }
 
     let o_check = fun () ->
-        options := { !options with command = Check }
+        options := { !options with command = Some(Check) }
     
     let o_force = fun () ->
         options := { !options with force = true }
@@ -249,20 +244,18 @@ let cmdParse () =
         options := { !options with confidence = n }
 
     let specs = [
-        "-db",        ArgType.String o_dbfile  , "Database file (creates an empty one if it does not exist)"
+        "-db",        ArgType.String o_dbfile  , sprintf "Database file (creates an empty one if it does not exist); default: %s" defaultDBFile
         "-insert",    ArgType.String o_pemfile , "Insert parameters stored in a PEM file"
         "-dump",      ArgType.String o_dumpdir , "Dump entries in the database as PEM files in the directory specified"
         "-check",     ArgType.Unit o_check     , "Check the validity of parameters in the database"
         "-import",    ArgType.String o_dbfile2 , "Import all parameters from given database"
-        "-minPlen",   ArgType.Int o_minplen    , "Minimum modulus length in bits (used for validation)"
-        "-minQlen",   ArgType.Int o_minqlen    , "Minimum subgroup size in bits (used for validation)"
-        "-confidence",ArgType.Int o_confidence , "Confidence level for primality checks"
+        "-minPlen",   ArgType.Int o_minplen    , sprintf "Minimum modulus length in bits (used for validation); default: %d" defaultMinPlen
+        "-minQlen",   ArgType.Int o_minqlen    , sprintf "Minimum subgroup size in bits (used for validation); default: %d" defaultMinQlen
+        "-confidence",ArgType.Int o_confidence , sprintf "Confidence level for primality checks; default: %d" defaultConfidence
         "-force",     ArgType.Unit o_force     , "Do not validate parameters before inserting or importing them"   
     ]
 
     let specs = specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
-
-    let args = System.Environment.GetCommandLineArgs()
 
     let usage = sprintf "Usage: %s options" myname
 
@@ -283,60 +276,65 @@ let _ =
         try 
             DHDB.create options.dbfile
         with _ ->
-            eprintf "Could not open or create database: %s" options.dbfile;
+            eprintf "Could not open nor create database: %s" options.dbfile;
             exit 1
  
-    match options.command with    
-    | Insert ->
-        let dhp =
-            try load_params_from_file options.pemfile
-            with InvalidPEMFile s -> 
-                eprintfn "Invalid PEM file. %s" s;
-                exit 1
-        in
-            match dhp with
-            | DH(p,g) -> 
-                match DHDB.select db (p,g) with
-                | Some _ -> 
-                    eprintfn "Found parameters in the database with same modulus and generator";
+    match options.command with
+    | None ->
+        eprintf "At least one command must be specified";
+        exit 1
+    | Some(command) ->
+        match command with  
+        | Insert(pemfile) ->
+            let dhp =
+                try load_params_from_file pemfile
+                with InvalidPEMFile s -> 
+                    eprintfn "Invalid PEM file. %s" s;
                     exit 1
-                | _ ->            
-                    if options.force || check_unknown_q options.confidence options.minplen options.minqlen p g then
-                        ignore(insert_safe_prime db p g);
-                        exit 0
-                    else
-                        eprintfn "Could not validate the parameters";
+            in
+                match dhp with
+                | DH(p,g) -> 
+                    match DHDB.select db (p,g) with
+                    | Some _ -> 
+                        eprintfn "Found parameters in the database with same modulus and generator";
                         exit 1
-            | DHX(p,q,g) ->
-                match DHDB.select db (p,g) with
-                | Some _ -> 
-                    eprintfn "Found parameters in the database with same modulus and generator";
-                    exit 1
-                | _ ->            
-                    if options.force || check_known_q options.confidence options.minplen options.minqlen p g q then
-                        ignore(insert_known_q db p g q);
-                        exit 0
-                    else
-                        eprintfn "Could not validate the parameters";
-                        exit 1       
+                    | _ ->            
+                        if options.force || check_unknown_q options.confidence options.minplen options.minqlen p g then
+                            ignore(insert_safe_prime db p g);
+                            exit 0
+                        else
+                            eprintfn "Could not validate the parameters";
+                            exit 1
+                | DHX(p,q,g) ->
+                    match DHDB.select db (p,g) with
+                    | Some _ -> 
+                        eprintfn "Found parameters in the database with same modulus and generator";
+                        exit 1
+                    | _ ->            
+                        if options.force || check_known_q options.confidence options.minplen options.minqlen p g q then
+                            ignore(insert_known_q db p g q);
+                            exit 0
+                        else
+                            eprintfn "Could not validate the parameters";
+                            exit 1       
 
-    | Dump -> 
-        try 
-            let di = Directory.CreateDirectory options.dumpdir in
-            dump db options.dumpdir;
+        | Dump(dumpdir) -> 
+            try 
+                let di = Directory.CreateDirectory dumpdir in
+                dump db dumpdir;
+                exit 0
+            with _ ->
+                eprintf "Could not open nor create directory: %s" dumpdir;
+                exit 1
+
+        | Check ->
+            check options.confidence options.minplen options.minqlen db;
             exit 0
-        with _ ->
-            eprintf "Could not open or create directory: %s" options.dumpdir;
-            exit 1
 
-    | Check ->
-        check options.confidence options.minplen options.minqlen db;
-        exit 0
-
-    | Import ->
-        try 
-            ignore (DHDB.merge db options.dbfile2);
-            exit 0
-        with _ ->
-            eprintfn "Some error";
-            exit 1
+        | Import(dbfile2) ->
+            try 
+                ignore (DHDB.merge db dbfile2);
+                exit 0
+            with _ ->
+                eprintfn "Error merging the databases";
+                exit 1
