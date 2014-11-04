@@ -7,6 +7,7 @@ open Bytes
 type Key   = bytes * bytes
 type IntKey = cbytes * cbytes
 type Value = bytes * bool
+type IntValue = cbytes * bool
 
 type dhdb = {
     filename: string;
@@ -15,6 +16,10 @@ type dhdb = {
 (* ------------------------------------------------------------------------------- *)
 let intkey_to_key (a,b) = abytes(a),abytes(b)
 let key_to_intkey (a,b) = cbytes(a),cbytes(b)
+
+(* ------------------------------------------------------------------------------- *)
+let intvalue_to_value (a,b) = abytes(a),b
+let value_to_intvalue (a,b) = cbytes(a),b
 
 (* ------------------------------------------------------------------------------- *)
 let create (filename:string) =
@@ -42,7 +47,7 @@ let select self key =
 
     let select (db : DB.db) =
         DB.get db key
-            |> Option.map DB.deserialize<Value>
+            |> Option.map (DB.deserialize<IntValue> >> intvalue_to_value)
           
     let db = DB.opendb self.filename in
 
@@ -54,11 +59,12 @@ let select self key =
 (* ------------------------------------------------------------------------------- *)
 let insert self key v =
     let key = DB.serialize<IntKey> (key_to_intkey key) in
+    let v   = DB.serialize<IntValue> (value_to_intvalue v) in
   
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()
-        | None   -> DB.put db key (DB.serialize<Value> v) in
+        | None   -> DB.put db key v in
 
     let db = DB.opendb self.filename in
 
@@ -77,9 +83,8 @@ let keys self =
         finally
             DB.closedb db
     in
-        List.map DB.deserialize<IntKey> aout
-        |> List.map intkey_to_key
-
+        List.map (DB.deserialize<IntKey> >> intkey_to_key) aout
+     
 (* ------------------------------------------------------------------------------- *)
 let merge self db1 =
     let db = DB.opendb self.filename in
