@@ -11,7 +11,10 @@ type SQLiteConnection = SqliteConnection
 open System.Data.SQLite
 #endif
 
-open MsgPack.Serialization
+open Bytes
+
+open Newtonsoft.Json
+open Newtonsoft.Json.Serialization
 
 exception DBError of string
 
@@ -19,16 +22,57 @@ type db = DB of SQLiteConnection
 
 let _db_lock = new Object()
 
+type BytesJsonConverter() =
+    inherit JsonConverter()       
+
+    override this.WriteJson(writer:JsonWriter, value:Object, serializer:JsonSerializer) =        
+        if (value.GetType().Equals(typeof<bytes>)) then
+            serializer.Serialize(writer, cbytes (value :?> bytes))
+        else 
+            raise (NotImplementedException(sprintf "Serializing wrong type: expected bytes, got %s" (value.GetType().ToString())))
+
+    override this.ReadJson(reader:JsonReader, objectType:Type, existingValue:Object, serializer:JsonSerializer) =
+        if (objectType.Equals(typeof<bytes>)) then
+            let b = serializer.Deserialize(reader, typeof<byte[]>) in            
+            b :?> byte[] |> abytes :> obj
+        else
+            raise (NotImplementedException(sprintf "Deserializing wrong type: expected bytes, got %s" (objectType.ToString())))    
+
+    override this.CanConvert(t:Type) =
+        t.Equals(typeof<bytes>)
+
+
+type MyContractResolver() = 
+    inherit DefaultContractResolver()
+        
+    override this.CreateObjectContract(objectType:Type) : JsonObjectContract =        
+        let contract = base.CreateObjectContract(objectType) in
+        if (objectType.Equals(typeof<Date.DateTime>)) then            
+            contract.DefaultCreator <- (fun () -> Date.now() :> obj)        
+        contract
+
+let converters =
+    [ BytesJsonConverter() :> JsonConverter ] 
+    |> List.toArray :> Collections.Generic.IList<JsonConverter>
+
+let settings =
+    JsonSerializerSettings (
+        ContractResolver = MyContractResolver(), //DefaultContractResolver (), 
+        Converters = converters,
+        Formatting = Formatting.Indented,
+        NullValueHandling = NullValueHandling.Include
+        )
+
 (* Serialization/Deserialization functions *)
 let serialize<'T> (o: 'T) : byte[] =
-    let bf = MessagePackSerializer.Get<'T> () in
-    let m  = new MemoryStream () in
-    bf.Pack(m, o); m.ToArray ()
+    let s = JsonConvert.SerializeObject(o, settings) in 
+    //printfn "%s" s;   
+    System.Text.Encoding.ASCII.GetBytes(s)
 
 let deserialize<'T> (b:byte[]): 'T =
-    let bf = MessagePackSerializer.Get<'T> () in
-    let m  = new MemoryStream(b) in
-    bf.Unpack(m)
+    let s = System.Text.Encoding.ASCII.GetString(b) in
+    //printfn "%s" s;   
+    JsonConvert.DeserializeObject<'T>(s, settings)
 
 module Internal =
     let wrap (cb : unit -> 'a) =

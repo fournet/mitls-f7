@@ -1,25 +1,15 @@
 ﻿module DHDB
 
-open System.IO
-
 open Bytes
 
+
 type Key   = bytes * bytes
-type IntKey = cbytes * cbytes
 type Value = bytes * bool
-type IntValue = cbytes * bool
 
 type dhdb = {
     filename: string;
 }
 
-(* ------------------------------------------------------------------------------- *)
-let intkey_to_key (a,b) = abytes(a),abytes(b)
-let key_to_intkey (a,b) = cbytes(a),cbytes(b)
-
-(* ------------------------------------------------------------------------------- *)
-let intvalue_to_value (a,b) = abytes(a),b
-let value_to_intvalue (a,b) = cbytes(a),b
 
 (* ------------------------------------------------------------------------------- *)
 let create (filename:string) =
@@ -31,7 +21,7 @@ let create (filename:string) =
 
 (* ------------------------------------------------------------------------------- *)
 let remove self key =
-    let key = DB.serialize<IntKey> (key_to_intkey key) in
+    let key = DB.serialize<Key> key in
   
     let db  = DB.opendb self.filename in
 
@@ -43,11 +33,11 @@ let remove self key =
 
 (* ------------------------------------------------------------------------------- *)
 let select self key =
-    let key = DB.serialize<IntKey> (key_to_intkey key) in
+    let key = DB.serialize<Key> key in
 
     let select (db : DB.db) =
         DB.get db key
-            |> Option.map (DB.deserialize<IntValue> >> intvalue_to_value)
+            |> Option.map DB.deserialize<Value>
           
     let db = DB.opendb self.filename in
 
@@ -58,8 +48,8 @@ let select self key =
 
 (* ------------------------------------------------------------------------------- *)
 let insert self key v =
-    let key = DB.serialize<IntKey> (key_to_intkey key) in
-    let v   = DB.serialize<IntValue> (value_to_intvalue v) in
+    let key = DB.serialize<Key> key in
+    let v   = DB.serialize<Value> v in
   
     let insert (db : DB.db) =
         match DB.get db key with
@@ -83,7 +73,7 @@ let keys self =
         finally
             DB.closedb db
     in
-        List.map (DB.deserialize<IntKey> >> intkey_to_key) aout
+        List.map DB.deserialize<Key> aout
      
 (* ------------------------------------------------------------------------------- *)
 let merge self db1 =
