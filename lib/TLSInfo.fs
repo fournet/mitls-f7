@@ -370,9 +370,9 @@ let defaultConfig ={
     sessionDBFileName = "sessionDBFile.bin";
     sessionDBExpiry = newTimeSpan 1 0 0 0; (*@ one day, as suggested by the RFC *)
 
-    dhDBFileName = "dhparams-db.bin";
+    dhDBFileName = DHDB.defaultFileName;
     dhDefaultGroupFileName = "default-dh.pem";
-    dhPQMinLength = (1024, 160)
+    dhPQMinLength = CoreDH.defaultPQMinLength
     }
 
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)

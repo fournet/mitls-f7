@@ -1,6 +1,7 @@
 ﻿module DHDBManager
 
 open Bytes
+open Error
 open System.IO
 
 open Microsoft.FSharp.Text
@@ -72,6 +73,17 @@ let load_params_from_file (file : string) : dh_params =
         filestream.Close()
 
 (* ------------------------------------------------------------------------ *)
+let load_default_params pem_file dhdb minSize =
+    let p,g =
+        match load_params_from_file pem_file with
+        | DH(p,g) -> p,g
+        | DHX(p,_,g) -> p,g
+    match CoreDH.check_params dhdb minSize p g with
+    | Error(x) -> raise (InvalidPEMFile(x))
+    | Correct(res) -> res
+
+
+(* ------------------------------------------------------------------------ *)
 let save_params (stream:Stream) (dhp:dh_params) =
     let writer    = new PemWriter(new StreamWriter(stream)) in
     match dhp with
@@ -103,47 +115,6 @@ let save_params_to_file (file:string) (dhp:dh_params) =
     with _ ->
         failwith "unexpected"
 
-(* ------------------------------------------------------------------------ *)
-let check_unknown_q conf minPl minQl pbytes gbytes : bool =
-    let p = new BigInteger(1, cbytes pbytes)
-    let g = new BigInteger(1, cbytes gbytes)
-    let pm1 = p.Subtract(BigInteger.One)
-    let q = pm1.Divide(BigInteger.Two) in
-        (g.CompareTo BigInteger.One) > 0 && (g.CompareTo pm1) < 0 &&
-        minPl <= p.BitLength && minQl <= q.BitLength &&
-        p.IsProbablePrime(conf) && q.IsProbablePrime(conf)
-
-(* ------------------------------------------------------------------------ *)
-let check_known_q conf minPl minQl pbytes gbytes qbytes : bool =
-    let p = new BigInteger(1, cbytes pbytes) 
-    let g = new BigInteger(1, cbytes gbytes) 
-    let q = new BigInteger(1, cbytes qbytes) 
-    let pm1 = p.Subtract(BigInteger.One) in 
-    if (g.CompareTo BigInteger.One) > 0 && (g.CompareTo pm1) < 0 &&
-       minPl <= p.BitLength && minQl <= q.BitLength &&
-       p.IsProbablePrime(conf) && q.IsProbablePrime(conf) then
-        let r = g.ModPow(q, p)
-        // For OpenSSL-generated parameters order(g) = 2q, so e^q mod p = p-1
-        r.Equals(BigInteger.One) || r.Equals(pm1)
-    else
-        false
-
-(* ------------------------------------------------------------------------ *)
-let insert_safe_prime dhdb pbytes gbytes : DHDB.dhdb =
-    let p   = new BigInteger(1, cbytes pbytes)
-    let pm1 = p.Subtract(BigInteger.One)        
-    let q   = pm1.Divide(BigInteger.Two)
-    let qbytes = abytes (q.ToByteArrayUnsigned()) in                 
-        DHDB.insert dhdb (pbytes, gbytes) (qbytes, true)
-
-(* ------------------------------------------------------------------------ *)
-let insert_known_q dhdb pbytes gbytes qbytes : DHDB.dhdb =
-    let p   = new BigInteger(1, cbytes pbytes)
-    let q   = new BigInteger(1, cbytes qbytes)    
-    let pm1 = p.Subtract(BigInteger.One)        
-    let q'  = pm1.Divide(BigInteger.Two) in
-        DHDB.insert dhdb (pbytes, gbytes) (qbytes, q.Equals(q'))
-
 (* ------------------------------------------------------------------------------- *)
 let dump db dir =
     let keys = DHDB.keys db in
@@ -161,26 +132,15 @@ let check conf minPl minQl db =
         for (pbytes,gbytes) in keys do
             match DHDB.select db (pbytes,gbytes) with
             | None -> failwith "unexpected"
-            | Some(qbytes,true) ->
-                let p   = new BigInteger(1, cbytes pbytes)
-                let q   = new BigInteger(1, cbytes qbytes)    
-                let pm1 =  p.Subtract(BigInteger.One)        
-                let q'  = pm1.Divide(BigInteger.Two) in
-                    if not(q.Equals(q')) || not(check_unknown_q conf minPl minQl pbytes gbytes) then 
-                        eprintfn "Found an invalid parameter";
+            | Some(qbytes,safe_prime) ->
+                match CoreDH.check_p_g_q conf minPl minQl pbytes gbytes qbytes with
+                | Error(x) ->
+                    eprintfn "Found an invalid parameter";
+                    exit 1
+                | Correct(sp') ->
+                    if safe_prime <> sp' then
+                        eprintfn "Found a parameter with an inconsistent safe_prime flag";
                         exit 1
-            | Some(qbytes,false) ->
-                let p   = new BigInteger(1, cbytes pbytes)
-                let q   = new BigInteger(1, cbytes qbytes)    
-                let pm1 = p.Subtract(BigInteger.One)        
-                let q'  = pm1.Divide(BigInteger.Two) in
-                    if q.Equals(q') then
-                        eprintfn "Found parameter with a safe prime modulus but an unset safe prime flag";
-                        exit 1
-                    else
-                        if not(check_known_q conf minPl minQl pbytes gbytes qbytes) then
-                            eprintfn "Found an invalid parameter";
-                            exit 1                    
 
 (* ------------------------------------------------------------------------ *)
 let cmdParse () = 
@@ -188,9 +148,9 @@ let cmdParse () =
     let mypath   = Path.GetDirectoryName(assembly.Location)
     let myname   = Path.GetFileNameWithoutExtension(assembly.Location)
 
-    let defaultDBFile  = TLSInfo.defaultConfig.dhDBFileName
-    let defaultMinPlen = fst TLSInfo.defaultConfig.dhPQMinLength
-    let defaultMinQlen = snd TLSInfo.defaultConfig.dhPQMinLength
+    let defaultDBFile  = DHDB.defaultFileName
+    let defaultMinPlen = fst CoreDH.defaultPQMinLength
+    let defaultMinQlen = snd CoreDH.defaultPQMinLength
     let defaultConfidence = 80
   
     let options = ref {
@@ -299,24 +259,44 @@ let _ =
                         eprintfn "Found parameters in the database with same modulus and generator";
                         exit 1
                     | _ ->            
-                        if options.force || check_unknown_q options.confidence options.minplen options.minqlen p g then
-                            ignore(insert_safe_prime db p g);
+                        if options.force then
+                            let p' = new BigInteger(1, cbytes p)
+                            let pm1 = p'.Subtract(BigInteger.One)
+                            let q' = pm1.Divide(BigInteger.Two) in
+                            let q = abytes(q'.ToByteArrayUnsigned())
+                            ignore(DHDB.insert db (p,g) (q,true));
                             exit 0
                         else
-                            eprintfn "Could not validate the parameters";
-                            exit 1
+                            match CoreDH.check_p_g options.confidence options.minplen options.minqlen p g with
+                            | Error(x) ->
+                                eprintfn "Could not validate the parameters";
+                                exit 1
+                            | Correct(q) ->
+                                ignore(DHDB.insert db (p,g) (q,true));
+                                exit 0
                 | DHX(p,q,g) ->
                     match DHDB.select db (p,g) with
                     | Some _ -> 
                         eprintfn "Found parameters in the database with same modulus and generator";
                         exit 1
                     | _ ->            
-                        if options.force || check_known_q options.confidence options.minplen options.minqlen p g q then
-                            ignore(insert_known_q db p g q);
+                        if options.force then
+                            let safe_prime =
+                                let q = new BigInteger(1, cbytes q)
+                                let p = new BigInteger(1, cbytes p)
+                                let pm1 = p.Subtract(BigInteger.One)
+                                let q' = pm1.Divide(BigInteger.Two) in
+                                q.Equals(q')
+                            ignore(DHDB.insert db (p,g) (q,safe_prime));
                             exit 0
                         else
-                            eprintfn "Could not validate the parameters";
-                            exit 1       
+                            match CoreDH.check_p_g_q options.confidence options.minplen options.minqlen p g q with
+                            | Error(x) ->
+                                eprintfn "Could not validate the parameters";
+                                exit 1
+                            | Correct(safe_prime) ->
+                                ignore(DHDB.insert db (p,g) (q,safe_prime));
+                                exit 0
 
         | Dump(dumpdir) -> 
             try 

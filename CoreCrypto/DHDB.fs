@@ -12,6 +12,8 @@ type dhdb = {
     filename: string;
 }
 
+let defaultFileName = "dhparams-db.bin"
+
 (* ------------------------------------------------------------------------------- *)
 let bytes_of_key (k : Key) : byte[] =
     let bf = new BinaryFormatter () in

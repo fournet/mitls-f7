@@ -3,7 +3,6 @@
 module DHGroup
 
 open Bytes
-open CoreKeys
 open Error
 open TLSError
 
@@ -64,7 +63,7 @@ let checkElement dhp (b:bytes): option<elt> =
         None
 
 let defaultDHparams file dhdb minSize =
-    let (dhdb,dhp) = CoreDH.load_default_params file dhdb minSize in
+    let (dhdb,dhp) = DHDBManager.load_default_params file dhdb minSize in
 #if ideal
     let dhp = pp(dhp) in
 #endif

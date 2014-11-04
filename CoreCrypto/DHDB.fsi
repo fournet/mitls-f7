@@ -9,6 +9,8 @@ type Value = bytes * bool  // q, safe_prime?
 
 type dhdb
 
+val defaultFileName: string
+
 val create: string -> dhdb
 val select: dhdb -> Key -> Value option
 val insert: dhdb -> Key -> Value -> dhdb
