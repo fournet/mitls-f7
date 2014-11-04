@@ -105,7 +105,6 @@ let merge self db1 =
     let db = DB.opendb self.filename in
     
     try
-        let db = DB.attach db db1 "db" in
-        DB.tx db (fun db -> DB.merge db "db"); self
+        DB.tx db (fun db -> DB.merge db db1); self
     finally
         DB.closedb db
