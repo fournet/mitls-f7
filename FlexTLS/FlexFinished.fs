@@ -33,6 +33,7 @@ type FlexFinished =
     /// <returns> Updated state * FFinished message record </returns>
     static member receive (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext) : state * FFinished = 
         LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.receive");
+        
         let verify_data =
             match logRoleNSC with
             | Some(log,role,nsc) -> Some(FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log)
@@ -42,6 +43,7 @@ type FlexFinished =
         match hstype with
         | HT_finished  -> 
             LogManager.GetLogger("file").Debug(sprintf "--- Verify data: %A" (Bytes.hexString(payload)));
+            //BB FIXME : Payload length is not always 12 bits
             if length payload <> 12 then
                 (failwith (perror __SOURCE_FILE__ __LINE__ "unexpected payload length"))
             else
@@ -49,9 +51,10 @@ type FlexFinished =
                 (match verify_data with
                 | None -> ()
                 | Some(verify_data) ->
-                    if not (verify_data = payload) then
-                    (LogManager.GetLogger("file").Debug(sprintf "--- Expected verify data : %A" (Bytes.hexString(verify_data)));
-                    failwith "Verify data do not match"));
+                    LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
+                    if not (verify_data = payload) then failwith "Verify data do not match"
+                );
+                // expected verify_data matches payload
                 let st = FlexState.updateIncomingVerifyData st payload in
                 let ff = {  verify_data = payload; 
                             payload = to_log;
@@ -95,6 +98,7 @@ type FlexFinished =
     /// <returns> Updated state * FFinished message record </returns>
     static member send (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext, ?fp:fragmentationPolicy) : state * FFinished =
         LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.send");
+        
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let verify_data =
             match logRoleNSC with
@@ -106,10 +110,11 @@ type FlexFinished =
         in
         let payload,ff = FlexFinished.prepare verify_data in
         let st = FlexState.updateOutgoingVerifyData st verify_data in
-        let st = FlexHandshake.send(st,payload,fp) in
-
+        
         LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
         LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
+       
+        let st = FlexHandshake.send(st,payload,fp) in
         st,ff
 
     end
