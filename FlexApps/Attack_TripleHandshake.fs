@@ -100,8 +100,8 @@ type Attack_TripleHandshake =
         let clog = cch.payload @| csh.payload @| ccert.payload @| shdpayload @| ccke.payload in
 
         // Discard the client finished message and inject ours instead
-        let sst,sf = FlexFinished.receive(sst,logRoleNSC=(slog,Client,snsc)) in
-        let cst,cf = FlexFinished.send(cst,logRoleNSC=(clog,Client,cnsc)) in
+        let sst,sf = FlexFinished.receive(sst,snsc,logRole=(slog,Client)) in
+        let cst,cf = FlexFinished.send(cst,cnsc,logRole=(clog,Client)) in
 
         // Forward the server CCS
         let cst,sst,_ = FlexCCS.forward(cst,sst) in
@@ -115,8 +115,8 @@ type Attack_TripleHandshake =
         let clog      = clog @| cf.payload in
 
         // Discard the server finished message and inject ours instead
-        let cst,_   = FlexFinished.receive(cst,logRoleNSC=(clog,Server,cnsc)) in
-        let sst,_   = FlexFinished.send(sst,logRoleNSC=(slog,Server,snsc)) in
+        let cst,_   = FlexFinished.receive(cst,cnsc,logRole=(clog,Server)) in
+        let sst,_   = FlexFinished.send(sst,snsc,logRole=(slog,Server)) in
 
         // Put a nice end to the first handshake
         let sst = FlexAlert.send(sst,TLSError.AD_close_notify) in

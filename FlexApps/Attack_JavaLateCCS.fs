@@ -98,7 +98,7 @@ type LateCCS =
             // Start encrypting on attacker to server side
             let cst  = FlexState.installWriteKeys cst nsc in
             let clog = sch.payload @| csh.payload @| ccert.payload @| cske.payload @| cshd.payload @| ccke.payload in
-            let cst,cffC = FlexFinished.send(cst,logRoleNSC=(clog,Client,cnsc)) in
+            let cst,cffC = FlexFinished.send(cst,cnsc,logRole=(clog,Client)) in
 
             // Drop the CCS
             let cst,_,_  = FlexCCS.receive(cst) in
@@ -107,7 +107,7 @@ type LateCCS =
             let cst = FlexState.installReadKeys cst nsc in
 
             let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (clog @| cffC.payload) in
-            let cst,cffS     = FlexFinished.receive(cst,logRoleNSC=(clog,Server,cnsc)) in
+            let cst,cffS     = FlexFinished.receive(cst,cnsc,logRole=(clog,Server)) in
                        
             // Compute the verifiy data on attacker to client side
             let slog = sch.payload @| csh.payload @| ccert.payload in

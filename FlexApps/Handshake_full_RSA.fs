@@ -41,7 +41,7 @@ type Handshake_full_RSA =
             | Some(st) -> st,TLSInfo.defaultConfig
         in
 
-        let machine = new FlexStatefulAPI(st) in
+        let machine = new FlexStatefulAPI(st,Client) in
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
@@ -79,7 +79,7 @@ type Handshake_full_RSA =
         let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn,port) in
 
         // Create a machine for the stateful API
-        let machine = new FlexStatefulAPI(st) in
+        let machine = new FlexStatefulAPI(st,Client) in
 
         // Start a normal RSA Handshake as a Server
         machine.ReceiveClientHello();
@@ -130,14 +130,14 @@ type Handshake_full_RSA =
         let st           = FlexState.installWriteKeys st nsc in
         
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
-        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+        let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
         let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
-        let st,ffS       = FlexFinished.receive(st,verify_data) in
+        let log          = log @| ffC.payload in
+        let st,ffS       = FlexFinished.receive(st,nsc,(log,Server)) in
         st
 
     static member server (listening_address:string, ?cn:string, ?port:int) : state =
@@ -180,8 +180,7 @@ type Handshake_full_RSA =
         let st          = FlexState.installReadKeys st nsc in
 
         let log         = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
-        let verify_data = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client log in
-        let st,ffC      = FlexFinished.receive(st,verify_data) in
+        let st,ffC      = FlexFinished.receive(st,nsc,(log,Client)) in
 
         // Advertise that we will encrypt the trafic from now on
         let st,_   = FlexCCS.send(st) in
@@ -189,7 +188,8 @@ type Handshake_full_RSA =
         // Start encrypting
         let st     = FlexState.installWriteKeys st nsc in
 
-        let _      = FlexFinished.send(st,logRoleNSC=((log @| ffC.payload),Server,nsc)) in
+        let log    = log @| ffC.payload in
+        let _      = FlexFinished.send(st,nsc,logRole=(log,Server)) in
         st
 
 
@@ -236,14 +236,14 @@ type Handshake_full_RSA =
         // Start encrypting
         let st           = FlexState.installWriteKeys st nsc in
         
-        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+        let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
         let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
             
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| ffC.payload) in
-        let st,ffS       = FlexFinished.receive(st,verify_data) in
+        let log          = log @| ffC.payload in
+        let st,ffS       = FlexFinished.receive(st,nsc,(log,Server)) in
         st
 
 
@@ -294,8 +294,7 @@ type Handshake_full_RSA =
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = log @| fcver.payload in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client log in
-        let st,ffC       = FlexFinished.receive(st,verify_data) in
+        let st,ffC       = FlexFinished.receive(st,nsc,(log,Client)) in
         
         // Advertise that we will encrypt the trafic from now on
         let st,_         = FlexCCS.send(st) in

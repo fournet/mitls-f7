@@ -59,15 +59,14 @@ type Handshake_tls13 =
         let st,scertv    = FlexCertificateVerify.receive(st,nsc,FlexConstants.sigAlgs_ALL,log=log) in
         
         let log = log @| scertv.payload in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-        let st,ffS       = FlexFinished.receive(st,verify_data) in
+        let st,ffS       = FlexFinished.receive(st,nsc,(log,Server)) in
         
         // We advertize that we will encrypt the traffic
         let st,_         = FlexCCS.send(st) in
         let st           = FlexState.installWriteKeys st nsc in
         
         let log          = log @| ffS.payload in    
-        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+        let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
         st
 
     static member server (address:string, ?cn:string, ?port:int) : state =
@@ -113,7 +112,7 @@ type Handshake_tls13 =
         let st           = FlexState.installReadKeys st nsc in
         
         let log          = log @| ffS.payload in    
-        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+        let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
         st
 
     end

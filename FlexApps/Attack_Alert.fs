@@ -54,17 +54,15 @@ type Attack_Alert =
         let st           = FlexState.installWriteKeys st nsc in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
             
-        let st,cff       = FlexFinished.send(st, logRoleNSC=(log,Client,nsc)) in
+        let st,cff       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
         let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
-        // Check that verify_data is correct
-        let vd = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server (log @| cff.payload) in
-        let st,sff       = FlexFinished.receive(st,vd) in
-        if not (vd = sff.verify_data) then
-            failwith "Verify_data check failed"
-        else
+
+        let log = log @| cff.payload in
+        let st,sff       = FlexFinished.receive(st,nsc,(log,Server)) in
+
 
         // RSA handshake is over. Send some plaintext
         let request = Attack_Alert.httpRequest server_name in

@@ -7,6 +7,7 @@ open NLog
 open Bytes
 open Error
 open TLSInfo
+open TLSConstants
 open HandshakeMessages
 
 open FlexTypes
@@ -28,33 +29,48 @@ type FlexFinished =
     /// Receive a Finished message from the network stream and check the verify_data on demand
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="verify_data"> Optional expected verify_data that will be checked if provided </param>
-    /// <param name="logRoleNSC"> Optional log, role, and next security context used to compute an expected verify data (has priority over the verify_data optional parameter) </param>
+    /// <param name="nsc"> NextSecurityContext embedding required parameters </param>
+    /// <param name="logRole"> Optional log, role used to compute an eventual verify data </param>
     /// <returns> Updated state * FFinished message record </returns>
-    static member receive (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext) : state * FFinished = 
-        LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.receive");
+    static member receive (st:state, nsc:nextSecurityContext, ?logRole:bytes*Role) : state * FFinished = 
+        match logRole with
+        | Some(log,role) -> 
+            FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite,verify_data=(FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log))
+        | None -> 
+            FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite)
         
-        let verify_data =
-            match logRoleNSC with
-            | Some(log,role,nsc) -> Some(FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log)
-            | None -> verify_data
-        in
+    /// <summary>
+    /// Receive a Finished message from the network stream and check the verify_data on demand
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="pv"> Protocol Version </param>
+    /// <param name="cs"> Ciphersuite </param>
+    /// <param name="verify_data"> Optional verify_data to compare to received payload </param>
+    /// <returns> Updated state * FFinished message record </returns>
+    static member receive (st:state, pv:ProtocolVersion, cs:cipherSuite, ?verify_data:bytes) : state * FFinished = 
+        LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.receive");
+
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_finished  -> 
-            LogManager.GetLogger("file").Debug(sprintf "--- Verify data: %A" (Bytes.hexString(payload)));
-            //BB FIXME : Payload length is not always 12 bits
-            if length payload <> 12 then
-                (failwith (perror __SOURCE_FILE__ __LINE__ "unexpected payload length"))
+            // check that the received payload has a correct length
+            let expected_vd_length =
+                match pv with
+                | TLS_1p2   -> (TLSConstants.verifyDataLen_of_ciphersuite cs) = (Bytes.length payload)
+                | _         -> 12 = (Bytes.length payload)
+            in
+            if not expected_vd_length then failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "unexpected payload length %d" (Bytes.length payload)))
             else
-                // check the verify_data if the user provided one; then store what we received
+                // check the verify_data if the user provided one
                 (match verify_data with
-                | None -> ()
+                | None -> 
+                    LogManager.GetLogger("file").Debug(sprintf "--- Verify data not checked")
                 | Some(verify_data) ->
                     LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
+                    LogManager.GetLogger("file").Debug(sprintf "--- Verify data: %A" (Bytes.hexString(payload)));
                     if not (verify_data = payload) then failwith "Verify data do not match"
                 );
-                // expected verify_data matches payload
+                // no verify_data provided OR expected verify_data matches payload
                 let st = FlexState.updateIncomingVerifyData st payload in
                 let ff = {  verify_data = payload; 
                             payload = to_log;
@@ -89,31 +105,36 @@ type FlexFinished =
 
 
     /// <summary>
+    /// Send a Finished message from the verify_data and send it to the network stream
+    /// </summary>
+    /// <param name="st"> State of the current Handshake </param>
+    /// <param name="logRole"> Log the role necessary to compute the verify data </param>
+    /// <param name="fp"> Optional fragmentation policy at the record level </param>
+    /// <returns> Updated state * FFinished message record </returns>
+    static member send (st:state, nsc:nextSecurityContext, logRole:bytes * Role, ?fp:fragmentationPolicy) : state * FFinished =     
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let verify_data =
+            let (log,role) = logRole in FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
+        in
+        FlexFinished.send (st,verify_data,fp)
+
+
+    /// <summary>
     /// Send a Finished message from the network stream and check the verify_data on demand
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="verify_data"> Optional verify_data that will be checked if provided </param>
-    /// <param name="logRoleNSC"> Optional triplet that includes the log the role and the next security context and that compute the verify data if provided </param>
+    /// <param name="verify_data"> Verify_data that will be used </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FFinished message record </returns>
-    static member send (st:state, ?verify_data:bytes, ?logRoleNSC:bytes * Role * nextSecurityContext, ?fp:fragmentationPolicy) : state * FFinished =
+    static member send (st:state, verify_data:bytes, ?fp:fragmentationPolicy) : state * FFinished =
         LogManager.GetLogger("file").Info("# FINISHED : FlexFinished.send");
         
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let verify_data =
-            match logRoleNSC with
-            | Some(log,role,nsc) -> FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
-            | None ->
-                match verify_data with
-                | None -> failwith (perror __SOURCE_FILE__ __LINE__ "One of verify_data or (log, role, nextSecurityContext) must be provided")
-                | Some(vd) -> vd
-        in
+
         let payload,ff = FlexFinished.prepare verify_data in
-        let st = FlexState.updateOutgoingVerifyData st verify_data in
-        
-        LogManager.GetLogger("file").Debug(sprintf "--- Expected data : %A" (Bytes.hexString(verify_data)));
         LogManager.GetLogger("file").Debug(sprintf "--- Verify data : %A" (Bytes.hexString(ff.verify_data)));
-       
+
+        let st = FlexState.updateOutgoingVerifyData st verify_data in
         let st = FlexHandshake.send(st,payload,fp) in
         st,ff
 

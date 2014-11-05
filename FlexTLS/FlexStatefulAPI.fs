@@ -168,7 +168,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     /// <param name="fp"> Fragmentation policy </param>
     member this.SendFinished(?fp:fragmentationPolicy) : unit =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let st,ffC = FlexFinished.send(this.st,logRoleNSC=(this.log,this.r,this.nsc)) in
+        let st,ffC = FlexFinished.send(this.st,this.nsc,logRole=(this.log,this.r)) in
         this.st <- st;
         this.log <- this.log @| ffC.payload
 
@@ -176,7 +176,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     /// Receive Finished messages for StatefulAPI
     /// </summary>
     member this.ReceiveFinished() : unit =
-        let st,ffS = FlexFinished.receive(this.st,logRoleNSC=(this.log,this.r,this.nsc)) in // FIXME: dual role!
+        let st,ffS = FlexFinished.receive(this.st,this.nsc,logRole=(this.log,this.r)) in // FIXME: dual role!
         this.st <- st;
         this.log <- this.log @| ffS.payload
 

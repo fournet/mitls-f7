@@ -70,8 +70,7 @@ type Handshake_resumption =
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = fch.payload @| fsh.payload in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-        let st,ffS       = FlexFinished.receive(st,verify_data) in
+        let st,ffS       = FlexFinished.receive(st,nsc,(log,Server)) in
 
          let st,_         = FlexCCS.send(st) in
             
@@ -79,7 +78,7 @@ type Handshake_resumption =
         let st           = FlexState.installWriteKeys st nsc in
 
         let log          = log @| ffS.payload in
-        let st,ffC       = FlexFinished.send(st,logRoleNSC=(log,Client,nsc)) in
+        let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
         st
 
 //
@@ -125,7 +124,7 @@ type Handshake_resumption =
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = log @| ffS.payload in
-        let st,ffC       = FlexFinished.receive(st,logRoleNSC=(log,Client,nsc)) in
+        let st,ffC       = FlexFinished.receive(st,nsc,logRole=(log,Client)) in
         st
 
     end
