@@ -27,4 +27,5 @@ val sigalg_of_pkeyparams : CoreSig.sigpkey -> sigAlg
 val gen    : alg -> pkey * skey
 val sign   : alg -> skey -> text -> sigv
 val verify : alg -> pkey -> text -> sigv -> bool
-val coerce :  alg -> pkey -> CoreSig.sigskey -> skey
+val coerce : alg -> pkey -> CoreSig.sigskey -> skey
+val leak   : alg -> skey -> CoreSig.sigskey
