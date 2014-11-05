@@ -332,21 +332,9 @@ let checkServerRenegotiationInfoExtension config (sExtL: list<serverExtension>) 
         let (cvd,svd) = x in
         equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
 
-//let isExtendedMS e = 
-//    match e with
-//    | NE_extended_ms -> true
-//    | _ -> false
-
 let hasExtendedMS extL = extL.ne_extended_ms = true
-//    List.exists isExtendedMS extL
-
-//let isExtendedPadding e =
-//    match e with
-//    | NE_extended_padding -> true
-//    | _ -> false
 
 let hasExtendedPadding id = id.ext.ne_extended_padding = true
-//    List.exists isExtendedPadding id.ext
 
 (* sigHashAlg parsing functions *)
 let sigHashAlgBytes alg =
