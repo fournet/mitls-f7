@@ -8,6 +8,7 @@ open TLSInfo
 
 open FlexTypes
 open FlexConstants
+open FlexState
 open FlexClientHello
 open FlexServerHello
 open FlexCertificate
@@ -153,6 +154,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     /// </summary>
     member this.SendCCS() : unit =
         let st,_ = FlexCCS.send(this.st) in
+        let st = FlexState.installWriteKeys this.st this.nsc in
         this.st <- st
     
     /// <summary>
@@ -160,6 +162,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     /// </summary>
     member this.ReceiveCCS() : unit =
         let st,_,_ = FlexCCS.receive(this.st) in
+        let st = FlexState.installReadKeys this.st this.nsc in
         this.st <- st
     
     /// <summary>
