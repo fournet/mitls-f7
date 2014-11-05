@@ -23,12 +23,42 @@ open FlexCCS
 open FlexFinished
 open FlexState
 open FlexSecrets
+open FlexStatefulAPI
 
 
 
 
 type Handshake_full_DHE =
     class
+
+    (* Run a full Handshake DHE with server side authentication only *)
+    static member stateful_client (server_name:string, ?port:int, ?st:state) : state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+
+        // Start TCP connection with the server if no state is provided by the user
+        let st,_ = 
+            match st with
+            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port)
+            | Some(st) -> st,TLSInfo.defaultConfig
+        in
+
+        let machine = new FlexStatefulAPI(st) in
+
+        // Ensure we use DHE
+        let fch = {FlexConstants.nullFClientHello with
+            ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
+
+        machine.SendClientHello(fch);
+        machine.ReceiveServerHello();
+        machine.ReceiveCertificate();
+        // machine.ReceiveServerKeyExchangeDHE();
+        machine.ReceiveServerHelloDone();
+        // machine.SendClientKeyExchangeDHE();
+        machine.SendCCS();
+        machine.SendFinished();
+        machine.ReceiveCCS();
+        machine.ReceiveFinished();
+        st
 
     (* Run a full Handshake DHE with server side authentication only *)
     static member client (server_name:string, ?port:int, ?st:state) : state =

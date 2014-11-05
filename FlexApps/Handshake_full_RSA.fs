@@ -22,12 +22,85 @@ open FlexCCS
 open FlexFinished
 open FlexState
 open FlexSecrets
+open FlexStatefulAPI
 
 
 
 
 type Handshake_full_RSA =
     class
+
+    (* Run a stateful full Handshake RSA with server side authentication only as Client*)
+    static member stateful_client (server_name:string, ?port:int, ?st:state) : state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        
+        // Start TCP connection with the server if no state is provided by the user
+        let st,_ = 
+            match st with
+            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port)
+            | Some(st) -> st,TLSInfo.defaultConfig
+        in
+
+        let machine = new FlexStatefulAPI(st) in
+
+        // Ensure we use RSA
+        let fch = {FlexConstants.nullFClientHello with
+            ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
+
+        machine.SendClientHello(fch);
+        machine.ReceiveServerHello();
+        machine.ReceiveCertificate();
+        machine.ReceiveServerHelloDone();
+        machine.SendClientKeyExchangeRSA();
+        machine.SendCCS();
+        machine.SendFinished();
+        machine.ReceiveCCS();
+        machine.ReceiveFinished();
+        st
+
+    (* Run a stateful full Handshake RSA with server side authentication only as Server *)
+    static member stateful_server (listening_address:string, ?cn:string, ?port:int) : state =
+        let cn = defaultArg cn listening_address in
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
+        | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
+        | Some(chain,sk) -> Handshake_full_RSA.server(listening_address,chain,sk,port)
+
+    (* Run a stateful full Handshake RSA with server side authentication only as Server *)
+    static member stateful_server (listening_address:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int) : state =
+        let port = defaultArg port FlexConstants.defaultTCPPort in
+        let cn =
+            match Cert.get_hint chain with
+            | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Could not parse given certficate")
+            | Some(cn) -> cn
+        in
+
+        // Accept TCP connection from the client
+        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn,port) in
+
+        // Create a machine for the stateful API
+        let machine = new FlexStatefulAPI(st) in
+
+        // Start a normal RSA Handshake as a Server
+        machine.ReceiveClientHello();
+
+        // Sanity check: our preferred ciphersuite is there
+//        if not (List.exists (fun cs -> cs = TLS_RSA_WITH_AES_128_CBC_SHA) (FlexClientHello.getCiphersuites fch)) then
+//            failwith (perror __SOURCE_FILE__ __LINE__ "No suitable ciphersuite given")
+//        else
+
+        // Ensure we send our preferred ciphersuite
+        let fsh = { FlexConstants.nullFServerHello with 
+            ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} 
+        in
+        machine.SendServerHello(fsh);
+        machine.SendCertificate();
+        machine.ReceiveClientKeyExchangeRSA();
+        machine.ReceiveCCS();
+        machine.ReceiveFinished();
+        machine.SendCCS();
+        machine.SendFinished();
+        st
 
     (* Run a full Handshake RSA with server side authentication only *)
     static member client (server_name:string, ?port:int, ?st:state) : state =
