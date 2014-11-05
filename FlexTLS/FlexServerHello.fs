@@ -135,7 +135,7 @@ type FlexServerHello =
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record * Negociated extensions </returns>
     static member receive (st:state, cextL:list<clientExtension>, ?checkVD:bool, ?IsResuming:bool) : state * FServerHello * negotiatedExtensions =
-        LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.reveive");
+        LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.receive");
         let checkVD = defaultArg checkVD true in
         let IsResuming = defaultArg IsResuming false in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
