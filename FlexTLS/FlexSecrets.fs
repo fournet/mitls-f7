@@ -13,7 +13,7 @@ open TLSConstants
 
 open FlexTypes
 open FlexConstants
-
+open FlexState
 
 
 
@@ -110,8 +110,8 @@ type FlexSecrets =
     /// <returns> Updated next security context </returns>
     static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext) : nextSecurityContext =
         LogManager.GetLogger("file").Debug("@ Fill Secrets");
-        let er = TLSInfo.nextEpoch st.read.epoch  nsc.crand nsc.srand nsc.si in
-        let ew = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
+        let er = FlexState.guessNextEpoch st.read.epoch  nsc in
+        let ew = FlexState.guessNextEpoch st.write.epoch nsc in
         
         let pms =
             if nsc.keys.pms = empty_bytes then

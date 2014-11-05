@@ -19,6 +19,24 @@ open FlexTypes
 type FlexState =
     class
 
+    static member guessNextEpoch (e:epoch) (nsc:nextSecurityContext) : epoch =
+        if nsc.si.init_crand = nsc.crand && nsc.si.init_srand = nsc.srand then
+            // full handshake
+            TLSInfo.fullEpoch e nsc.si
+        else
+            // abbreviated handshake
+            // we set do dummy values most of the fields here, but at least
+            // we store it's an abbreviated handshake
+            let ai = {abbr_crand = nsc.crand;
+                      abbr_srand = nsc.srand;
+                      abbr_session_hash = nsc.si.session_hash;
+                      abbr_vd = None} in
+            // The last 'e' parameters is most certainly wrong, as it should be
+            // the previous epoch of the handshake that generated the session.
+            // We could put an empty epoch instead, but it's difficult to get from the miTLS API
+            // In practice, we don't care about its value anyway.
+            TLSInfo.abbrEpoch e ai nsc.si e
+
     /// <summary> Update the state with a new readin (incoming) record </summary>
     static member updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
         let read_s = {st.read with record = incoming} in
@@ -79,7 +97,7 @@ type FlexState =
     /// <returns> Updated state </returns>
     static member installReadKeys (st:state) (nsc:nextSecurityContext): state =
         LogManager.GetLogger("file").Debug("@ Install Read Keys");
-        let nextEpoch = TLSInfo.nextEpoch st.read.epoch nsc.crand nsc.srand nsc.si in
+        let nextEpoch = FlexState.guessNextEpoch st.read.epoch nsc in
         let rk,_ = nsc.keys.epoch_keys in
         let ark = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Reader rk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Reader ark in
@@ -145,7 +163,7 @@ type FlexState =
     /// <returns> Updated state </returns>
     static member installWriteKeys (st:state) (nsc:nextSecurityContext) : state =
         LogManager.GetLogger("file").Debug("@ Install Write Keys");
-        let nextEpoch = TLSInfo.nextEpoch st.write.epoch nsc.crand nsc.srand nsc.si in
+        let nextEpoch = FlexState.guessNextEpoch st.write.epoch nsc in
         let _,wk = nsc.keys.epoch_keys in
         let awk = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Writer wk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Writer awk in

@@ -208,6 +208,15 @@ type FlexConstants =
         payload = empty_bytes;
     }
 
+    /// <summary>
+    /// A record that represents no negotiated extensions
+    /// </summary>
+    static member nullNegotiatedExtensions =
+        {ne_extended_padding = false;
+         ne_extended_ms = false;
+         ne_renegotiation_info = None;
+         ne_negotiated_dh_group=None}
+
     /// <summary> Null SessionInfo </summary>
     static member nullSessionInfo = {   
         clientID = [];
@@ -219,7 +228,7 @@ type FlexConstants =
         protocol_version = TLS_1p2;
         cipher_suite = nullCipherSuite;
         compression = NullCompression;
-        extensions = [];
+        extensions = FlexConstants.nullNegotiatedExtensions;
         init_crand = empty_bytes;
         init_srand = empty_bytes;
         session_hash = empty_bytes;

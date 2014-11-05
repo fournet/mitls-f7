@@ -293,7 +293,7 @@ type FlexServerHello =
                         negotiateServerExtensions cextL cfg nCs (st.read.verify_data,st.write.verify_data) false
                     | Some(sExtL) ->
                         match negotiateClientExtensions cextL sExtL false nCs with
-                        | Error(x,y) -> sExtL,[]
+                        | Error(x,y) -> sExtL,FlexConstants.nullNegotiatedExtensions
                         | Correct(nExtL) -> sExtL,nExtL
                 in
 
