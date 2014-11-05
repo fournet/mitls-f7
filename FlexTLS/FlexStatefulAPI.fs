@@ -28,7 +28,7 @@ type FlexStatefulAPI(st:FlexTypes.state) =
     let mutable _log = empty_bytes
 
     /// <summary>
-    /// Send the Client Hello message for Stateful API
+    /// Send a Client Hello message
     /// </summary>
     /// <param name="fch"> User provided ClientHello message </param>
     /// <param name="fp"> Fragmentation policy </param>
@@ -42,9 +42,9 @@ type FlexStatefulAPI(st:FlexTypes.state) =
         _log <- _log @| fch.payload
 
     /// <summary>
-    /// Receive the Client Hello message for Stateful API
+    /// Receive a Client Hello message
     /// </summary>
-    /// <param name="checkVD"> Check the verify data if renegociation indication extension contains data (Default to true) </param>
+    /// <param name="checkVD"> Enforce check of the verify data if renegotiation indication extension is present (default: true) </param>
     member this.ReceiveClientHello(?checkVD:bool) : unit =
         let checkVD = defaultArg checkVD true in
         let st,nsc,fch = FlexClientHello.receive(_st,checkVD=checkVD) in
@@ -54,7 +54,7 @@ type FlexStatefulAPI(st:FlexTypes.state) =
         _log <- _log @| fch.payload
 
     /// <summary>
-    /// Send the Server Hello for Stateful API
+    /// Send a Server Hello message
     /// </summary>
     /// <param name="fsh"> User provided ServerHello message </param>
     /// <param name="fp"> Fragmentation policy </param>
@@ -67,7 +67,7 @@ type FlexStatefulAPI(st:FlexTypes.state) =
         _log <- _log @| fsh.payload
 
     /// <summary>
-    /// Receive the Server Hello for Stateful API
+    /// Receive a Server Hello message
     /// </summary>
     member this.ReceiveServerHello() : unit =
         let st,nsc,fsh = FlexServerHello.receive(_st,_fch,nsc=_nsc) in
@@ -76,7 +76,7 @@ type FlexStatefulAPI(st:FlexTypes.state) =
         _log <- _log @| fsh.payload
 
     /// <summary>
-    /// Send Certificate for Stateful API
+    /// Send a Certificate message
     /// </summary>
     /// <param name="role"> Role we use for the certificate (Default to Server) </param>
     /// <param name="cn"> Common name to search for certificate chain and private key </param>
