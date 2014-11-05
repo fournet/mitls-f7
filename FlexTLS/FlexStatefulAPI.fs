@@ -86,13 +86,15 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     /// </summary>
     /// <param name="role"> Role we use for the certificate (Default to Server) </param>
     /// <param name="cn"> Common name to search for certificate chain and private key </param>
-    member this.SendCertificate(?role:Role,?cn:string) : unit =
+    /// <param name="fp"> Fragmentation policy </param>
+    member this.SendCertificate(?role:Role,?cn:string, ?fp:fragmentationPolicy) : unit =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let role = defaultArg role Server in
         let cn = defaultArg cn "" in
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,sk) ->
-            let st,nsc,fcert = FlexCertificate.send(this.st,role,chain,this.nsc) in
+            let st,nsc,fcert = FlexCertificate.send(this.st,role,chain,this.nsc,fp=fp) in
             this.st <- st;
             this.nsc <- nsc;
             this.log <- this.log @| fcert.payload
@@ -130,7 +132,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     /// <param name="fp"> Fragmentation policy </param>
     member this.SendClientKeyExchangeRSA(?fp:fragmentationPolicy) : unit = 
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(this.st,this.nsc,this.fch) in
+        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(this.st,this.nsc,this.fch,fp=fp) in
         this.st <- st;
         this.nsc <- nsc;
         this.log <- this.log @| fcke.payload
@@ -171,7 +173,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     /// <param name="fp"> Fragmentation policy </param>
     member this.SendFinished(?fp:fragmentationPolicy) : unit =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let st,ffC = FlexFinished.send(this.st,this.nsc,logRole=(this.log,this.r)) in
+        let st,ffC = FlexFinished.send(this.st,this.nsc,logRole=(this.log,this.r),fp=fp) in
         this.st <- st;
         this.log <- this.log @| ffC.payload
 

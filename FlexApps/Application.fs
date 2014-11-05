@@ -35,6 +35,10 @@ let main argv =
 //    let st = Handshake_full_RSA.client("www.inria.fr") in
 //    printf "RSA client finished\n";
 
+    (* Standard RSA full handshake as stateful Client *)
+//    let st = Handshake_full_RSA.stateful_client("www.inria.fr") in
+//    printf "RSA client stateful finished\n";
+
     (* Standard RSA handshake with resumption as Client*)
 //    let st = Handshake_full_RSA.client("www.inria.fr") in
 //    let _  = Tcp.close st.ns in 
