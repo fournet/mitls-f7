@@ -16,16 +16,21 @@ open FlexClientKeyExchange
 open FlexCCS
 open FlexFinished
 
-
-
-
-type FlexStatefulAPI(st:FlexTypes.state) =
+type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
     class
 
-    let mutable _st = st
-    let mutable _nsc = FlexConstants.nullNextSecurityContext
-    let mutable _fch = FlexConstants.nullFClientHello
-    let mutable _log = empty_bytes
+    /// <summary> State of the connection </summary>
+    member val st  = st                                    with get,set
+    /// <summary> Intended role </summary>
+    member val r   = r                                     with get,set
+    /// <summary> Protocol configuration options </summary>
+    member val cfg = defaultArg cfg TLSInfo.defaultConfig  with get,set
+    /// <summary> Next security context (session keys and parameters) that this handshake is negotiating </summary>
+    member val nsc = FlexConstants.nullNextSecurityContext with get,set
+    /// <summary> The most recent client hello sent or received </summary>
+    member val fch = FlexConstants.nullFClientHello        with get,set
+    /// <summary> The log, built incrementally for every sent/received message </summary>
+    member val log = empty_bytes                           with get,set
 
     /// <summary>
     /// Send a Client Hello message
@@ -35,11 +40,11 @@ type FlexStatefulAPI(st:FlexTypes.state) =
     member this.SendClientHello(?fch:FClientHello, ?fp:fragmentationPolicy) : unit =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fch = defaultArg fch FlexConstants.nullFClientHello in
-        let st,nsc,fch = FlexClientHello.send(_st,fch=fch,fp=fp) in
-        _st  <- st;
-        _nsc <- nsc;
-        _fch <- fch;
-        _log <- _log @| fch.payload
+        let st,nsc,fch = FlexClientHello.send(this.st,fch=fch,cfg=this.cfg,fp=fp) in
+        this.st  <- st;
+        this.nsc <- nsc;
+        this.fch <- fch;
+        this.log <- this.log @| fch.payload
 
     /// <summary>
     /// Receive a Client Hello message
@@ -47,11 +52,11 @@ type FlexStatefulAPI(st:FlexTypes.state) =
     /// <param name="checkVD"> Enforce check of the verify data if renegotiation indication extension is present (default: true) </param>
     member this.ReceiveClientHello(?checkVD:bool) : unit =
         let checkVD = defaultArg checkVD true in
-        let st,nsc,fch = FlexClientHello.receive(_st,checkVD=checkVD) in
-        _st  <- st;
-        _nsc <- nsc;
-        _fch <- fch;
-        _log <- _log @| fch.payload
+        let st,nsc,fch = FlexClientHello.receive(this.st,checkVD=checkVD) in
+        this.st  <- st;
+        this.nsc <- nsc;
+        this.fch <- fch;
+        this.log <- this.log @| fch.payload
 
     /// <summary>
     /// Send a Server Hello message
@@ -61,19 +66,19 @@ type FlexStatefulAPI(st:FlexTypes.state) =
     member this.SendServerHello(?fsh:FServerHello, ?fp:fragmentationPolicy) : unit =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fsh = defaultArg fsh FlexConstants.nullFServerHello in
-        let st,nsc,fsh = FlexServerHello.send(_st,_fch,_nsc,fsh=fsh,fp=fp) in
-        _st <- st;
-        _nsc <- nsc;
-        _log <- _log @| fsh.payload
+        let st,nsc,fsh = FlexServerHello.send(this.st,this.fch,this.nsc,fsh=fsh,cfg=this.cfg,fp=fp) in
+        this.st <- st;
+        this.nsc <- nsc;
+        this.log <- this.log @| fsh.payload
 
     /// <summary>
     /// Receive a Server Hello message
     /// </summary>
     member this.ReceiveServerHello() : unit =
-        let st,nsc,fsh = FlexServerHello.receive(_st,_fch,nsc=_nsc) in
-        _st <- st;
-        _nsc <- nsc;
-        _log <- _log @| fsh.payload
+        let st,nsc,fsh = FlexServerHello.receive(this.st,this.fch,nsc=this.nsc) in
+        this.st <- st;
+        this.nsc <- nsc;
+        this.log <- this.log @| fsh.payload
 
     /// <summary>
     /// Send a Certificate message
@@ -86,10 +91,10 @@ type FlexStatefulAPI(st:FlexTypes.state) =
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,sk) ->
-            let st,nsc,fcert = FlexCertificate.send(_st,role,chain,_nsc) in
-            _st <- st;
-            _nsc <- nsc;
-            _log <- _log @| fcert.payload
+            let st,nsc,fcert = FlexCertificate.send(this.st,role,chain,this.nsc) in
+            this.st <- st;
+            this.nsc <- nsc;
+            this.log <- this.log @| fcert.payload
 
     /// <summary>
     /// Receive Certificate for Stateful API
@@ -97,26 +102,26 @@ type FlexStatefulAPI(st:FlexTypes.state) =
     /// <param name="role"> Role we use for the certificate (Default to Client) </param>
     member this.ReceiveCertificate(?role:Role) : unit =
         let role = defaultArg role Client in
-        let st,nsc,fcert = FlexCertificate.receive(_st,role,_nsc) in
-        _st <- st;
-        _nsc <- nsc;
-        _log <- _log @| fcert.payload
+        let st,nsc,fcert = FlexCertificate.receive(this.st,role,this.nsc) in
+        this.st <- st;
+        this.nsc <- nsc;
+        this.log <- this.log @| fcert.payload
     
     /// <summary>
     /// Send Server Hello Done for Stateful API
     /// </summary>
     member this.SendServerHelloDone() : unit =
-        let st,fshd = FlexServerHelloDone.send(_st) in
-        _st <- st;
-        _log <- _log @| fshd.payload
+        let st,fshd = FlexServerHelloDone.send(this.st) in
+        this.st <- st;
+        this.log <- this.log @| fshd.payload
 
     /// <summary>
     /// Receive Server Hello Done for Stateful API
     /// </summary>
     member this.ReceiveServerHelloDone() : unit = 
-        let st,fshd      = FlexServerHelloDone.receive(_st) in
-        _st <- st;
-        _log <- _log @| fshd.payload
+        let st,fshd      = FlexServerHelloDone.receive(this.st) in
+        this.st <- st;
+        this.log <- this.log @| fshd.payload
 
     /// <summary>
     /// Send Client Key Exchange RSA for Stateful API
@@ -124,10 +129,10 @@ type FlexStatefulAPI(st:FlexTypes.state) =
     /// <param name="fp"> Fragmentation policy </param>
     member this.SendClientKeyExchangeRSA(?fp:fragmentationPolicy) : unit = 
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(_st,_nsc,_fch) in
-        _st <- st;
-        _nsc <- nsc;
-        _log <- _log @| fcke.payload
+        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(this.st,this.nsc,this.fch) in
+        this.st <- st;
+        this.nsc <- nsc;
+        this.log <- this.log @| fcke.payload
 
     /// <summary>
     /// Receive Client Key Exchange RSA for Stateful API
@@ -138,45 +143,41 @@ type FlexStatefulAPI(st:FlexTypes.state) =
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
         | Some(chain,sk) ->
-            let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(_st,_nsc,_fch,sk=sk) in
-            _st <- st;
-            _nsc <- nsc;
-            _log <- _log @| fcke.payload
+            let st,nsc,fcke  = FlexClientKeyExchange.receiveRSA(this.st,this.nsc,this.fch,sk=sk) in
+            this.st <- st;
+            this.nsc <- nsc;
+            this.log <- this.log @| fcke.payload
 
     /// <summary>
     /// Send a CCS message for Stateful API
     /// </summary>
     member this.SendCCS() : unit =
-        let st,_ = FlexCCS.send(_st) in
-        _st <- st
+        let st,_ = FlexCCS.send(this.st) in
+        this.st <- st
     
     /// <summary>
     /// Receive a CCS message for Stateful API
     /// </summary>
     member this.ReceiveCCS() : unit =
-        let st,_,_ = FlexCCS.receive(_st) in
-        _st <- st
+        let st,_,_ = FlexCCS.receive(this.st) in
+        this.st <- st
     
     /// <summary>
     /// Send Finished message for StatefulAPI
     /// </summary>
-    /// <param name="role"> Role we use to compute the log (Default to Client) </param>
     /// <param name="fp"> Fragmentation policy </param>
-    member this.SendFinished(?role:Role,?fp:fragmentationPolicy) : unit =
+    member this.SendFinished(?fp:fragmentationPolicy) : unit =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let role = defaultArg role Client in
-        let st,ffC = FlexFinished.send(_st,logRoleNSC=(_log,role,_nsc)) in
-        _st <- st;
-        _log <- _log @| ffC.payload
+        let st,ffC = FlexFinished.send(this.st,logRoleNSC=(this.log,this.r,this.nsc)) in
+        this.st <- st;
+        this.log <- this.log @| ffC.payload
 
     /// <summary>
     /// Receive Finished messages for StatefulAPI
     /// </summary>
-    /// <param name="role"> Role we use to compute the log (Default to Server) </param>
-    member this.ReceiveFinished(?role:Role) : unit =
-        let role = defaultArg role Server in
-        let st,ffS = FlexFinished.receive(_st,logRoleNSC=(_log,role,_nsc)) in
-        _st <- st;
-        _log <- _log @| ffS.payload
+    member this.ReceiveFinished() : unit =
+        let st,ffS = FlexFinished.receive(this.st,logRoleNSC=(this.log,this.r,this.nsc)) in // FIXME: dual role!
+        this.st <- st;
+        this.log <- this.log @| ffS.payload
 
     end
