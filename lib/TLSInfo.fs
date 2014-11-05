@@ -30,8 +30,8 @@ type sessionHash = bytes
 
 // Defined here to not depend on TLSExtension
 type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
-                             ne_renegotiation_info: (cVerifyData * sVerifyData) option }
-    | NE_negotiated_dh_group of dhGroup
+                             ne_renegotiation_info: (cVerifyData * sVerifyData) option;
+                             ne_negotiated_dh_group: option<dhGroup>}
 
 let noCsr:csrands = Nonce.random 64 //TODO should be Nonce.noCsr but this does not tc.
 
@@ -242,7 +242,7 @@ let noId: id = {
   pv=SSL_3p0; 
   aeAlg= MACOnly(MA_SSLKHASH(NULL)); 
   csrConn = noCsr;
-  ext = {ne_extended_padding = false; ne_extended_ms = false; ne_renegotiation_info = None};
+  ext = {ne_extended_padding = false; ne_extended_ms = false; ne_renegotiation_info = None; ne_negotiated_dh_group=None};
   writer=Client }
 
 let id e = 

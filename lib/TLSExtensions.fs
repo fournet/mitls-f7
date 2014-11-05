@@ -201,14 +201,14 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
                 in
                 let cdhgs = List.pick picker cExtL in
                 if List.exists (fun x -> x = sdhg) cdhgs then
-                    correct(NE_negotiated_dh_group sdhg::l)
+                    correct({l with ne_negotiated_dh_group=Some(sdhg)})
                 else
                     Error(AD_handshake_failure, perror __SOURCE_FILE__ __LINE__ "Server provided DH group that was not offered by client")
         else
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
 let negotiateClientExtensions (cExtL:list<clientExtension>) (sExtL:list<serverExtension>) (resuming:bool) cs =
-    let nes = {ne_extended_ms=false;ne_extended_padding=false;ne_renegotiation_info = None} in
+    let nes = {ne_extended_ms=false;ne_extended_padding=false;ne_renegotiation_info = None;ne_negotiated_dh_group=None} in
     match Collections.List.fold (serverToNegotiatedExtension cExtL resuming cs) (correct nes) sExtL with
     | Error(x,y) -> Error(x,y)
     | Correct(l) ->
@@ -361,14 +361,14 @@ let clientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyD
     | CE_negotiated_dh_group dhgl ->
         if isDHECipherSuite cs then
             match preferredDHGroup dhgl cfg.negotiableDHGroups with
-            | None -> None
-            | Some(dhg) -> Some(NE_negotiated_dh_group dhg)
+            | None -> neg
+            | Some(dhg) -> {neg with ne_negotiated_dh_group=Some(dhg)}
         else
-            None
+            neg
 
 let negotiateServerExtensions cExtL cfg cs (cvd,svd) resuming  : serverExtension list  * negotiatedExtensions =
     let server = List.choose (ClientToServerExtension cfg cs (cvd,svd) resuming) cExtL in
-    let negi = {ne_extended_padding=false;ne_extended_ms=false;ne_renegotiation_info=None} in
+    let negi = {ne_extended_padding=false;ne_extended_ms=false;ne_renegotiation_info=None;ne_negotiated_dh_group=None} in
     let nego = Collections.List.fold (clientToNegotiatedExtension cfg cs (cvd,svd) resuming) negi cExtL in
     (server,nego)
 
@@ -395,13 +395,8 @@ let checkServerRenegotiationInfoExtension config (sExtL: list<serverExtension>) 
         equalBytes (cvd @| svd) (cVerifyData @| sVerifyData)
 
 let hasExtendedMS extL = extL.ne_extended_ms = true
-let getDHGroup e =
-    match e with
-    | NE_negotiated_dh_group(group) -> Some(group)
-    | _ -> None
 
-let getNegotiatedDHGroup extL =
-    List.tryPick getDHGroup extL
+let getNegotiatedDHGroup extL = extL.ne_negotiated_dh_group
 
 let getOfferedDHGroups extL =
     let getGroup ext =

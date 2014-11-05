@@ -29,8 +29,8 @@ type sessionHash = bytes
 
 // Defined here to not depend on TLSExtension
 type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
-                             ne_renegotiation_info: (cVerifyData * sVerifyData) option}
-    | NE_negotiated_dh_group of dhGroup
+                             ne_renegotiation_info: (cVerifyData * sVerifyData) option;
+                             ne_negotiated_dh_group: option<dhGroup>}
 
 
 type pmsId
