@@ -28,11 +28,6 @@ type sVerifyData = bytes (* ServerFinished payload *)
 type sessionHash = bytes
 
 // Defined here to not depend on TLSExtension
-//type negotiatedExtension =
-//    | NE_extended_ms
-//    | NE_extended_padding
-
-//type negotiatedExtensions = list<negotiatedExtension>
 type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
                              ne_renegotiation_info: (cVerifyData * sVerifyData) option}
 
@@ -120,8 +115,6 @@ type ConnectionInfo = preConnectionInfo
 val connectionRole: ConnectionInfo -> Role
 
 val initConnection: Role -> bytes -> ConnectionInfo
-//val nextEpoch: epoch -> crand -> srand -> SessionInfo -> epoch
-//val dual_KeyInfo: epoch -> epoch
 val fullEpoch: epoch -> SessionInfo -> epoch
 val abbrEpoch: epoch -> abbrInfo -> SessionInfo -> epoch -> epoch
 val predEpoch: epoch -> epoch
