@@ -29,12 +29,6 @@ type sVerifyData = bytes (* ServerFinished payload *)
 type sessionHash = bytes
 
 // Defined here to not depend on TLSExtension
-//type negotiatedExtension =
-//    | NE_extended_ms
-//    | NE_extended_padding
-
-//type negotiatedExtensions = list<negotiatedExtension>
-
 type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
                              ne_renegotiation_info: (cVerifyData * sVerifyData) option }
 
@@ -127,12 +121,6 @@ let msi (si:SessionInfo) =
   else 
     let ca = kefAlg_extended si in
     ExtendedMS (si.pmsId,si.session_hash,ca)
-
-
-
-//type preEpoch =
-//    | InitEpoch of Role
-//    | SuccEpoch of crand * srand * SessionInfo * preEpoch
 
 type abbrInfo = 
     {abbr_crand: crand;
@@ -227,8 +215,6 @@ type id = {
   csrConn: csrands;
   ext: negotiatedExtensions;
   writer : Role }
-
-//let idInv (i:id):succEpoch = failwith "requires a log, and pointless to implement anyway"
 
 let unAuthIdInv (i:id):epoch = 
 #if verify
