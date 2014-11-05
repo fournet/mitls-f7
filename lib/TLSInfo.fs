@@ -30,7 +30,7 @@ type sessionHash = bytes
 
 // Defined here to not depend on TLSExtension
 type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
-                             ne_renegotiation_info: (cVerifyData * sVerifyData) option }
+                             ne_renegotiation_info: option<(cVerifyData * sVerifyData)>}
 
 let noCsr:csrands = Nonce.random 64 //TODO should be Nonce.noCsr but this does not tc.
 
