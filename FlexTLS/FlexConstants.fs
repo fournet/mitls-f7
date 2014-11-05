@@ -238,6 +238,7 @@ type FlexConstants =
     /// <summary> Null epoch keys </summary>
     //BB TODO : Here the key exchange should probably be agnostic instead of using a RSA constructor
     static member nullKeys = {
+        pri_key = PK_None;
         kex = RSA(empty_bytes);
         pms = empty_bytes;
         ms = empty_bytes;

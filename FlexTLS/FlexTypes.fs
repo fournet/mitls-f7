@@ -64,6 +64,18 @@ type kex =
     | DH13 of kexDHTLS13
  // | ECDH of kexECDH // TODO
 
+
+/// <summary>
+/// Hold certificates private keys
+/// </summary>
+type priKey =
+    /// <summary> No key set </summary>
+    | PK_None
+    /// <summary> Private signing key and associated algorithm </summary>
+    | PK_Sig of sigHashAlg * CoreSig.sigskey
+    /// <summary> Private (RSA) decryption key </summary>
+    | PK_Enc of CoreACiphers.sk
+
 /// <summary>
 /// Handshake Message record type for Client Key Share
 /// </summary>
@@ -89,6 +101,8 @@ type FServerKeyShare = {
 /// This structure contains all secret information of a Handshake
 /// </summary>
 type keys = {
+    /// <summary> Private key associated to the current certificate (in sessionInfo) </summary>
+    pri_key: priKey;
     /// <summary> Key Exchange bytes </summary>
     kex: kex;
     /// <summary> Pre Master Secret bytes </summary>

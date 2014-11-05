@@ -4,7 +4,6 @@ module FlexTLS.FlexCertificate
 
 open NLog
 
-open Bytes
 open Error
 open TLSInfo
 open HandshakeMessages
@@ -66,6 +65,41 @@ type FlexCertificate =
         let payload = HandshakeMessages.serverCertificateBytes chain in
         let fcert = {chain = chain; payload = payload } in
         fcert
+
+    static member send(st:state, role:Role, nsc:nextSecurityContext, cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FCertificate =
+        let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let cn =
+            match role with
+            | Client -> cfg.client_name
+            | Server -> cfg.server_name in
+        if cn = "" then
+            failwith (perror __SOURCE_FILE__ __LINE__ "A non-empty common name must be provided in the config")
+        else
+        let chain,prikey =
+            match role with
+            | Client
+            | Server when not (TLSConstants.isRSACipherSuite nsc.si.cipher_suite) ->
+                // A client always makes signatures; a server on a non-RSA key exchange will perform a signature
+                (match Cert.for_signing FlexConstants.sigAlgs_ALL cn FlexConstants.sigAlgs_ALL with
+                | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "A signing certificate for the cn=\"%s\" could not be found in the store" cn))
+                | Some(chain,alg,key) ->
+                    let key = Sig.leak alg key in
+                    chain,PK_Sig(alg,key))
+             | Server when TLSConstants.isRSACipherSuite nsc.si.cipher_suite ->
+                // need a certificate for key encryption
+                (match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
+                | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "A key-encryption certificate for the cn=\"%s\" could not be found in the store" cn))
+                | Some(chain,key) ->
+                    let key = RSAKey.repr_of_rsaskey key in
+                    chain,PK_Enc(key)
+                )
+            | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "All possible cases are expected to be covered")
+        in
+        let st,nsc,fcrt = FlexCertificate.send(st,role,chain,nsc=nsc,fp=fp) in
+        let keys = {nsc.keys with pri_key = prikey} in
+        let nsc = {nsc with keys = keys} in
+        st,nsc,fcrt
+                    
 
     /// <summary>
     /// Send a Certificate message to the network stream using User provided chain of certificates
