@@ -10,7 +10,7 @@ open TLSInfo
 
 predicate Authorize of Role * SessionInfo
 
-type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.masterSecret
+type (;sid:sessionID, r:Role) StorableSession = si:SessionInfo * (;si) PRF.masterSecret * epoch
   { si.sessionID = sid /\ 
     (r = Client => Authorize(r,si)) /\
     (r = Server /\ si.client_auth = true => Authorize(r,si))}

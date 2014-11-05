@@ -9,6 +9,7 @@ type options = {
     localaddr     : System.Net.IPEndPoint;
     sessiondir    : string;
     dhdir         : string;
+    insecure      : bool;
 }
 
 val client : options -> unit

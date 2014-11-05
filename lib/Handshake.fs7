@@ -155,40 +155,40 @@ predicate LMsg of  a:Sig.alg * (;a)Sig.skey * log // CF only for testing, will g
 assume !cl,a,sk,l. LMsg(a,sk,l) => Sig.Msg(a,Sig.PK(sk),l)
 
 predicate LClientFinishedResume of epoch * log // for testing
-assume !e,l. LClientFinishedResume(e,l) <=> ClientLogBeforeClientFinishedResume(EpochCRand(e),EpochSRand(e),EpochSI(e),l)
+assume !e,l. LClientFinishedResume(e,l) <=> ClientLogBeforeClientFinishedResume(EpochAI(e),EpochSI(e),l)
 
 private definition !msi,r,b. PRF.VerifyData(msi,r,b) 
   <=> ((?si. msi = MsI(si) /\
         r = Client /\
-        SentCCS(Client,si.init_crand,si.init_srand,si) /\
+        SentCCS(Client,si) /\
         ClientLogBeforeClientFinished(si,b)) \/
        (?si. msi = MsI(si) /\
         r = Server /\
-        SentCCS(Server,si.init_crand,si.init_srand,si) /\
+        SentCCS(Server,si) /\
         ServerLogBeforeServerFinished(si,b)) \/
-       (?si,cr,sr,si'. msi = MsI(si) /\
+       (?si,ai. msi = MsI(si) /\
         r = Client /\
-        SentCCS(Client,cr,sr,si') /\
-        ClientLogBeforeClientFinishedResume(cr,sr,si,b)) \/
-       (?si,cr,sr,si'. msi = MsI(si) /\
+        SentCCSAbbr(Client,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd}) /\
+        ClientLogBeforeClientFinishedResume(ai,si,b)) \/
+       (?si,ai. msi = MsI(si) /\
         r = Server /\
-        SentCCS(Server,cr,sr,si') /\
-        ServerLogBeforeServerFinishedResume(cr,sr,si,b)))
+        SentCCSAbbr(Server,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd}) /\
+        ServerLogBeforeServerFinishedResume(ai,si,b)))
 
 
 ask !si,b. PRF.VerifyData(MsI(si),Client,b) /\
-    ServerLogBeforeClientFinished(si,b) => SentCCS(Client,si.init_crand,si.init_srand,si)
+    ServerLogBeforeClientFinished(si,b) => SentCCS(Client,si)
 
 ask !si,b. PRF.VerifyData(MsI(si),Server,b) /\
-    ClientLogBeforeServerFinished(si,b) => SentCCS(Server,si.init_crand,si.init_srand,si)
+    ClientLogBeforeServerFinished(si,b) => SentCCS(Server,si)
 
-ask !cr,sr,si,b. PRF.VerifyData(MsI(si),Client,b) /\
-    ServerLogBeforeClientFinishedResume(cr,sr,si,b) 
-    => (?si'. SentCCS(Client,cr,sr,si'))
+ask !ai,si,b. PRF.VerifyData(MsI(si),Client,b) /\
+    ServerLogBeforeClientFinishedResume(ai,si,b) 
+    => SentCCSAbbr(Client,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd})
 
-ask !cr,sr,si,b. PRF.VerifyData(MsI(si),Server,b) /\
-    ClientLogBeforeServerFinishedResume(cr,sr,si,b) 
-    => (?si'. SentCCS(Server,cr,sr,si'))
+ask !ai,si,b. PRF.VerifyData(MsI(si),Server,b) /\
+    ClientLogBeforeServerFinishedResume(ai,si,b) 
+    => SentCCSAbbr(Server,{abbr_crand = ai.abbr_crand; abbr_srand = ai.abbr_srand; abbr_session_hash = si.session_hash; abbr_vd = ai.abbr_vd})
 
 (*
 ask !si,si',b. PRF.VerifyData(MsI(si),Server,b) /\
@@ -245,9 +245,13 @@ private definition !ci. Complete(ci) <=>
           B(EpochSRand(ci.id_in)) = B(EpochSRand(ci.id_out)) /\
           IsSuccEpoch(ci.id_in) /\ IsSuccEpoch(ci.id_out) 
 /\        (ci.role = Client \/ ci.role = Server) 
-/\          SentCCS(ci.role,EpochCRand(ci.id_out),EpochSRand(ci.id_out),EpochSI(ci.id_out)) 
+/\        ((IsFullEpoch(ci.id_out) /\ SentCCS(ci.role,EpochSI(ci.id_out))) \/
+           (IsAbbrEpoch(ci.id_out) /\ SentCCSAbbr(ci.role,EpochAI(ci.id_out))))
 /\
-          (SafeVD(EpochSI(ci.id_in))  => SentCCS(DualRole(ci.role),EpochCRand(ci.id_in),EpochSRand(ci.id_in),EpochSI(ci.id_in))) 
+          (SafeVD(EpochSI(ci.id_in))  => 
+            ((IsFullEpoch(ci.id_in) /\ SentCCS(DualRole(ci.role),EpochSI(ci.id_in))) \/
+             (IsAbbrEpoch(ci.id_in) /\ SentCCSAbbr(DualRole(ci.role),EpochAI(ci.id_in)))))
+
 /\         ((ci.role = Client /\
            (!pks,pv,r. 
               pks = Cert.RSAPKCert(EpochSI(ci.id_in).serverID) /\ 
@@ -351,6 +355,20 @@ definition !oldin,oldout,newin,newout. NextEpochs(oldin,oldout,newin,newout) <=>
            B(EpochSRand(newin)) = B(EpochSRand(newout)) /\
             EpochSI(newin) = EpochSI(newout) /\ oldout = Pred(newout) /\ oldin = Pred(newin))
             
+predicate NextFullEpochs of epoch * epoch * epoch * epoch
+definition !oldin,oldout,newin,newout. NextEpochs(oldin,oldout,newin,newout) <=>
+           (IsFullEpoch(newin) /\ IsFullEpoch(newout) /\ 
+            EpochSI(newin) = EpochSI(newout) /\ 
+            oldout = Pred(newout) /\ oldin = Pred(newin))
+
+predicate NextAbbrEpochs of epoch * epoch * epoch * epoch
+definition !oldin,oldout,newin,newout. NextEpochs(oldin,oldout,newin,newout) <=>
+           (IsAbbrEpoch(newin) /\ IsAbbrEpoch(newout) /\ 
+            EpochAI(newin) = EpochAI(newout) /\
+            EpochSI(newin) = EpochSI(newout) /\ 
+            oldout = Pred(newout) /\ oldin = Pred(newin))
+            
+            
 
 
 // The constructor indicates either what we are doing locally or which peer message we are expecting, 
@@ -407,7 +425,7 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
                                        EpochSI(ci.id_in)=si /\ 
 				       Pred(e) = ci.id_out /\ 
 				       EpochWriter(e) = ci.role /\
-				       (SafeVD(si) => SentCCS(Client,si.init_crand,si.init_srand,si)) /\
+				       (SafeVD(si) => SentCCS(Client,si)) /\
                                        B(EpochCRand(ci.id_in)) = B(EpochCRand(e)) /\
                                        B(EpochSRand(ci.id_in)) = B(EpochSRand(e)) /\
                                        si.init_crand = EpochCRand(e) /\
@@ -425,15 +443,15 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
                                          EpochSI(ew)=EpochSI(er) /\ 
                                          B(EpochCRand(ew)) = B(EpochCRand(er)) /\                                       
                                          B(EpochSRand(ew)) = B(EpochSRand(er)) /\                                       
-                                         ServerLogBeforeServerFinishedResume(EpochCRand(er),EpochSRand(er),EpochSI(er),l) /\ EpochWriter(ew) = ci.role /\ 
+                                         ServerLogBeforeServerFinishedResume(EpochAI(er),EpochSI(er),l) /\ EpochWriter(ew) = ci.role /\ 
                                          EpochWriter(er) = DualRole(ci.role) /\ Pred(ew) = ci.id_out /\ Pred(er) = ci.id_in /\ 
                                          (EpochSI(ew).client_auth = true => Authorize(Server,EpochSI(ew)))
 				 /\      StatefulLHAE.History(Id(ew),Writer,w) = StatefulPlain.EmptyHistory(Id(ew)) 
 				 /\      StatefulLHAE.History(Id(er),Reader,r) = StatefulPlain.EmptyHistory(Id(er)) }
    | ClientCCSResume              of e:succEpoch * r:(;Id(e))StatefulLHAE.reader * sVerifyData * (;EpochSI(e))PRF.masterSecret * l:log{
-   ServerLogBeforeClientFinishedResume(EpochCRand(e),EpochSRand(e),EpochSI(e),l) /\ 
+   ServerLogBeforeClientFinishedResume(EpochAI(e),EpochSI(e),l) /\ 
    Pred(e) = ci.id_in /\ 
-   SentCCS(Server,EpochCRand(ci.id_out),EpochSRand(ci.id_out),EpochSI(ci.id_out)) /\
+   SentCCSAbbr(Server,EpochAI(ci.id_out)) /\
    EpochWriter(e) = DualRole(ci.role) /\ 
    EpochSI(e)=EpochSI(ci.id_out) /\ 
    B(EpochCRand(e)) = B(EpochCRand(ci.id_out)) /\                                       
@@ -448,7 +466,7 @@ type (;ci:ConnectionInfo) serverState =  (* note that the CertRequest bits are d
        EpochSI(e) = EpochSI(ci.id_out) /\
        B(EpochSRand(e)) = B(EpochSRand(ci.id_out)) /\
        B(EpochCRand(e)) = B(EpochCRand(ci.id_out)) /\
-       ServerLogBeforeClientFinishedResume(EpochCRand(e),EpochSRand(e),si,l) /\
+       ServerLogBeforeClientFinishedResume(EpochAI(e),si,l) /\
        (EpochSI(e).client_auth = true => Authorize(Server,EpochSI(e)))}
 
    | ServerIdle                   of cVerifyData * sVerifyData
@@ -496,7 +514,7 @@ type (;ci:ConnectionInfo) clientState =
          EpochWriter(e) = DualRole(ci.role) /\
          ClientLogBeforeServerFinished(si,l) /\ 
          ci.id_in = Pred(e) /\
-         SentCCS(Client,EpochCRand(ci.id_out),EpochSRand(ci.id_out),si) /\
+         SentCCS(Client,si) /\
          IsSuccEpoch(ci.id_out) /\ IsSuccEpoch(e) /\
          EpochSI(e) = EpochSI(ci.id_out) /\
          B(EpochCRand(e)) = B(EpochCRand(ci.id_out)) /\  
@@ -508,7 +526,7 @@ type (;ci:ConnectionInfo) clientState =
          (* PRF.VerifyData(e,Client,cv) /\ *)
          Authorize(Client,si)}
    | ServerFinished         of si:SessionInfo * (;si)PRF.masterSecret * e:succEpoch * cv:cVerifyData * l:log{ClientLogBeforeServerFinished(si,l) /\
-                                                                                                               SentCCS(Client,EpochCRand(ci.id_out),EpochSRand(ci.id_out),si) /\
+                                                                                                               SentCCS(Client,si) /\
                                                                                                                EpochSI(ci.id_in)=si  /\ 
                                                                                                                EpochSI(ci.id_in) = EpochSI(ci.id_out) /\
                                                                                                                IsSuccEpoch(ci.id_out) /\ IsSuccEpoch(ci.id_in) /\
@@ -528,13 +546,13 @@ type (;ci:ConnectionInfo) clientState =
          NextEpochs(ci.id_in,ci.id_out,er,ew) /\
          EpochWriter(ew) = DualRole(EpochWriter(er)) /\
 
-         ClientLogBeforeServerFinishedResume(EpochCRand(ew),EpochSRand(ew),EpochSI(ew),l) /\ 
+         ClientLogBeforeServerFinishedResume(EpochAI(ew),EpochSI(ew),l) /\ 
 
          StatefulLHAE.History(Id(er),Reader,r) = StatefulPlain.EmptyHistory(Id(er)) /\
          StatefulLHAE.History(Id(ew),Writer,w) = StatefulPlain.EmptyHistory(Id(ew)) /\
          Authorize(Client,EpochSI(ew))}
    | ServerFinishedResume   of e:succEpoch * w:(;Id(e))StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * l:log{
-                                                                    ClientLogBeforeServerFinishedResume(EpochCRand(e),EpochSRand(e),EpochSI(e),l) /\ 
+                                                                    ClientLogBeforeServerFinishedResume(EpochAI(e),EpochSI(e),l) /\ 
                                                                     Pred(e) = ci.id_out /\
                                                                     EpochWriter(e) = ci.role /\
                                                                     IsSuccEpoch(ci.id_in) /\
@@ -545,11 +563,11 @@ type (;ci:ConnectionInfo) clientState =
                                                                     Authorize(Client,EpochSI(e)) /\
                                                                     StatefulLHAE.History(Id(e),Writer,w) = StatefulPlain.EmptyHistory(Id(e))}
    | ClientWritingCCSResume of e:succEpoch * w:(;Id(e))StatefulLHAE.writer * (;EpochSI(e))PRF.masterSecret * sv:sVerifyData * l:log{
-          ClientLogBeforeClientFinishedResume(EpochCRand(e),EpochSRand(e),EpochSI(e),l) /\ 
+          ClientLogBeforeClientFinishedResume(EpochAI(e),EpochSI(e),l) /\ 
           Pred(e) = ci.id_out /\
           EpochWriter(e) = ci.role /\
           IsSuccEpoch(ci.id_in) /\
-          (SafeVD(EpochSI(ci.id_in)) => (?si'. SentCCS(Server,EpochCRand(ci.id_in),EpochSRand(ci.id_in),si'))) /\
+          (SafeVD(EpochSI(ci.id_in)) => SentCCSAbbr(Server,EpochAI(ci.id_in))) /\
           EpochSI(ci.id_in) = EpochSI(e) /\
           B(EpochCRand(ci.id_in)) = B(EpochCRand(e)) /\  
           B(EpochSRand(ci.id_in)) = B(EpochSRand(e)) /\  
@@ -636,15 +654,16 @@ val invalidateSession: ci:ConnectionInfo -> s:(;ci)hs_state -> s':(;ci,Config(ci
 (*{SameStreams(ci,s,s')} *)
 
            
-val getNextEpochs: ci:ConnectionInfo -> si:SessionInfo -> cr:crand -> sr:srand -> ci':ConnectionInfo{
-    NextEpochs(ci.id_in,ci.id_out,ci'.id_in,ci'.id_out) /\
+val getFullEpochs: ci:ConnectionInfo -> si:SessionInfo -> ci':ConnectionInfo{
+    NextFullEpochs(ci.id_in,ci.id_out,ci'.id_in,ci'.id_out) /\
     EpochSI(ci'.id_in) = si /\
-    ci.role = ci'.role  /\
-    EpochCRand(ci'.id_out) = cr /\
-    EpochSRand(ci'.id_out) = sr
-(*    Id(ci'.id_out) = Swap(Id(ci'.id_in)) /\*)
-(*    Id(ci'.id_in) = Swap(Id(ci'.id_out)) *)
-}
+    ci.role = ci'.role }
+
+val getAbbrEpochs: ci:ConnectionInfo -> si:SessionInfo -> pe:epoch -> ai:abbrInfo -> ci':ConnectionInfo{
+    NextAbbrEpochs(ci.id_in,ci.id_out,ci'.id_in,ci'.id_out) /\
+    EpochAI(ci'.id_in) = ai /\
+    EpochSI(ci'.id_in) = si /\    
+    ci.role = ci'.role }
 
 (*--- networkinterface *)
 (* Network Interface*)
