@@ -166,7 +166,7 @@ type preds =
     | UpdatesClientSigAlg of SessionInfo * SessionInfo
     | ServerLogBeforeClientCertificateRSA_NoAuth of SessionInfo * ProtocolVersion * log
     | ServerLogBeforeClientCertificateDHE_Auth of SessionInfo * log
-    | ServerLogBeforeServerFinishedResume of crand * srand * SessionInfo * log
+    | ServerLogBeforeServerFinishedResume of abbrInfo * SessionInfo * log
     | ServerLogBeforeServerFinished of SessionInfo * log
     | ServerLogBeforeClientKeyExchangeRSA_Auth of SessionInfo * ProtocolVersion * log
     | ServerLogBeforeClientKeyExchangeDHE_Auth of SessionInfo * log

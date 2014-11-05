@@ -39,13 +39,14 @@ this-distclean::
 .PHONY: count dist
 
 # --------------------------------------------------------------------
-DISTDIR = hslog
-TAROPT  = --posix --owner=0 --group=0
+VERSION ?=
+DISTDIR  = hslog
+TAROPT   = --posix --owner=0 --group=0
 
 dist:
 	if [ -e $(DISTDIR) ]; then rm -rf $(DISTDIR); fi
 	./scripts/distribution.py $(DISTDIR) MANIFEST
-	BZIP2=-9 tar $(TAROPT) -cjf $(DISTDIR).tar.bz2 $(TAROPT) $(DISTDIR)
+	BZIP2=-9 tar $(TAROPT) -cjf $(DISTDIR)$(VERSION).tar.bz2 $(TAROPT) $(DISTDIR)
 	rm -rf $(DISTDIR)
 
 count:

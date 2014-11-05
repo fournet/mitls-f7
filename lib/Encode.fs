@@ -54,12 +54,15 @@ let mac e k ad rg plain =
     (* For MACOnly ciphersuites where AuthId holds, we store the plain and
      * the tag in the MACOnly log *)
     let e_aealg = e.aeAlg in
-    (match (authId e, e_aealg) with
-    | (true,MACOnly(_)) ->
-        let tlen = targetLength e rg in
-        let pl = payload e rg ad plain in
-        maconly_log := (e,ad,rg,tlen,pl,text,plain,tag)::!maconly_log
-    | (_,_) -> ());
+    let auth = authId e in
+    if auth = true then
+      (match (e_aealg) with
+       | MACOnly(_) ->
+          let tlen = targetLength e rg in
+          let pl = payload e rg ad plain in
+          maconly_log := (e,ad,rg,tlen,pl,text,plain,tag)::!maconly_log
+       | _ -> ())
+     else ();
 #endif
     {plain = plain;
      tag = tag;

@@ -98,11 +98,14 @@ type sessionHash = bytes
 // -------------------------------------------------------------------
 // We support these extensions, with session scopes
 // (defined here because TLSExtension is internal)
-type negotiatedExtension =
-    | NE_extended_ms
-    | NE_extended_padding
+//type negotiatedExtension =
+//    | NE_extended_ms
+//    | NE_extended_padding
 
-type negotiatedExtensions = negotiatedExtension list
+//type negotiatedExtensions = negotiatedExtension list
+
+type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
+    						 ne_renegotiation_info: (cVerifyData * sVerifyData) option}
 
 // -------------------------------------------------------------------
 // Pre Master Secret indexes 
@@ -144,22 +147,6 @@ val strongKEF: ca:kefAlg -> b:bool {b=true <=> StrongKEF(ca)}
 predicate StrongKDF of kdfAlg
 predicate StrongVD  of vdAlg
 
-type msId =         // We record the parameters used to derive this MS: 
-  pms   : pmsId *   // the pms index  
-  csr   : csrands * // the nonces  
-  kefAlg: kefAlg    // the PMS-PRF algorithm
-// CF We cannot use just csr, because of MiTM forwarding honest nonces
-
-// ``the MS at this index is abstractly generated and used within PRF''
-predicate HonestMS of msId 
-definition !msi. 
-  HonestMS(msi) <=> (?pmsId,csr,kefAlg. msi = (pmsId,csr,kefAlg) /\ HonestPMS(pmsId) /\ StrongKEF(kefAlg))
-//CF are we missing a correlation with csr? 
-//MK we don't allow leak, so every MS derived from an 
-//MK HonestPMS with strong KEF algorithms is honest?
-//MK More uniformally this would go through a definition of SafeCRE.
-
-val noMsId: i:msId { not HonestMS(i) }
 
 // -------------------------------------------------------------------
 // Session information (public immutable data)
@@ -230,10 +217,39 @@ val vdAlg: si:SessionInfo -> a:vdAlg {a=VdAlg(si)}
 function val SIaeAlg: SessionInfo -> aeAlg
 definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version)
 
+
+type msId =   
+  StandardMS of         // We record the parameters used to derive this MS: 
+  pms   : pmsId *   // the pms index  
+  csr   : csrands * // the nonces  
+  kefAlg: kefAlg    // the PMS-PRF algorithm
+| ExtendedMS of 
+  pms   : pmsId *       // the pms index  
+  sh    : sessionHash * // the hash of the session log
+  kefAlg: kefAlg        // the PMS-PRF algorithm
+// CF We cannot use just csr, because of MiTM forwarding honest nonces
+
+// ``the MS at this index is abstractly generated and used within PRF''
+predicate HonestMS of msId 
+definition !msi. 
+  HonestMS(msi) <=> (
+  	(?pmsId,csr,kefAlg. msi = StandardMS(pmsId,csr,kefAlg) /\ HonestPMS(pmsId) /\ StrongKEF(kefAlg))
+  	\/ (?pmsId,sh,kefAlg. msi = ExtendedMS(pmsId,sh,kefAlg) /\ HonestPMS(pmsId) /\ StrongKEF(kefAlg)))
+
+//CF are we missing a correlation with csr? 
+//MK we don't allow leak, so every MS derived from an 
+//MK HonestPMS with strong KEF algorithms is honest?
+//MK More uniformally this would go through a definition of SafeCRE.
+
+val noMsId: i:msId { not HonestMS(i) }
+
+
 // Getting master-secret indexes out of SessionInfo
 
 function val MsI: SessionInfo -> msId
-definition !si. MsI(si) = (si.pmsId, CSRands(si), KefAlg(si)) 
+definition !si. (si.extensions.ne_extended_ms = false => MsI(si) = StandardMS (si.pmsId, CSRands(si), KefAlg(si)))
+  	          /\ (si.extensions.ne_extended_ms = true => MsI(si) = ExtendedMS(si.pmsId,si.session_hash,KefAlgExtended(si)))
+  	 
 val msi: si:SessionInfo -> i:msId { i = MsI(si) }
 
 // Strengths of Handshake algorithms 
@@ -279,15 +295,25 @@ definition !si. StrongAESI(si) <=>
 
 // -------------------------------------------------------------------
 // Epoch descriptors (public immutable data)
+type abbrInfo = 
+    {abbr_crand: crand;
+     abbr_srand: srand;
+     abbr_session_hash: sessionHash;
+     abbr_vd: (cVerifyData * sVerifyData) option}
 
 type preEpoch =
   | InitEpoch of writer:Role
-  | SuccEpoch of crand * srand  (* the latest randoms *)
+  | FullEpoch of si:SessionInfo * pred:preEpoch
+  | AbbrEpoch of ai:abbrInfo * resumed:preEpoch * pred:preEpoch
+
+(*  | SuccEpoch of crand * srand 
                * si:SessionInfo
                * pred:preEpoch
-
+*)
 predicate val IsInitEpoch: preEpoch -> bool
 predicate val IsSuccEpoch: preEpoch -> bool
+predicate val IsFullEpoch: preEpoch -> bool
+predicate val IsAbbrEpoch: preEpoch -> bool
 //CF ?
 //MK fixes verification of epochWriter. Valid? Old:
 //MK   private definition !e. IsInitEpoch(e) <=> ?r. e = InitEpoch(r)
@@ -296,9 +322,17 @@ predicate val IsSuccEpoch: preEpoch -> bool
 //MK but that is also true for the existential version above.
 private definition !e:preEpoch. IsInitEpoch(e) <=> (?r:Role. e = InitEpoch(r))
 private definition !e:preEpoch. 
-        IsSuccEpoch(e) <=> (?c:crand,s:srand,si:SessionInfo,pe:preEpoch. e = SuccEpoch(c,s,si,pe))
+        IsFullEpoch(e) <=> (?si:SessionInfo,pe:preEpoch. e = FullEpoch(si,pe))
+private definition !e:preEpoch. 
+        IsAbbrEpoch(e) <=> (?ai:abbrInfo,re:preEpoch,pe:preEpoch. e = AbbrEpoch(ai,re,pe))
+
+private definition !e:preEpoch. 
+        IsSuccEpoch(e) <=> ((?si:SessionInfo,pe:preEpoch. e = FullEpoch(si,pe)) \/ 
+                            (?ai:abbrInfo,re:preEpoch,pe:preEpoch. e = AbbrEpoch(ai,re,pe)))
+                             
 function val Pred: preEpoch -> preEpoch
-private definition !cr,sr,si,pred. Pred(SuccEpoch(cr,sr,si,pred)) = pred
+private definition (!si,pred. Pred(FullEpoch(si,pred)) = pred) /\ 
+                   (!ai,re,pred. Pred(AbbrEpoch(ai,re,pred)) = pred)
 
 predicate val IsValidEpoch: preEpoch -> bool 
 private definition !e. IsValidEpoch(e) <=> (IsInitEpoch(e) \/ 
@@ -312,16 +346,25 @@ val isInitEpoch: e:epoch -> b:bool{(b = true /\ IsInitEpoch(e)) \/ (b = false /\
 function val Peer: epoch -> epoch
 private definition       
     (!r.          Peer(InitEpoch(r))          = InitEpoch(DualRole(r))) /\
-    (!cr,sr,si,p. Peer(SuccEpoch(cr,sr,si,p)) = SuccEpoch(cr,sr,si,Peer(p)))
+    (!si,p. Peer(FullEpoch(si,p)) = FullEpoch(si,Peer(p))) /\
+    (!ai,r,p. Peer(AbbrEpoch(ai,r,p)) = AbbrEpoch(ai,Peer(r),Peer(p)))
 
 function val EpochSI: succEpoch -> SessionInfo
-private definition !c,s,si,p. EpochSI(SuccEpoch(c,s,si,p)) = si
+private definition (!si,p. EpochSI(FullEpoch(si,p)) = si) /\ (!ai,si,p1,p2. EpochSI(AbbrEpoch(ai,FullEpoch(si,p1),p2)) = si)
+
+function val EpochAI: succEpoch -> abbrInfo
+private definition (!ai,p1,p2. EpochAI(AbbrEpoch(ai,p1,p2)) = ai) 
+
 
 function val EpochCRand: succEpoch -> bytes
 function val EpochSRand: succEpoch -> bytes
 function val EpochCSRands: succEpoch -> bytes
-definition !b1,b2,si,pe. EpochSRand(SuccEpoch(b1,b2,si,pe)) = b2
-definition !b1,b2,si,pe. EpochCRand(SuccEpoch(b1,b2,si,pe)) = b1
+definition (!si,pe. EpochSRand(FullEpoch(si,pe)) = si.init_srand) /\
+           (!ai,re,pe. EpochSRand(AbbrEpoch(ai,re,pe)) = ai.abbr_srand)
+
+definition (!si,pe. EpochCRand(FullEpoch(si,pe)) = si.init_crand) /\
+           (!ai,re,pe. EpochCRand(AbbrEpoch(ai,re,pe)) = ai.abbr_crand)
+
 definition !csr,e. csr = EpochCSRands(e) <=>
                        B(csr) = 
                        B(EpochCRand(e)) @| B(EpochSRand(e))
@@ -330,10 +373,13 @@ val epochSRand:   e:succEpoch -> b:crand{B(b) = B(EpochSRand(e))}
 val epochCSRands: e:succEpoch -> b:csrands{b = EpochCSRands(e)}
 
 val epochSI: e:succEpoch -> si:SessionInfo{si = EpochSI(e)}
+val epochAI: e:succEpoch -> ai:abbrInfo{ai = EpochAI(e)}
 
 function val EpochWriter: epoch -> Role
 private definition !r. EpochWriter(InitEpoch(r)) = r 
-private definition !r,cr,sr,si,pred. EpochWriter(SuccEpoch(cr,sr,si,pred)) = EpochWriter(pred)
+private definition !r,si,pred. EpochWriter(FullEpoch(si,pred)) = EpochWriter(pred)
+private definition !r,ai,r,pred. EpochWriter(AbbrEpoch(ai,r,pred)) = EpochWriter(pred)
+
 val epochWriter: e:epoch -> r:Role {r=EpochWriter(e)}
 
 predicate StrongAuth of epoch
@@ -358,8 +404,17 @@ val connectionRole: ci:ConnectionInfo -> r:Role{r = ci.role}
 
 val initConnection: r:Role -> ra:random -> ci:ConnectionInfo
   { ci.role = r /\ ci.id_rand = ra /\ IsInitEpoch(ci.id_in) /\ IsInitEpoch(ci.id_out)}
-val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
-  { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s /\ EpochWriter(e') = EpochWriter(e)}
+//val nextEpoch: e:epoch -> c:crand -> s:srand -> si:SessionInfo -> e':succEpoch
+//  { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = c /\ EpochSRand(e') = s /\ EpochWriter(e') = EpochWriter(e)}
+
+val fullEpoch: e:epoch -> si:SessionInfo -> e':succEpoch
+  { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = si.init_crand /\ EpochSRand(e') = si.init_srand /\
+    EpochWriter(e') = EpochWriter(e)}
+
+val abbrEpoch: e:epoch -> ai:abbrInfo -> si:SessionInfo{si.session_hash = ai.abbr_session_hash} -> pe:epoch -> e':succEpoch
+  { Pred(e') = e /\ EpochSI(e') = si /\ EpochCRand(e') = ai.abbr_crand /\ EpochSRand(e') = ai.abbr_srand /\
+    EpochWriter(e') = EpochWriter(e) }
+
 val predEpoch: e:succEpoch -> e':epoch{ e' = Pred(e)}
 
 // -------------------------------------------------------------------
@@ -429,8 +484,8 @@ val kdfAlg_of_id: id -> kdfAlg //TODO add and specify
 type event = // produced by PRF, used once the handshake is Finished
   | KeyCommit of    csrands * ProtocolVersion * aeAlg * negotiatedExtensions
   | KeyGenClient of csrands * ProtocolVersion * aeAlg * negotiatedExtensions
-  | SentCCS of Role * crand * srand * SessionInfo
-
+  | SentCCS of Role * SessionInfo
+  | SentCCSAbbr of Role * abbrInfo 
 
 // These two injectivity properties follow from the affine usage of keyCommit and keyGenClient
 theorem !csr,pv0,ae0,ext0,pv1,ae1,ext1. 
@@ -531,14 +586,14 @@ val safeHS: (e:epoch) -> b:bool { b = true <=> SafeHS(e)}
 
 predicate Open of epoch // ``The handshake is complete''
 definition !e. Open(e) <=> (?r. (r = Client \/ r = Server) /\
-                            SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
-                            SentCCS(DualRole(r),EpochCRand(e),EpochSRand(e),EpochSI(e)))
+                           ((IsFullEpoch(e) /\ SentCCS(r,EpochSI(e)) /\ SentCCS(DualRole(r),EpochSI(e))) \/
+                            (IsAbbrEpoch(e) /\ SentCCSAbbr(r,EpochAI(e)) /\ SentCCSAbbr(DualRole(r),EpochAI(e)))))
 
 predicate OpenState of epoch
 definition !e.
   OpenState(e) <=> (?r. (r = Client \/ r = Server) /\
-                            SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
-                            (SafeVD(EpochSI(e)) => SentCCS(DualRole(r),EpochCRand(e),EpochSRand(e),EpochSI(e))))
+                   ((IsFullEpoch(e) /\ SentCCS(r,EpochSI(e)) /\ (SafeVD(EpochSI(e)) => SentCCS(DualRole(r),EpochSI(e)))) \/
+                    (IsAbbrEpoch(e) /\ SentCCSAbbr(r,EpochAI(e)) /\ (SafeVD(EpochSI(e)) => SentCCSAbbr(DualRole(r),EpochAI(e))))))
 
 
 predicate Safe   of epoch        // The epoch parameters yield privacy & integrity
@@ -561,11 +616,12 @@ ask !e. Auth(e) => OpenState(e)
 
 //KB The following is only true with Reneg indication, but is difficult to remove.
 //KB It is an artifact of the way we treat epochs that we cannot just authenticate the current epoch, we need to always authenticate the full chain
-//KB Maybe a refactor for v2 would be to separate our the current epoch and an optional predecessor
-private theorem !r,r',e,e'. SentCCS(r,EpochCRand(e),EpochSRand(e),EpochSI(e)) /\ 
-	                    SentCCS(r',EpochCRand(e'),EpochSRand(e'),EpochSI(e')) /\ 
+//KB Maybe a refactor for v2 would be to separate our the current epoch and an optional predecessor 
+//KB Also this needs to account for SentCCSResume
+private theorem !r,r',e,e'. SentCCS(r,EpochSI(e)) /\ 
+	                    SentCCS(r',EpochSI(e')) /\ 
   			    Id(e) = Id(e') => e = e'
-ask !e,e'. OpenState(e) /\ OpenState(e') /\ Id(e) = Id(e') => e = e'
+theorem !e,e'. OpenState(e) /\ OpenState(e') /\ Id(e) = Id(e') => e = e'
 
 val sinfo_to_string: SessionInfo -> string
 

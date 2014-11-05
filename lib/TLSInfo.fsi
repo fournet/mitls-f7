@@ -28,21 +28,15 @@ type sVerifyData = bytes (* ServerFinished payload *)
 type sessionHash = bytes
 
 // Defined here to not depend on TLSExtension
-type negotiatedExtension =
-    | NE_extended_ms
-    | NE_extended_padding
+type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
+                             ne_renegotiation_info: (cVerifyData * sVerifyData) option}
     | NE_negotiated_dh_group of dhGroup
 
-type negotiatedExtensions = list<negotiatedExtension>
 
 type pmsId
 val pmsId: PMS.pms -> pmsId
 val noPmsId: pmsId
 
-type msId = 
-  pmsId * 
-  csrands *                                          
-  kefAlg  
 
 type SessionInfo = {
     init_crand: crand;
@@ -60,6 +54,10 @@ type SessionInfo = {
     serverSigAlg: Sig.alg;
     sessionID: sessionID;
     }
+
+type msId = 
+   | StandardMS of pmsId * csrands * kefAlg 
+   | ExtendedMS of pmsId * sessionHash * kefAlg
 
 val csrands: SessionInfo -> bytes
 val kefAlg: SessionInfo -> kefAlg
@@ -82,20 +80,28 @@ val macAlg_of_id: id -> macAlg
 val encAlg_of_id: id -> encAlg
 val pv_of_id: id -> ProtocolVersion
 
-type preEpoch
+type abbrInfo = 
+    {abbr_crand: crand;
+     abbr_srand: srand;
+     abbr_session_hash: sessionHash;
+     abbr_vd: (cVerifyData * sVerifyData) option}
+
+type preEpoch 
+
 type epoch = preEpoch
 
 type event =
   | KeyCommit of    csrands * ProtocolVersion * aeAlg * negotiatedExtensions
   | KeyGenClient of csrands * ProtocolVersion * aeAlg * negotiatedExtensions
-  | SentCCS of Role * crand * srand * SessionInfo
-
+  | SentCCS of Role * SessionInfo
+  | SentCCSAbbr of Role * abbrInfo 
 
 val id: epoch -> id 
 val unAuthIdInv: id -> epoch
 
 val isInitEpoch: epoch -> bool
 val epochSI: epoch -> SessionInfo
+val epochAI: epoch -> abbrInfo
 val epochSRand: epoch -> srand
 val epochCRand: epoch -> crand
 val epochCSRands: epoch -> crand
@@ -110,9 +116,9 @@ type ConnectionInfo = preConnectionInfo
 val connectionRole: ConnectionInfo -> Role
 
 val initConnection: Role -> bytes -> ConnectionInfo
-val nextEpoch: epoch -> crand -> srand -> SessionInfo -> epoch
-//val dual_KeyInfo: epoch -> epoch
-
+val fullEpoch: epoch -> SessionInfo -> epoch
+val abbrEpoch: epoch -> abbrInfo -> SessionInfo -> epoch -> epoch
+val predEpoch: epoch -> epoch
 val sinfo_to_string: SessionInfo -> string
 
 (* Application configuration options *) 
