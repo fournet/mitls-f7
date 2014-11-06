@@ -1,4 +1,9 @@
-﻿module Serialization
+﻿(*
+ * Derivative of FifteenBelow.Json (Copyright (c) 2014 15below Ltd)
+ * See licenses/FifteenBelow.Json.txt
+ *)
+
+module Serialization
 
 open Bytes
 
@@ -10,8 +15,8 @@ open Newtonsoft.Json
 open Newtonsoft.Json.Serialization
 
 
-let dontGoPastInterfaces = BindingFlags.Public
-let goPastInterfaces = BindingFlags.NonPublic ||| BindingFlags.Public
+// Go past interfaces to access private representation
+let flags = BindingFlags.NonPublic ||| BindingFlags.Public
 
 
 [<AutoOpen>]
@@ -144,37 +149,7 @@ module internal Common =
                     ignore ()
                     read (index + 1) (data @ [value])
  
-            return read 0 List.empty |> Array.ofList }
-
-    let readObject func keyType valueType =
-        json {
-            let! tokenType = flip tokenType
-            let! ignore = flip ignore
-            let! value = flip value
-            let! deserialize = flip deserialize
-
-            let key =
-                match keyType with
-                | t when t = typeof<string> -> fun o -> box (string o)
-                | t when t = typeof<Guid> -> fun o -> box (Guid (string o))
-                | t when t = typeof<int> -> fun o -> box (System.Int32.Parse o)
-                | _ -> failwith "key type not allowed"
- 
-            let rec read data =
-                match tokenType () with
-                | JsonToken.StartObject ->
-                    ignore ()
-                    read data
-                | JsonToken.EndObject ->
-                    data
-                | _ ->
-                    let k = key (string (value ()))
-                    ignore ()
-                    let v = deserialize valueType
-                    ignore ()
-                    read (func k v :: data)
-            
-            return read List.empty }
+            return read 0 List.empty |> Array.ofList } 
  
     let writeObject (map: Map<string, obj>) =
         json {
@@ -190,8 +165,11 @@ module internal Common =
 [<AutoOpen>]
 module internal Unions =
 
+    let isList (t: Type) =
+        t.IsGenericType && t.GetGenericTypeDefinition () = typedefof<list<_>>
+
     let isUnion (t: Type) =
-        FSharpType.IsUnion(t, goPastInterfaces)
+        FSharpType.IsUnion(t, flags) && not (isList t)
  
     let readUnion (t: Type) =
         json {
@@ -199,11 +177,11 @@ module internal Unions =
             let! caseName = value ()
             do! ignore ()
             
-            let case =  FSharpType.GetUnionCases (t, goPastInterfaces) 
+            let case =  FSharpType.GetUnionCases (t, flags) 
                             |> Array.find (fun x -> String.Equals (string caseName, x.Name, StringComparison.OrdinalIgnoreCase))
             let types = case.GetFields () |> Array.map (fun f -> f.PropertyType)
             let! array = readArray (fun i -> types.[i])
-            let union = FSharpValue.MakeUnion (case, array, goPastInterfaces)
+            let union = FSharpValue.MakeUnion (case, array, flags)
             
             do! ignore ()
             
@@ -211,7 +189,7 @@ module internal Unions =
  
     let writeUnion (o: obj) =
         json {
-            let case, fields = FSharpValue.GetUnionFields (o, o.GetType (), goPastInterfaces)
+            let case, fields = FSharpValue.GetUnionFields (o, o.GetType (), flags)
             let! caseName = mapName case.Name
             let properties = [caseName, box fields] |> Map.ofList
 
@@ -222,7 +200,7 @@ module internal Unions =
 module internal Records =
 
     let isRecord (t: Type) =
-        FSharpType.IsRecord (t, goPastInterfaces)
+        FSharpType.IsRecord (t, flags)
 
     let readFields (fields: Map<string,Type>) =
         json {
@@ -256,19 +234,19 @@ module internal Records =
 
     let readRecord (t: Type) =
         json {
-            let fields = FSharpType.GetRecordFields (t, goPastInterfaces)
+            let fields = FSharpType.GetRecordFields (t, flags)
                             |> Array.map (fun p -> p.Name, p.PropertyType)
             let! map   = Map.ofArray fields |> readFields 
             let array  = [| for f, _ in fields do yield map.Item f |]
-            let record = FSharpValue.MakeRecord (t, array, goPastInterfaces)
+            let record = FSharpValue.MakeRecord (t, array, flags)
 
             return record }
 
     let writeRecord (o: obj) =
         json {
-            let fields = FSharpType.GetRecordFields (o.GetType (), goPastInterfaces)
+            let fields = FSharpType.GetRecordFields (o.GetType (), flags)
             let names  = fields |> Array.map (fun f -> f.Name)
-            let values = FSharpValue.GetRecordFields (o, goPastInterfaces)
+            let values = FSharpValue.GetRecordFields (o, flags)
             let properties = Array.zip names values |> Map.ofArray
             do! writeObject (properties) }
 
@@ -309,7 +287,6 @@ type BytesJsonConverter () =
     override x.WriteJson (writer, value, serializer) =
         serializer.Serialize (writer, cbytes (value :?> bytes))
 
-
 (* ------------------------------------------------------------------------------- *)
 let converters = [|
         UnionConverter() :> JsonConverter;
@@ -329,5 +306,4 @@ let settings =
 (* ------------------------------------------------------------------------------- *)
 let serialize<'T> (o: 'T) : string = JsonConvert.SerializeObject(o, settings)
 
-(* ------------------------------------------------------------------------------- *)
 let deserialize<'T> (s: string) : 'T = JsonConvert.DeserializeObject<'T>(s, settings)
