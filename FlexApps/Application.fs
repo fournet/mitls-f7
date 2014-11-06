@@ -54,8 +54,6 @@ let main argv =
  //   let st = Handshake_full_RSA.client_with_auth("localhost","rsa.cert-02.mitls.org",port=6443) in
  //   printf "RSA client_auth finished\n";
     
-   let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" in
-//    printf "RSA client_auth finished\n";
     (* Standard DHE full handshake as Client *)
 //    let st = Handshake_full_DHE.client("www.inria.fr") in
 //    printf "DHE client finished\n";
@@ -83,6 +81,12 @@ let main argv =
 //    printf "Running RSA server. Please connect to port 44204\n";
 //    let st = Handshake_full_DHE.server_with_client_auth("127.0.0.1","rsa.cert-01.mitls.org",44204) in
 //    printf "DHE server_with_client_auth finished\n";
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+    (* Trace Interpreter *)
+//    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" in
+//    printf "RSA client_auth finished\n";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -74,6 +74,7 @@
     <Compile Include="Attack_TripleHandshake.fs" />
     <Compile Include="Attack_JavaLateCCS.fs" />
     <Compile Include="Attack_SmallSubgroup_DHE.fs" />
+    <Compile Include="TraceInterpreter.fs" />
     <Compile Include="Handshake_full_RSA.fs" />
     <Compile Include="Handshake_full_DHE.fs" />
     <Compile Include="Handshake_resumption.fs" />
