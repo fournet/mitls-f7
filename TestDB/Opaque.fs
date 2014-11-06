@@ -2,18 +2,18 @@
 
 open Bytes
 
-open Newtonsoft.Json
+type opaque = { value:bytes; more:bool }
 
-//[<CLIMutable>]
-//type opaque_record = { value:bytes }
+let v = { value = CoreRandom.random(2); more = true }
 
-// let v = { repr = CoreRandom.random(64) }
+let show (v:opaque) = match v with | { value = s; more = t } -> sprintf "{%A %A}" (cbytes s) t
 
-type opaque = Value of bytes
-  
-let v = Value (CoreRandom.random(64))
+//type opaque = Value of bytes * bool
+//  
+//let v = Value (CoreRandom.random(2),true)
+//
+//let show (v:opaque) = match v with | Value (s, t) -> sprintf "Value %A %b" (cbytes s) t
 
-//let show (v:opaque) = match v with | V s -> sprintf "V %A" (cbytes s)
 //
 //let equal v w = 
 //    match v, w with
