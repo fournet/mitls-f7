@@ -11,68 +11,14 @@ type SQLiteConnection = SqliteConnection
 open System.Data.SQLite
 #endif
 
-open Bytes
-
-open Newtonsoft.Json
-open Newtonsoft.Json.Serialization
-
 exception DBError of string
 
 type db = DB of SQLiteConnection
 
+type key = string
+type value = string
+
 let _db_lock = new Object()
-
-type BytesJsonConverter() =
-    inherit JsonConverter()       
-
-    override this.WriteJson(writer:JsonWriter, value:Object, serializer:JsonSerializer) =        
-        if (value.GetType().Equals(typeof<bytes>)) then
-            serializer.Serialize(writer, cbytes (value :?> bytes))
-        else 
-            raise (NotImplementedException(sprintf "Serializing wrong type: expected bytes, got %s" (value.GetType().ToString())))
-
-    override this.ReadJson(reader:JsonReader, objectType:Type, existingValue:Object, serializer:JsonSerializer) =
-        if (objectType.Equals(typeof<bytes>)) then
-            let b = serializer.Deserialize(reader, typeof<byte[]>) in            
-            b :?> byte[] |> abytes :> obj
-        else
-            raise (NotImplementedException(sprintf "Deserializing wrong type: expected bytes, got %s" (objectType.ToString())))    
-
-    override this.CanConvert(t:Type) =
-        t.Equals(typeof<bytes>)
-
-
-type MyContractResolver() = 
-    inherit DefaultContractResolver()
-        
-    override this.CreateObjectContract(objectType:Type) : JsonObjectContract =        
-        let contract = base.CreateObjectContract(objectType) in
-        if (objectType.Equals(typeof<Date.DateTime>)) then            
-            contract.DefaultCreator <- (fun () -> Date.now() :> obj)        
-        contract
-
-let converters =
-    [ BytesJsonConverter() :> JsonConverter ] 
-    |> List.toArray :> Collections.Generic.IList<JsonConverter>
-
-let settings =
-    JsonSerializerSettings (
-        ContractResolver = MyContractResolver(), //DefaultContractResolver (), 
-        Converters = converters,
-        Formatting = Formatting.Indented,
-        NullValueHandling = NullValueHandling.Include
-        )
-
-(* Serialization/Deserialization functions *)
-let serialize<'T> (o: 'T) : byte[] =
-    let s = JsonConvert.SerializeObject(o, settings) in 
-    //printfn "%s" s;   
-    System.Text.Encoding.ASCII.GetBytes(s)
-
-let deserialize<'T> (b:byte[]): 'T =
-    let s = System.Text.Encoding.ASCII.GetString(b) in
-    //printfn "%s" s;   
-    JsonConvert.DeserializeObject<'T>(s, settings)
 
 module Internal =
     let wrap (cb : unit -> 'a) =
@@ -83,7 +29,7 @@ module Internal =
 
     let opendb (filename : string) =
         ((new FileInfo(filename)).Directory).Create()
-        let request = "CREATE TABLE IF NOT EXISTS map(key BLOB PRIMARY KEY, value BLOB NOT NULL)" in
+        let request = "CREATE TABLE IF NOT EXISTS map(key TEXT PRIMARY KEY, value TEXT NOT NULL)" in
         let urn     = String.Format("Data Source={0};Version=3", filename) in
         let db      = new SQLiteConnection(urn) in
             db.Open();
@@ -105,34 +51,32 @@ module Internal =
             ignore (command.ExecuteNonQuery() : int);
             DB db
 
-    let put (DB db : db) (k : byte[]) (v : byte[]) =
+    let put (DB db : db) (k : key) (v : value) =
         let request = "INSERT OR REPLACE INTO map (key, value) VALUES (:k, :v)" in
         use command = db.CreateCommand() in
             command.CommandText <- request;
-            command.Parameters.Add("k", DbType.Binary).Value <- k;
-            command.Parameters.Add("v", DbType.Binary).Value <- v;
+            command.Parameters.Add("k", DbType.String).Value <- k;
+            command.Parameters.Add("v", DbType.String).Value <- v;
             ignore (command.ExecuteNonQuery())
 
-    let get (DB db : db) (k : byte[]) =
+    let get (DB db : db) (k : key) =
         let request = "SELECT value FROM map WHERE key = :k LIMIT 1" in
         use command = db.CreateCommand() in
 
             command.CommandText <- request;
-            command.Parameters.Add("k", DbType.Binary).Value <- k;
+            command.Parameters.Add("k", DbType.String).Value <- k;
 
             let reader  = command.ExecuteReader() in
                 try
                     if reader.Read() then
-                        let len  = reader.GetBytes(0, 0L, null, 0, 0) in
-                        let data = Array.create ((int) len) 0uy in
-                            ignore (reader.GetBytes(0, 0L, data, 0, (int) len) : int64);
-                            Some data
+                        let data = reader.GetString(0) in
+                        Some data
                     else
                         None
                 finally
                     reader.Close()
 
-    let remove (DB db : db) (k : byte[]) =
+    let remove (DB db : db) (k : key) =
         let request = "DELETE FROM map WHERE key = :k" in
         use command = db.CreateCommand() in
             command.CommandText <- request;
@@ -150,13 +94,9 @@ module Internal =
 
                 try
                     while reader.Read() do
-                        let klen  = reader.GetBytes(0, 0L, null, 0, 0) in
-                        let vlen  = reader.GetBytes(1, 0L, null, 0, 0) in
-                        let kdata = Array.create ((int) klen) 0uy in
-                        let vdata = Array.create ((int) vlen) 0uy in
-                            ignore (reader.GetBytes(0, 0L, kdata, 0, (int) klen) : int64);
-                            ignore (reader.GetBytes(0, 0L, vdata, 0, (int) vlen) : int64);
-                            aout := (kdata, vdata) :: !aout
+                        let kdata = reader.GetString(0) in
+                        let vdata = reader.GetString(1) in
+                        aout := (kdata, vdata) :: !aout
                     done;
                     !aout
                 finally
@@ -173,10 +113,8 @@ module Internal =
 
                 try
                     while reader.Read() do
-                        let klen  = reader.GetBytes(0, 0L, null, 0, 0) in
-                        let kdata = Array.create ((int) klen) 0uy in
-                            ignore (reader.GetBytes(0, 0L, kdata, 0, (int) klen) : int64);
-                            aout := kdata :: !aout
+                        let kdata = reader.GetString(0) in
+                        aout := kdata :: !aout
                     done;
                     !aout
                 finally
@@ -205,13 +143,13 @@ let closedb (db : db) =
 let attach (db : db) (filename : string) (alias : string) =
     Internal.wrap (fun () -> Internal.attach db filename alias)
 
-let put (db : db) (k : byte[]) (v : byte[]) =
+let put (db : db) (k : key) (v : value) =
     Internal.wrap (fun () -> Internal.put db k v)
 
-let get (db : db) (k : byte[]) =
+let get (db : db) (k : key) =
     Internal.wrap (fun () -> Internal.get db k)
 
-let remove (db : db) (k : byte[]) =
+let remove (db : db) (k : key) =
     Internal.wrap (fun () -> Internal.remove db k)
 
 let all (db : db) =

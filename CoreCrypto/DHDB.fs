@@ -2,6 +2,9 @@
 
 open Bytes
 
+open Newtonsoft.Json
+open Newtonsoft.Json.Serialization
+
 
 type Key   = bytes * bytes
 type Value = bytes * bool
@@ -12,6 +15,40 @@ type dhdb = {
 
 
 (* ------------------------------------------------------------------------------- *)
+type BytesJsonConverter() =
+    inherit JsonConverter()       
+
+    override this.WriteJson(writer, value, serializer) =        
+        serializer.Serialize(writer, cbytes (value :?> bytes))
+       
+    override this.ReadJson(reader, objectType, existingValue, serializer) =
+        serializer.Deserialize(reader, typeof<byte[]>) :?> byte[] |> abytes :> obj
+
+    override this.CanConvert(t) =
+        t.Equals(typeof<bytes>)
+
+(* ------------------------------------------------------------------------------- *)
+let converters =
+    [| BytesJsonConverter() :> JsonConverter |]
+
+(* ------------------------------------------------------------------------------- *)
+let settings =
+    JsonSerializerSettings (
+        ContractResolver = DefaultContractResolver (),
+        Converters = converters,
+        // Beware that Formatting.Indented will produce system-dependent line endings
+        Formatting = Formatting.None,        
+        NullValueHandling = NullValueHandling.Include
+        )
+
+(* ------------------------------------------------------------------------------- *)
+let serialize<'T> (o: 'T) : string =
+    JsonConvert.SerializeObject(o, settings)
+
+let deserialize<'T> (s:string) : 'T =
+    JsonConvert.DeserializeObject<'T>(s, settings)
+    
+(* ------------------------------------------------------------------------------- *)
 let create (filename:string) =
     let self = {
         filename = filename;
@@ -21,7 +58,7 @@ let create (filename:string) =
 
 (* ------------------------------------------------------------------------------- *)
 let remove self key =
-    let key = DB.serialize<Key> key in
+    let key = serialize<Key> key in
   
     let db  = DB.opendb self.filename in
 
@@ -33,11 +70,11 @@ let remove self key =
 
 (* ------------------------------------------------------------------------------- *)
 let select self key =
-    let key = DB.serialize<Key> key in
+    let key = serialize<Key> key in
 
     let select (db : DB.db) =
         DB.get db key
-            |> Option.map DB.deserialize<Value>
+            |> Option.map deserialize<Value>
           
     let db = DB.opendb self.filename in
 
@@ -48,8 +85,8 @@ let select self key =
 
 (* ------------------------------------------------------------------------------- *)
 let insert self key v =
-    let key = DB.serialize<Key> key in
-    let v   = DB.serialize<Value> v in
+    let key = serialize<Key> key in
+    let v   = serialize<Value> v in
   
     let insert (db : DB.db) =
         match DB.get db key with
@@ -73,7 +110,7 @@ let keys self =
         finally
             DB.closedb db
     in
-        List.map DB.deserialize<Key> aout
+        List.map deserialize<Key> aout
      
 (* ------------------------------------------------------------------------------- *)
 let merge self db1 =
