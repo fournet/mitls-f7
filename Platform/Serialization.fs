@@ -10,7 +10,9 @@ open Newtonsoft.Json
 open Newtonsoft.Json.Serialization
 
 
-let goPastInterfaces = true
+let dontGoPastInterfaces = BindingFlags.Public
+let goPastInterfaces = BindingFlags.NonPublic ||| BindingFlags.Public
+
 
 [<AutoOpen>]
 module internal Reader =

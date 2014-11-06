@@ -1,4 +1,5 @@
 ﻿open DHDB
+open Serialization
 open Bytes
 open CoreRandom
 open TLSInfo
@@ -9,7 +10,8 @@ open System.IO
 open Org.BouncyCastle.Math
 open Org.BouncyCastle.Security
 
-let n = 10
+
+let n = 3
 
 (* ------------------------------------------------------------------------------- *)
 let insert_dh () =
@@ -109,81 +111,8 @@ let dump_session () =
     done
     ()
 
-open System.Runtime.Serialization.Formatters.Binary
-open Opaque
-
-open Microsoft.FSharp.Reflection.FSharpReflectionExtensions
-
-open Serialization
-
 [<EntryPoint>]
 let main argv = 
-//   try  
-//        let v = Opaque.v
-//        let s = serialize v in             
-//        let w = deserialize<opaque> s in
-//
-//        let bf = new BinaryFormatter() in
-//        let ms1 = new MemoryStream() in
-//        let ms2 = new MemoryStream() in
-//        bf.Serialize(ms1, v);
-//        bf.Serialize(ms2, w);
-//        let x = ms1.ToArray() in
-//        let y = ms2.ToArray() in
-//        //let f = PRF.leak (StandardMS (noPmsId, Nonce.random 64, PRF_SSL3_nested))
-//        //printfn "%A\n%A" (hexString (f v)) (hexString (f w))
-//        printfn "%A\n%A" (Opaque.show v) (Opaque.show w)
-//        printfn "%A\n%A\n%b" (hexString (abytes x)) (hexString (abytes y)) (Bytes.equalBytes (abytes x) (abytes y))        
-//   finally 
-//        () // System.Console.WriteLine(traceWriter)
-//    ;
-
-//   try       
-//        let v = TLSConstants.cipherSuite_of_name TLS_DH_anon_WITH_AES_256_GCM_SHA384; //Opaque.v         
-//        let s = serialize v in        
-//        let w = deserialize<TLSConstants.cipherSuite> s in
-//
-//        let bf = new BinaryFormatter() in
-//        let ms1 = new MemoryStream() in
-//        let ms2 = new MemoryStream() in
-//        bf.Serialize(ms1, v);
-//        bf.Serialize(ms2, w);
-//        let x = ms1.ToArray() in
-//        let y = ms2.ToArray() in
-//        printfn "%A\n%A" (TLSConstants.name_of_cipherSuite v)  (TLSConstants.name_of_cipherSuite w)                
-//   finally 
-//        System.Console.WriteLine(traceWriter)
-//    ;
-
-//    let x = cipherSuite_of_name TLS_DH_anon_WITH_AES_256_GCM_SHA384 in
-//    let bf = new BinaryFormatter() in
-//    let ms = new MemoryStream() in
-//    bf.Serialize(ms, x);
-//    printfn "%A" (ms.ToArray());
-//    let ms = new MemoryStream(ms.ToArray()) in    
-//    let y = bf.Deserialize(ms) :?> TLSConstants.cipherSuite in
-//    printfn "%A" (match name_of_cipherSuite x with | Error.Correct(s) -> s | _ -> failwith "ER")
-
-//    let x = Date.now () in
-//    let bf = new BinaryFormatter() in
-//    let ms = new MemoryStream() in
-//    bf.Serialize(ms, x);
-//    let ms = new MemoryStream(ms.ToArray()) in        
-//    let y = bf.Deserialize(ms) :?> Date.DateTime in
-//    printfn "%s" (Date.tostring y)
-
-//    let x = { crand = random(32); pv = TLS_1p2; } in
-//    let b = DB.serialize<info>(x) in
-//    let y = DB.deserialize<info>(b) in
-//    assert((cbytes (x.crand)).Equals(cbytes (y.crand)) && x.pv.Equals(y.pv));
-
-//    let x = random(32) in
-//    let b = DB.serialize<bytes>(x) in
-//    let y = DB.deserialize<bytes>(b) in
-//    assert((cbytes x).Equals(cbytes y));
-//    printfn "%02x %02x" (cbytes x).[0] (cbytes x).[30];
-//    printfn "%02x %02x" (cbytes y).[0] (cbytes y).[30];
-
 //    if File.Exists "dh.db" then    
 //        dump_dh ();
 //    else
@@ -193,22 +122,5 @@ let main argv =
         dump_session ();
     else
         insert_session (); 
-
-//    let stream = new MemoryStream() in   
-//    let context = new SerializationContext() in
-//    let _ = context.Serializers.Register (new BytesSerializer(context)) in    
-//    let _ = context.Serializers.Register (new InfoBinarySerializer(context)) in
-//    let serializer = MessagePackSerializer.Get<SessionInfo> (context) in
-//
-//    let x = { crand = random(2); srand = random(4); pv = TLS_1p2; cipher_suite = nullCipherSuite } in
-//    printfn "=====Serializing====";
-//    printfn "%02x %02x" (cbytes (x.crand)).[0] (cbytes (x.srand)).[3];
-//
-//    let p = serializer.Pack(stream, x);    
-//    stream.Position <- 0L;
-//    let u = serializer.Unpack stream in
-//
-//    printfn "=====Deserializing====";
-//    printfn "%02x %02x" (cbytes (x.crand)).[0] (cbytes (x.srand)).[3];
 
     0

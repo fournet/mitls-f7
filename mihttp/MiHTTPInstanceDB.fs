@@ -1,47 +1,10 @@
 ﻿module MiHTTPInstanceDB
 
 open Bytes
+open Serialization
 open MiHTTPChannel
 
-open Newtonsoft.Json
-open Newtonsoft.Json.Serialization
-
-
 let dbname = "http-instances.sqlite3"
-
-(* ------------------------------------------------------------------------------- *)
-type BytesJsonConverter() =
-    inherit JsonConverter()       
-
-    override this.WriteJson(writer, value, serializer) =        
-        serializer.Serialize(writer, cbytes (value :?> bytes))
-       
-    override this.ReadJson(reader, objectType, existingValue, serializer) =
-        serializer.Deserialize(reader, typeof<byte[]>) :?> byte[] |> abytes :> obj
-
-    override this.CanConvert(t) =
-        t.Equals(typeof<bytes>)
-
-(* ------------------------------------------------------------------------------- *)
-let converters =
-    [| BytesJsonConverter() :> JsonConverter |]
-
-(* ------------------------------------------------------------------------------- *)
-let settings =
-    JsonSerializerSettings (
-        ContractResolver = DefaultContractResolver (),
-        Converters = converters,
-        // Beware that Formatting.Indented will produce system-dependent line endings
-        Formatting = Formatting.None,        
-        NullValueHandling = NullValueHandling.Include
-        )
-
-(* ------------------------------------------------------------------------------- *)
-let serialize<'T> (o: 'T) : string =
-    JsonConvert.SerializeObject(o, settings)
-
-let deserialize<'T> (s:string) : 'T =
-    JsonConvert.DeserializeObject<'T>(s, settings)
 
 let save (c : channel) =
     let state = save_channel c in
