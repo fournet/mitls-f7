@@ -250,6 +250,17 @@ module internal Records =
             let properties = Array.zip names values |> Map.ofArray
             do! writeObject (properties) }
 
+(* ------------------------------------------------------------------------------- *)
+type BytesJsonConverter () =
+    inherit JsonConverter ()
+
+    override x.CanConvert (objectType) = objectType.Equals(typeof<bytes>)
+
+    override x.ReadJson (reader, objectType, _, serializer) =
+        serializer.Deserialize (reader, typeof<byte[]>) :?> byte[] |> abytes :> obj
+
+    override x.WriteJson (writer, value, serializer) =
+        serializer.Serialize (writer, cbytes (value :?> bytes))
 
 (* ------------------------------------------------------------------------------- *)
 type UnionConverter () =
@@ -276,22 +287,10 @@ type RecordConverter () =
         writeRecord value (JsonState.write writer serializer)
 
 (* ------------------------------------------------------------------------------- *)
-type BytesJsonConverter () =
-    inherit JsonConverter ()
-
-    override x.CanConvert (objectType) = objectType.Equals(typeof<bytes>)
-
-    override x.ReadJson (reader, objectType, _, serializer) =
-        serializer.Deserialize (reader, typeof<byte[]>) :?> byte[] |> abytes :> obj
-
-    override x.WriteJson (writer, value, serializer) =
-        serializer.Serialize (writer, cbytes (value :?> bytes))
-
-(* ------------------------------------------------------------------------------- *)
 let converters = [|
+        BytesJsonConverter() :> JsonConverter; // Order matters (bytes is a record type)
         UnionConverter() :> JsonConverter;
         RecordConverter() :> JsonConverter;
-        BytesJsonConverter() :> JsonConverter;
         |]
 
 (* ------------------------------------------------------------------------------- *)
