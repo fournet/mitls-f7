@@ -49,13 +49,6 @@
     </Otherwise>
   </Choose>
   <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" />
-  <Target Name="AfterClean">
-    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
-      <Output ItemName="ToDel" TaskParameter="Include" />
-    </CreateItem>
-    <Delete Files="$(OutDir)\$(Name).XML" />
-    <Delete Files="@(ToDel)" />
-  </Target>
   <ItemGroup>
     <Compile Include="DB.fsi" />
     <Compile Include="DB.fs" />
@@ -75,4 +68,11 @@
     <Reference Include="System.Numerics" />
     <Reference Include="System.Transactions" />
   </ItemGroup>
+  <Target Name="AfterClean">
+    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
+      <Output ItemName="ToDel" TaskParameter="Include" />
+    </CreateItem>
+    <Delete Files="$(OutDir)\$(Name).XML" />
+    <Delete Files="@(ToDel)" />
+  </Target>
 </Project>

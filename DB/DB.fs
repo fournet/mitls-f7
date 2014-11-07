@@ -80,7 +80,7 @@ module Internal =
         let request = "DELETE FROM map WHERE key = :k" in
         use command = db.CreateCommand() in
             command.CommandText <- request;
-            command.Parameters.Add("k", DbType.Binary).Value <- k;
+            command.Parameters.Add("k", DbType.String).Value <- k;
             command.ExecuteNonQuery() <> 0
 
     let all (DB db : db) =
