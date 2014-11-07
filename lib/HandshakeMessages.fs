@@ -523,7 +523,7 @@ let parseDigitallySigned expectedAlgs payload pv =
 (* Server Key exchange *)
 
 let dheParamBytes p g y = (vlbytes 2 p) @| (vlbytes 2 g) @| (vlbytes 2 y)
-let parseDHEParams dhdb minSize payload =
+let parseDHEParams payload =
     if length payload >= 2 then 
         match vlsplit 2 payload with
         | Error(z) -> Error(z)
@@ -539,21 +539,7 @@ let parseDHEParams dhdb minSize payload =
                 | Error(z) -> Error(z)
                 | Correct(res) ->
                 let (y,payload) = res in
-                // Check params and validate y
-                match DHGroup.checkParams dhdb minSize p g with
-                | Error(z) -> Error(z)
-                | Correct(res) ->
-                    let (dhdb,dhp) = res in
-                    match DHGroup.checkElement dhp y with
-                    | None -> Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid DH key received")
-                    | Some(y) ->
-#if verify
-                        // AP: The following give a funny error.
-                        // AP: We cannot prove the B(b) = ... postcondition,
-                        // AP: and this looks like linked to the following error.
-                        let p' = dhp.dhp in
-#endif
-                        correct (dhdb,dhp,y,payload)
+                correct(p,g,y,payload)
             else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
         else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
     else Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
@@ -563,29 +549,29 @@ let serverKeyExchangeBytes_DHE dheb alg sign pv =
     let payload = dheb @| sign in
     messageBytes HT_server_key_exchange payload
 
-let parseServerKeyExchange_DHE dhdb minSize pv cs payload =
-    match parseDHEParams dhdb minSize payload with
+let parseServerKeyExchange_DHE pv cs payload =
+    match parseDHEParams payload with
     | Error(z) -> Error(z)
     | Correct(res) ->
-        let (dhdb,dhp,y,payload) = res in
+        let (p,g,y,payload) = res in
         let allowedAlgs = default_sigHashAlg pv cs in
         (match parseDigitallySigned allowedAlgs payload pv with
         | Error(z) -> Error(z)
         | Correct(res) ->
             let (alg,signature) = res in
-            correct(dhdb,dhp,y,alg,signature))
+            correct(p,g,y,alg,signature))
 
 let serverKeyExchangeBytes_DH_anon p g y =
     let dehb = dheParamBytes p g y in
     messageBytes HT_server_key_exchange dehb
 
-let parseServerKeyExchange_DH_anon dhdb minSize payload =
-    match parseDHEParams dhdb minSize payload with
+let parseServerKeyExchange_DH_anon payload =
+    match parseDHEParams payload with
     | Error(z) -> Error(z)
     | Correct(z) ->
-        let (dhdb,dhp,y,rem) = z in
+        let (p,g,y,rem) = z in
         if length rem = 0 then
-            correct(dhdb,dhp,y)
+            correct(p,g,y)
         else
             Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
