@@ -163,7 +163,7 @@ let all (db : db) =
 let keys (db : db) =
     Internal.wrap (fun () -> Internal.keys db)
 
-let merge (db : db) (db2: string) =
+let merge (db : db) (db2 : string) =
     let db = attach db db2 "db" in
     Internal.wrap (fun () -> Internal.merge db "db")
 

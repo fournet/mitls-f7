@@ -258,7 +258,7 @@ let _ =
                     | Some _ -> 
                         eprintfn "Found parameters in the database with same modulus and generator";
                         exit 1
-                    | _ ->            
+                    | _ ->
                         if options.force then
                             let p' = new BigInteger(1, cbytes p)
                             let pm1 = p'.Subtract(BigInteger.One)
@@ -279,7 +279,7 @@ let _ =
                     | Some _ -> 
                         eprintfn "Found parameters in the database with same modulus and generator";
                         exit 1
-                    | _ ->            
+                    | _ ->
                         if options.force then
                             let safe_prime =
                                 let q = new BigInteger(1, cbytes q)

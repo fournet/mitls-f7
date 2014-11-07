@@ -337,9 +337,9 @@ type config = {
     sessionDBFileName: string;
     sessionDBExpiry: TimeSpan;
 
-	(* DH groups database *)
-	dhDBFileName: string;
-	dhDefaultGroupFileName: string;
+    (* DH groups database *)
+    dhDBFileName: string;
+    dhDefaultGroupFileName: string;
     dhPQMinLength: nat * nat
     }
 
