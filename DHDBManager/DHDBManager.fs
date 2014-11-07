@@ -1,7 +1,7 @@
 ﻿module DHDBManager
 
 open Bytes
-open System
+open Error
 open System.IO
 
 open Microsoft.FSharp.Text
@@ -14,18 +14,17 @@ type dh_params =
  | DH  of bytes * bytes
  | DHX of bytes * bytes * bytes
 
-type command = 
+type _command = 
   | Check
-  | Dump
-  | Insert
-  | Import  
+  | Dump of string
+  | Insert of string
+  | Import of string
+
+type command = option<_command>
 
 type options = {
     command: command;
-    dbfile:  string;  
-    dbfile2: string;
-    pemfile: string;
-    dumpdir: string;
+    dbfile:  string;
     minplen: int;
     minqlen: int;
     confidence: int;
@@ -74,6 +73,17 @@ let load_params_from_file (file : string) : dh_params =
         filestream.Close()
 
 (* ------------------------------------------------------------------------ *)
+let load_default_params pem_file dhdb minSize =
+    let p,g =
+        match load_params_from_file pem_file with
+        | DH(p,g) -> p,g
+        | DHX(p,_,g) -> p,g
+    match CoreDH.check_params dhdb minSize p g with
+    | Error(x) -> raise (InvalidPEMFile(x))
+    | Correct(res) -> res
+
+
+(* ------------------------------------------------------------------------ *)
 let save_params (stream:Stream) (dhp:dh_params) =
     let writer    = new PemWriter(new StreamWriter(stream)) in
     match dhp with
@@ -105,47 +115,6 @@ let save_params_to_file (file:string) (dhp:dh_params) =
     with _ ->
         failwith "unexpected"
 
-(* ------------------------------------------------------------------------ *)
-let check_unknown_q conf minPl minQl pbytes gbytes : bool =
-    let p = new BigInteger(1, cbytes pbytes)
-    let g = new BigInteger(1, cbytes gbytes)
-    let pm1 = p.Subtract(BigInteger.One)
-    let q = pm1.Divide(BigInteger.Two) in
-        (g.CompareTo BigInteger.One) > 0 && (g.CompareTo pm1) < 0 &&
-        minPl <= p.BitLength && minQl <= q.BitLength &&
-        p.IsProbablePrime(conf) && q.IsProbablePrime(conf)
-
-(* ------------------------------------------------------------------------ *)
-let check_known_q conf minPl minQl pbytes gbytes qbytes : bool =
-    let p = new BigInteger(1, cbytes pbytes) 
-    let g = new BigInteger(1, cbytes gbytes) 
-    let q = new BigInteger(1, cbytes qbytes) 
-    let pm1 = p.Subtract(BigInteger.One) in 
-    if (g.CompareTo BigInteger.One) > 0 && (g.CompareTo pm1) < 0 &&
-       minPl <= p.BitLength && minQl <= q.BitLength &&
-       p.IsProbablePrime(conf) && q.IsProbablePrime(conf) then
-        let r = g.ModPow(q, p)
-        // For OpenSSL-generated parameters order(g) = 2q, so e^q mod p = p-1
-        r.Equals(BigInteger.One) || r.Equals(pm1)
-    else
-        false
-
-(* ------------------------------------------------------------------------ *)
-let insert_safe_prime dhdb pbytes gbytes : DHDB.dhdb =
-    let p   = new BigInteger(1, cbytes pbytes)
-    let pm1 = p.Subtract(BigInteger.One)        
-    let q   = pm1.Divide(BigInteger.Two)
-    let qbytes = abytes (q.ToByteArrayUnsigned()) in                 
-        DHDB.insert dhdb (pbytes, gbytes) (qbytes, true)
-
-(* ------------------------------------------------------------------------ *)
-let insert_known_q dhdb pbytes gbytes qbytes : DHDB.dhdb =
-    let p   = new BigInteger(1, cbytes pbytes)
-    let q   = new BigInteger(1, cbytes qbytes)    
-    let pm1 = p.Subtract(BigInteger.One)        
-    let q'  = pm1.Divide(BigInteger.Two) in
-        DHDB.insert dhdb (pbytes, gbytes) (qbytes, q.Equals(q'))
-
 (* ------------------------------------------------------------------------------- *)
 let dump db dir =
     let keys = DHDB.keys db in
@@ -153,7 +122,7 @@ let dump db dir =
         for (p,g) in keys do
             match DHDB.select db (p,g) with
             | None -> failwith "unexpected"
-            | Some(q,b) ->
+            | Some(q,_) ->
                 save_params_to_file (sprintf "%s/dhparams_%u.pem" dir !n) (DHX(p,q,g));
                 n := !n + 1u
 
@@ -163,26 +132,15 @@ let check conf minPl minQl db =
         for (pbytes,gbytes) in keys do
             match DHDB.select db (pbytes,gbytes) with
             | None -> failwith "unexpected"
-            | Some(qbytes,true) ->
-                let p   = new BigInteger(1, cbytes pbytes)
-                let q   = new BigInteger(1, cbytes qbytes)    
-                let pm1 =  p.Subtract(BigInteger.One)        
-                let q'  = pm1.Divide(BigInteger.Two) in
-                    if not(q.Equals(q')) || not(check_unknown_q conf minPl minQl pbytes gbytes) then 
-                        eprintfn "Found an invalid parameter";
+            | Some(qbytes,safe_prime) ->
+                match CoreDH.check_p_g_q conf minPl minQl pbytes gbytes qbytes with
+                | Error(x) ->
+                    eprintfn "Found an invalid parameter";
+                    exit 1
+                | Correct(sp') ->
+                    if safe_prime <> sp' then
+                        eprintfn "Found a parameter with an inconsistent safe_prime flag";
                         exit 1
-            | Some(qbytes,false) ->
-                let p   = new BigInteger(1, cbytes pbytes)
-                let q   = new BigInteger(1, cbytes qbytes)    
-                let pm1 = p.Subtract(BigInteger.One)        
-                let q'  = pm1.Divide(BigInteger.Two) in
-                    if q.Equals(q') then
-                        eprintfn "Found parameter with a safe prime modulus but an unset safe prime flag";
-                        exit 1
-                    else
-                        if not(check_known_q conf minPl minQl pbytes gbytes qbytes) then
-                            eprintfn "Found an invalid parameter";
-                            exit 1                    
 
 (* ------------------------------------------------------------------------ *)
 let cmdParse () = 
@@ -190,21 +148,18 @@ let cmdParse () =
     let mypath   = Path.GetDirectoryName(assembly.Location)
     let myname   = Path.GetFileNameWithoutExtension(assembly.Location)
 
-    let defaultDBFile  = TLSInfo.defaultConfig.dhDBFileName
-    let defaultMinPlen = fst TLSInfo.defaultConfig.dhPQMinLength
-    let defaultMinQlen = snd TLSInfo.defaultConfig.dhPQMinLength
-    let defaultDumpDir = "dhdb_dump"
+    let defaultDBFile  = DHDB.defaultFileName
+    let defaultMinPlen = fst CoreDH.defaultPQMinLength
+    let defaultMinQlen = snd CoreDH.defaultPQMinLength
+    let defaultConfidence = 80
   
     let options = ref {
-        command = Dump;
+        command = None;
         dbfile  = Path.Combine(mypath, defaultDBFile); 
-        dbfile2 = "";
-        pemfile = "";
-        dumpdir = Path.Combine(mypath, defaultDumpDir);
         minplen = defaultMinPlen;
         minqlen = defaultMinQlen; 
         force   = false; 
-        confidence = 80; }
+        confidence = defaultConfidence; }
 
     let o_dbfile = fun s ->
         options := { !options with dbfile = s }
@@ -213,19 +168,19 @@ let cmdParse () =
         if not (File.Exists s) then
             let msg = sprintf "File not found: %s" s in
                 raise (ArgError msg);
-        options := { !options with command = Insert; pemfile = s }
+        options := { !options with command = Some(Insert(s)) }
 
     let o_dumpdir = fun s ->
-        options := { !options with command = Dump; dumpdir = s }
+        options := { !options with command = Some(Dump(s)) }
         
     let o_dbfile2 = fun s ->
         if not (File.Exists s) then
             let msg = sprintf "File not found: %s" s in
                 raise (ArgError msg);
-        options := { !options with command = Import; dbfile2 = s }
+        options := { !options with command = Some(Import(s)) }
 
     let o_check = fun () ->
-        options := { !options with command = Check }
+        options := { !options with command = Some(Check) }
     
     let o_force = fun () ->
         options := { !options with force = true }
@@ -249,20 +204,18 @@ let cmdParse () =
         options := { !options with confidence = n }
 
     let specs = [
-        "-db",        ArgType.String o_dbfile  , "Database file (creates an empty one if it does not exist)"
+        "-db",        ArgType.String o_dbfile  , sprintf "Database file (creates an empty one if it does not exist); default: %s" defaultDBFile
         "-insert",    ArgType.String o_pemfile , "Insert parameters stored in a PEM file"
         "-dump",      ArgType.String o_dumpdir , "Dump entries in the database as PEM files in the directory specified"
         "-check",     ArgType.Unit o_check     , "Check the validity of parameters in the database"
         "-import",    ArgType.String o_dbfile2 , "Import all parameters from given database"
-        "-minPlen",   ArgType.Int o_minplen    , "Minimum modulus length in bits (used for validation)"
-        "-minQlen",   ArgType.Int o_minqlen    , "Minimum subgroup size in bits (used for validation)"
-        "-confidence",ArgType.Int o_confidence , "Confidence level for primality checks"
+        "-minPlen",   ArgType.Int o_minplen    , sprintf "Minimum modulus length in bits (used for validation); default: %d" defaultMinPlen
+        "-minQlen",   ArgType.Int o_minqlen    , sprintf "Minimum subgroup size in bits (used for validation); default: %d" defaultMinQlen
+        "-confidence",ArgType.Int o_confidence , sprintf "Confidence level for primality checks; default: %d" defaultConfidence
         "-force",     ArgType.Unit o_force     , "Do not validate parameters before inserting or importing them"   
     ]
 
     let specs = specs |> List.map (fun (sh, ty, desc) -> ArgInfo(sh, ty, desc))
-
-    let args = System.Environment.GetCommandLineArgs()
 
     let usage = sprintf "Usage: %s options" myname
 
@@ -283,60 +236,85 @@ let _ =
         try 
             DHDB.create options.dbfile
         with _ ->
-            eprintf "Could not open or create database: %s" options.dbfile;
+            eprintf "Could not open nor create database: %s" options.dbfile;
             exit 1
  
-    match options.command with    
-    | Insert ->
-        let dhp =
-            try load_params_from_file options.pemfile
-            with InvalidPEMFile s -> 
-                eprintfn "Invalid PEM file. %s" s;
-                exit 1
-        in
-            match dhp with
-            | DH(p,g) -> 
-                match DHDB.select db (p,g) with
-                | Some _ -> 
-                    eprintfn "Found parameters in the database with same modulus and generator";
+    match options.command with
+    | None ->
+        eprintf "At least one command must be specified";
+        exit 1
+    | Some(command) ->
+        match command with  
+        | Insert(pemfile) ->
+            let dhp =
+                try load_params_from_file pemfile
+                with InvalidPEMFile s -> 
+                    eprintfn "Invalid PEM file. %s" s;
                     exit 1
-                | _ ->            
-                    if options.force || check_unknown_q options.confidence options.minplen options.minqlen p g then
-                        ignore(insert_safe_prime db p g);
-                        exit 0
-                    else
-                        eprintfn "Could not validate the parameters";
+            in
+                match dhp with
+                | DH(p,g) -> 
+                    match DHDB.select db (p,g) with
+                    | Some _ -> 
+                        eprintfn "Found parameters in the database with same modulus and generator";
                         exit 1
-            | DHX(p,q,g) ->
-                match DHDB.select db (p,g) with
-                | Some _ -> 
-                    eprintfn "Found parameters in the database with same modulus and generator";
-                    exit 1
-                | _ ->            
-                    if options.force || check_known_q options.confidence options.minplen options.minqlen p g q then
-                        ignore(insert_known_q db p g q);
-                        exit 0
-                    else
-                        eprintfn "Could not validate the parameters";
-                        exit 1       
+                    | _ ->
+                        if options.force then
+                            let p' = new BigInteger(1, cbytes p)
+                            let pm1 = p'.Subtract(BigInteger.One)
+                            let q' = pm1.Divide(BigInteger.Two) in
+                            let q = abytes(q'.ToByteArrayUnsigned())
+                            ignore(DHDB.insert db (p,g) (q,true));
+                            exit 0
+                        else
+                            match CoreDH.check_p_g options.confidence options.minplen options.minqlen p g with
+                            | Error(x) ->
+                                eprintfn "Could not validate the parameters";
+                                exit 1
+                            | Correct(q) ->
+                                ignore(DHDB.insert db (p,g) (q,true));
+                                exit 0
+                | DHX(p,q,g) ->
+                    match DHDB.select db (p,g) with
+                    | Some _ -> 
+                        eprintfn "Found parameters in the database with same modulus and generator";
+                        exit 1
+                    | _ ->
+                        if options.force then
+                            let safe_prime =
+                                let q = new BigInteger(1, cbytes q)
+                                let p = new BigInteger(1, cbytes p)
+                                let pm1 = p.Subtract(BigInteger.One)
+                                let q' = pm1.Divide(BigInteger.Two) in
+                                q.Equals(q')
+                            ignore(DHDB.insert db (p,g) (q,safe_prime));
+                            exit 0
+                        else
+                            match CoreDH.check_p_g_q options.confidence options.minplen options.minqlen p g q with
+                            | Error(x) ->
+                                eprintfn "Could not validate the parameters";
+                                exit 1
+                            | Correct(safe_prime) ->
+                                ignore(DHDB.insert db (p,g) (q,safe_prime));
+                                exit 0
 
-    | Dump -> 
-        try 
-            let di = Directory.CreateDirectory options.dumpdir in
-            dump db options.dumpdir;
+        | Dump(dumpdir) -> 
+            try 
+                let di = Directory.CreateDirectory dumpdir in
+                dump db dumpdir;
+                exit 0
+            with _ ->
+                eprintf "Could not open nor create directory: %s" dumpdir;
+                exit 1
+
+        | Check ->
+            check options.confidence options.minplen options.minqlen db;
             exit 0
-        with _ ->
-            eprintf "Could not open or create directory: %s" options.dumpdir;
-            exit 1
 
-    | Check ->
-        check options.confidence options.minplen options.minqlen db;
-        exit 0
-
-    | Import ->
-        try 
-            ignore (DHDB.merge db options.dbfile2);
-            exit 0
-        with _ ->
-            eprintfn "Some error";
-            exit 1
+        | Import(dbfile2) ->
+            try 
+                ignore (DHDB.merge db dbfile2);
+                exit 0
+            with _ ->
+                eprintfn "Error merging the databases";
+                exit 1

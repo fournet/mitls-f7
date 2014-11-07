@@ -2,14 +2,13 @@
 
 type db
 
-type key = string
+type key   = string
 type value = string
 
 exception DBError of string
 
 val opendb  : string -> db
 val closedb : db -> unit
-val attach  : db -> string -> string -> db
 val put     : db -> key -> value -> unit
 val get     : db -> key -> value option
 val remove  : db -> key -> bool

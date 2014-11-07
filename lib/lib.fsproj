@@ -302,6 +302,11 @@
       <Project>{cad78b05-0adc-433b-954b-1f31fc6477f6}</Project>
       <Private>True</Private>
     </ProjectReference>
+    <ProjectReference Include="..\DHDBManager\DHDBManager.fsproj">
+      <Name>DHDBManager</Name>
+      <Project>{2da9ce8a-c82f-4cf2-8329-79b8a3f19f1f}</Project>
+      <Private>True</Private>
+    </ProjectReference>
     <ProjectReference Include="..\Platform\Platform.fsproj">
       <Name>Platform</Name>
       <Project>{408e6f53-363a-4c58-9808-84a0b526324b}</Project>
