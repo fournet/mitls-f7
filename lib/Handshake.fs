@@ -1029,46 +1029,70 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             | ServerKeyExchangeDHE(si,log) ->
                 let ops = state.poptions in
                 let dhstrength = ops.dhPQMinLength in
-                (match parseServerKeyExchange_DHE state.dhdb dhstrength si.protocol_version si.cipher_suite payload with
+                (match parseServerKeyExchange_DHE si.protocol_version si.cipher_suite payload with
                 | Error z ->
                     let (x,y) = z in
                     InError(x,y,state)
                 | Correct(v) ->
-                    let (dhdb,dhp,y,alg,signature) = v in
-                    let state = {state with dhdb = dhdb} in
-                    let vk = Cert.get_chain_public_signing_key si.serverID alg in
-                    match vk with
+                    let (p,g,y,alg,signature) = v in
+                    // Check params and validate y
+                    match DHGroup.checkParams state.dhdb dhstrength p g with
                     | Error z ->
                         let (x,y) = z in
                         InError(x,y,state)
-                    | Correct(vkey) ->
-                        let dheb = dheParamBytes dhp.dhp dhp.dhg y in
-                        let expected = si.init_crand @| si.init_srand @| dheb in
-                        if Sig.verify alg vkey expected signature then
-                            (let si_old = si in
-                            let si = {si with serverSigAlg = alg} in 
-                            let log = log @| to_log in
+                    | Correct(res) ->
+                        let (dhdb,dhp) = res in
+                        let state = {state with dhdb = dhdb} in
+                        match DHGroup.checkElement dhp y with
+                        | None ->
+                            let reason = perror __SOURCE_FILE__ __LINE__ "Invalid DH key received" in
+                            InError(AD_illegal_parameter, reason,state)
+                        | Some(y) ->
+                        let vk = Cert.get_chain_public_signing_key si.serverID alg in
+                        match vk with
+                        | Error z ->
+                            let (x,y) = z in
+                            InError(x,y,state)
+                        | Correct(vkey) ->
+                            let dheb = dheParamBytes dhp.dhp dhp.dhg y in
+                            let expected = si.init_crand @| si.init_srand @| dheb in
+                            if Sig.verify alg vkey expected signature then
+                                (let si_old = si in
+                                let si = {si with serverSigAlg = alg} in 
+                                let log = log @| to_log in
 #if verify
-                            Pi.expect(UpdatesServerSigAlg(si_old,si));
+                                Pi.expect(UpdatesServerSigAlg(si_old,si));
 #endif
-                            recv_fragment_client ci 
-                              {state with pstate = PSClient(CertificateRequestDHE(si,dhp,y,log))} 
-                              agreedVersion)
-                        else
-                            InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "",state))
+                                recv_fragment_client ci 
+                                  {state with pstate = PSClient(CertificateRequestDHE(si,dhp,y,log))} 
+                                  agreedVersion)
+                            else
+                                InError(AD_decrypt_error, perror __SOURCE_FILE__ __LINE__ "",state))
                     
             | ServerKeyExchangeDH_anon(si,log) ->
                 let ops = state.poptions in
                 let dhstrength = ops.dhPQMinLength in
-                (match parseServerKeyExchange_DH_anon state.dhdb dhstrength payload with
+                (match parseServerKeyExchange_DH_anon payload with
                 | Error z -> let (x,y) = z in InError(x,y,state)
                 | Correct(v) ->
-                    let (dhdb,dhp,y) = v in
-                    let log = log @| to_log in
-                    let state = {state with dhdb = dhdb} in
-                    recv_fragment_client ci 
-                      {state with pstate = PSClient(ServerHelloDoneDH_anon(si,dhp,y,log))} 
-                      agreedVersion)
+                    let (p,g,y) = v in
+                    // Check params and validate y
+                    match DHGroup.checkParams state.dhdb dhstrength p g with
+                    | Error z ->
+                        let (x,y) = z in
+                        InError(x,y,state)
+                    | Correct(res) ->
+                        let (dhdb,dhp) = res in
+                        let state = {state with dhdb = dhdb} in
+                        match DHGroup.checkElement dhp y with
+                        | None ->
+                            let reason = perror __SOURCE_FILE__ __LINE__ "Invalid DH key received" in
+                            InError(AD_illegal_parameter, reason,state)
+                        | Some(y) ->
+                            let log = log @| to_log in
+                            recv_fragment_client ci 
+                              {state with pstate = PSClient(ServerHelloDoneDH_anon(si,dhp,y,log))} 
+                              agreedVersion)
             | _ -> InError(AD_unexpected_message, perror __SOURCE_FILE__ __LINE__ "ServerKeyExchange arrived in the wrong state",state))
 
         | HT_certificate_request ->
