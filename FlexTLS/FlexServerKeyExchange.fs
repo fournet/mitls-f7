@@ -51,12 +51,17 @@ type FlexServerKeyExchange =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="nsc"> Next security context being negociated </param>
     /// <param name="check_sig"> Optional check on the Server certificate chain </param>
-    /// <param name="minDHsize"> Optional Minimal sizes for DH parameters </param>
+    /// <param name="minDHsize"> Optional Minimal sizes for DH parameters.
+    ///    If provided, received DH parameters will be checked for validity and their size;
+    ///    if not provided, no check at all will be performed on the received parameters </param>
     /// <returns> Updated state * Updated next security context * FServerKeyExchange message record </returns>
     static member receiveDHE (st:state, nsc:nextSecurityContext, ?check_sig:bool, ?minDHsize:nat*nat): state * nextSecurityContext * FServerKeyExchange =
         let check_sig = defaultArg check_sig false in
-        let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
-        let st,fske = FlexServerKeyExchange.receiveDHE(st,nsc.si.protocol_version,nsc.si.cipher_suite,minDHsize) in
+        let st,fske =
+            match minDHsize with
+            | None -> FlexServerKeyExchange.receiveDHE(st,nsc.si.protocol_version,nsc.si.cipher_suite)
+            | Some(minDHsize) -> FlexServerKeyExchange.receiveDHE(st,nsc.si.protocol_version,nsc.si.cipher_suite,minDHsize)
+        in
         let epk = {nsc.keys with kex = fske.kex} in
         let nsc = {nsc with keys = epk} in
         if check_sig then
@@ -85,23 +90,39 @@ type FlexServerKeyExchange =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="pv"> Protocol version negociated </param>
     /// <param name="cs"> Ciphersuite negociated </param>
-    /// <param name="minDHsize"> Optional Minimal sizes for DH parameters </param>
+    /// <param name="minDHsize"> Optional Minimal sizes for DH parameters.
+    ///    If provided, received DH parameters will be checked for validity and their size;
+    ///    if not provided, no check at all will be performed on the received parameters </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
     static member receiveDHE (st:state, pv:ProtocolVersion, cs:cipherSuite, ?minDHsize:nat*nat) : state * FServerKeyExchange =
         LogManager.GetLogger("file").Info("# SERVER KEY EXCHANGE : FlexServerKeyExchange.receiveDHE");
-        let minDHsize = defaultArg minDHsize FlexConstants.minDHSize in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_server_key_exchange  ->
-            (match HandshakeMessages.parseServerKeyExchange_DHE FlexConstants.dhdb minDHsize pv cs payload with
+            (match HandshakeMessages.parseServerKeyExchange_DHE pv cs payload with
             | Error (_,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
-            | Correct (_,dhp,gy,alg,signature) ->
-                let kexdh = {pg = (dhp.dhp,dhp.dhg); x = empty_bytes; gx = empty_bytes; gy = gy} in
-                let fske : FServerKeyExchange = { kex = DH(kexdh); payload = to_log; sigAlg = alg; signature = signature } in
-                LogManager.GetLogger("file").Debug(sprintf "---S Public Prime : %s" (Bytes.hexString(dhp.dhp)));
-                LogManager.GetLogger("file").Debug(sprintf "---S Public Generator : %s" (Bytes.hexString(dhp.dhg)));
+            | Correct (p,g,gy,alg,signature) ->
+                LogManager.GetLogger("file").Debug(sprintf "---S Public Prime : %s" (Bytes.hexString(p)));
+                LogManager.GetLogger("file").Debug(sprintf "---S Public Generator : %s" (Bytes.hexString(g)));
                 LogManager.GetLogger("file").Debug(sprintf "---S Public Exponent : %s" (Bytes.hexString(gy)));
+                LogManager.GetLogger("file").Debug(sprintf "---S Signature algorithm : %A" (alg));
+                LogManager.GetLogger("file").Debug(sprintf "---S Signature : %s" (Bytes.hexString(signature)));
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(payload)));
+                (match minDHsize with
+                | None -> ()
+                | Some(minDHsize) ->
+                    // Check params and validate y
+                    match DHGroup.checkParams FlexConstants.dhdb minDHsize p g with
+                    | Error (_,x) -> failwith x
+                    | Correct(res) ->
+                        let (_,dhp) = res in
+                        match DHGroup.checkElement dhp gy with
+                        | None ->
+                            failwith "Server sent an invalid DH key"
+                        | Some(_) -> ()
+                );
+                let kexdh = {pg = (p,g); x = empty_bytes; gx = empty_bytes; gy = gy} in
+                let fske : FServerKeyExchange = { kex = DH(kexdh); payload = to_log; sigAlg = alg; signature = signature } in
                 st,fske 
             )
         | _ -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected handshake type: %A" hstype))
