@@ -92,7 +92,7 @@ let parseAlert b =
     | (2uy,  48uy) -> correct(AD_unknown_ca                           )
     | (2uy,  49uy) -> correct(AD_access_denied                        )
     | (2uy,  50uy) -> correct(AD_decode_error                         )
-    | (1uy,  51uy) -> correct(AD_decrypt_error                        )
+    | (2uy,  51uy) -> correct(AD_decrypt_error                        )
     | (2uy,  60uy) -> correct(AD_export_restriction                   )
     | (2uy,  70uy) -> correct(AD_protocol_version                     )
     | (2uy,  71uy) -> correct(AD_insufficient_security                )
