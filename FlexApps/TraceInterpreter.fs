@@ -1,4 +1,6 @@
 ﻿module TraceInterpreter
+
+open NLog
 open FlexTLS
 open FlexTypes
 open FlexConstants
@@ -40,6 +42,7 @@ let cfuns = ref [];
 
 let tr1 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 1 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -69,6 +72,7 @@ cfuns := tr1::!cfuns;
 
 let tr3 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 3 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -94,6 +98,7 @@ cfuns := tr3::!cfuns;
 
 let tr4 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 4 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -117,6 +122,7 @@ cfuns := tr4::!cfuns;
 
 let tr5 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 5 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -142,6 +148,7 @@ cfuns := tr5::!cfuns;
 
 let tr6 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 6 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -167,6 +174,7 @@ cfuns := tr6::!cfuns;
 
 let tr7 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 7 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -193,6 +201,7 @@ cfuns := tr7::!cfuns;
 
 let tr8 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 8 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -220,6 +229,7 @@ cfuns := tr8::!cfuns;
 
 let tr9 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 9 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -248,6 +258,7 @@ cfuns := tr9::!cfuns;
 
 let tr10 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 10 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -278,6 +289,7 @@ cfuns := tr10::!cfuns;
 
 let tr11 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 11 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -301,6 +313,7 @@ cfuns := tr11::!cfuns;
 
 let tr12 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 12 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -324,6 +337,7 @@ cfuns := tr12::!cfuns;
 
 let tr13 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 13 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -348,6 +362,7 @@ cfuns := tr13::!cfuns;
 
 let tr14 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 14 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -373,6 +388,7 @@ cfuns := tr14::!cfuns;
 
 let tr15 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 15 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -399,6 +415,7 @@ cfuns := tr15::!cfuns;
 
 let tr16 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 16 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -453,6 +470,7 @@ cfuns := tr16::!cfuns;
 
 let tr30 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 30 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -474,6 +492,7 @@ cfuns := tr30::!cfuns;
 
 let tr31 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 31 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -497,6 +516,7 @@ cfuns := tr31::!cfuns;
 
 let tr32 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 32 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -520,6 +540,7 @@ cfuns := tr32::!cfuns;
 
 let tr33 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 33 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -544,6 +565,7 @@ cfuns := tr33::!cfuns;
 
 let tr34 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 34 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -569,6 +591,7 @@ cfuns := tr34::!cfuns;
 
 let tr35 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 35 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -595,6 +618,7 @@ cfuns := tr35::!cfuns;
 
 let tr36 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 36 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -623,6 +647,7 @@ cfuns := tr36::!cfuns;
 
 let tr37 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 37 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -644,6 +669,7 @@ cfuns := tr37::!cfuns;
 
 let tr38 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 38 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -665,6 +691,7 @@ cfuns := tr38::!cfuns;
 
 let tr39 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 39 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -687,6 +714,7 @@ cfuns := tr39::!cfuns;
 
 let tr40 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 40 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -710,6 +738,7 @@ cfuns := tr40::!cfuns;
 
 let tr41 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 41 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -734,6 +763,7 @@ cfuns := tr41::!cfuns;
 
 let tr42 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 42 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -777,6 +807,7 @@ cfuns := [];
 
 let tr49 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 49 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -798,6 +829,7 @@ cfuns := tr49::!cfuns;
 
 let tr50 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 50 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -820,6 +852,7 @@ cfuns := tr50::!cfuns;
 
 let tr51 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 51 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -850,6 +883,7 @@ cfuns := tr51::!cfuns;
 
 let tr55 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 55 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -869,6 +903,7 @@ cfuns := tr55::!cfuns;
 
 let tr56 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 56 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -889,6 +924,7 @@ cfuns := tr56::!cfuns;
 
 let tr57 st chain salg skey = 
   let log = empty_bytes in
+  LogManager.GetLogger("file").Info("********* TRACE 57 **********");
   let fch = {FlexConstants.nullFClientHello with pv = Some TLS_1p0; ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -924,6 +960,7 @@ let runCertClients server_name port hint =
          f st chain salg skey; 
          Tcp.close st.ns 
        with e -> (System.Console.WriteLine ("exception: "^(e.ToString())); Tcp.close st.ns)) cert_funs
+
 let runNoCertClients server_name port hint = 
   let chain,salg,skey =
     match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
