@@ -40,7 +40,7 @@ let connectTimeout timeout addr port =
     N (tcpCl.GetStream())
 
 let connect addr port =
-    connectTimeout 0 addr port
+    connectTimeout 2000 addr port
 
 (* Input/Output *)
 
@@ -57,7 +57,7 @@ let rec read_acc (N ns) nbytes prev =
                 let rem = nbytes - read in
                 read_acc (N ns) rem (Array.append prev (Array.sub buf 0 read))
         with
-            | _ -> Error(perror __SOURCE_FILE__ __LINE__ "TCP connection closed")
+            | e -> Error(perror __SOURCE_FILE__ __LINE__ ("TCP connection closed: "^ (e.ToString())))
 
 let read (N ns) nbytes =
     try
