@@ -55,7 +55,7 @@ private assume
 	AlertBytes(AD_unknown_ca						) = [|2uy;  48uy|] /\
 	AlertBytes(AD_access_denied						) = [|2uy;  49uy|] /\
 	AlertBytes(AD_decode_error						) = [|2uy;  50uy|] /\
-	AlertBytes(AD_decrypt_error						) = [|1uy;  51uy|] /\
+	AlertBytes(AD_decrypt_error						) = [|2uy;  51uy|] /\
 	AlertBytes(AD_export_restriction				) = [|2uy;  60uy|] /\
 	AlertBytes(AD_protocol_version					) = [|2uy;  70uy|] /\
 	AlertBytes(AD_insufficient_security				) = [|2uy;  71uy|] /\
@@ -85,6 +85,7 @@ private assume
 	IsFatal(AD_unknown_ca       			) /\
 	IsFatal(AD_access_denied    			) /\
 	IsFatal(AD_decode_error     			) /\
+	IsFatal(AD_decrypt_error     			) /\
 	IsFatal(AD_export_restriction   		) /\
 	IsFatal(AD_protocol_version     		) /\
 	IsFatal(AD_insufficient_security		) /\
