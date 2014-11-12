@@ -58,7 +58,7 @@ let alertBytes ad =
     | AD_unknown_ca ->                         abyte2 (2uy,  48uy)
     | AD_access_denied ->                      abyte2 (2uy,  49uy)
     | AD_decode_error ->                       abyte2 (2uy,  50uy)
-    | AD_decrypt_error ->                      abyte2 (1uy,  51uy)
+    | AD_decrypt_error ->                      abyte2 (2uy,  51uy)
     | AD_export_restriction ->                 abyte2 (2uy,  60uy)
     | AD_protocol_version ->                   abyte2 (2uy,  70uy)
     | AD_insufficient_security ->              abyte2 (2uy,  71uy)
@@ -119,7 +119,8 @@ let isFatal ad =
     | AD_illegal_parameter
     | AD_unknown_ca       
     | AD_access_denied    
-    | AD_decode_error     
+    | AD_decode_error
+    | AD_decrypt_error    
     | AD_export_restriction   
     | AD_protocol_version     
     | AD_insufficient_security
