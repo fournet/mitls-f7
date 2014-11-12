@@ -2559,7 +2559,7 @@ let nocert_funs = !cfuns
 let runClients server_name port hint certs = 
   let funs = if certs then cert_funs else nocert_funs in
   let chain,salg,skey =
-    match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
+    match Cert.for_signing FlexConstants.sigAlgs_ALL hint [(SA_RSA,MD5SHA1)] with
     | None -> failwith "Failed to retreive certificate data"
     | Some(c,a,s) -> c,a,s
   in
@@ -2573,5 +2573,5 @@ let runClients server_name port hint certs =
        with e ->
          (log.Info ("exception: "^(e.ToString()));
          log.Info(sprintf "END FAILURE deviant trace %d" n);
-         Tcp.close st.ns)) [(104,tr104)]
+         Tcp.close st.ns)) funs
 
