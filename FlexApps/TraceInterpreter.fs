@@ -2583,7 +2583,7 @@ let runCertClients server_name port hint =
     | None -> failwith "Failed to retreive certificate data"
     | Some(c,a,s) -> c,a,s
   in
-  List.iter (fun n,f ->
+  List.iter (fun (n,f) ->
        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=2000) in
        try
          f st chain salg skey; 
@@ -2595,7 +2595,7 @@ let runNoCertClients server_name port hint =
     | None -> failwith "Failed to retreive certificate data"
     | Some(c,a,s) -> c,a,s
   in
-  List.iter (fun n,f ->
+  List.iter (fun (n,f) ->
        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=2000) in
        try
          f st chain salg skey; 
