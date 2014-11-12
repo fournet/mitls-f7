@@ -40,7 +40,7 @@ let connectTimeout timeout addr port =
     N (tcpCl.GetStream())
 
 let connect addr port =
-    connectTimeout 2000 addr port
+    connectTimeout 0 addr port
 
 (* Input/Output *)
 
