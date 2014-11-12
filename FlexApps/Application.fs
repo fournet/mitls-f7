@@ -85,8 +85,12 @@ let main argv =
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
     (* Trace Interpreter *)
-//    let st = TraceInterpreter.runNoCertClients "localhost" 6443 "rsa.cert-02.mitls.org" in
-//    printf "Client trace interpreter finished\n";
+//    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" false in
+//    printf "Client no-cert trace interpreter finished\n";
+
+    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" true in
+    printf "Client cert trace interpreter finished\n";
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 

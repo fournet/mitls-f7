@@ -61,7 +61,7 @@ let tr1 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -88,7 +88,7 @@ let tr3 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -111,7 +111,7 @@ let tr4 st chain salg skey =
   let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let log = log @| fshd.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -136,7 +136,7 @@ let tr5 st chain salg skey =
   let log = log @| fshd.payload in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let log = log @| fcertC.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -269,7 +269,7 @@ let tr10 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client log in
   let st,ffC = FlexFinished.send(st,verify_data) in
@@ -468,7 +468,7 @@ let tr30 st chain salg skey =
   let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let log = log @| fshd.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -491,7 +491,7 @@ let tr31 st chain salg skey =
   let log = log @| fshd.payload in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let log = log @| fcertC.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -614,7 +614,7 @@ let tr36 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client log in
   let st,ffC = FlexFinished.send(st,verify_data) in
@@ -912,7 +912,7 @@ let tr48 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -941,7 +941,7 @@ let tr49 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let log = log @| fcertC.payload in
@@ -970,7 +970,7 @@ let tr50 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
@@ -999,9 +999,9 @@ let tr51 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1028,7 +1028,7 @@ let tr52 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -1059,7 +1059,7 @@ let tr53 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -1090,7 +1090,7 @@ let tr54 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -1121,11 +1121,11 @@ let tr55 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1152,7 +1152,7 @@ let tr56 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -1620,7 +1620,7 @@ let tr96 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
@@ -1647,7 +1647,7 @@ let tr97 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let log = log @| fcertC.payload in
@@ -1674,7 +1674,7 @@ let tr98 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
@@ -1701,9 +1701,9 @@ let tr99 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1728,7 +1728,7 @@ let tr100 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -1757,7 +1757,7 @@ let tr101 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -1786,7 +1786,7 @@ let tr102 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -1815,11 +1815,11 @@ let tr103 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1844,7 +1844,7 @@ let tr104 st chain salg skey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+  let st,fcver   = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,ms=nsc.keys.ms) in
   let log = log @| fcver.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
@@ -2556,20 +2556,8 @@ cfuns := (153,tr153)::!cfuns;
 
 let nocert_funs = !cfuns
 
-let runCertClients server_name port hint = 
-  let chain,salg,skey =
-    match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
-    | None -> failwith "Failed to retreive certificate data"
-    | Some(c,a,s) -> c,a,s
-  in
-  List.iter (fun (n,f) ->
-       let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=2000) in
-       try
-         f st chain salg skey; 
-         Tcp.close st.ns 
-       with e -> (System.Console.WriteLine ("exception: "^(e.ToString())); Tcp.close st.ns)) cert_funs
-
-let runNoCertClients server_name port hint = 
+let runClients server_name port hint certs = 
+  let funs = if certs then cert_funs else nocert_funs in
   let chain,salg,skey =
     match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
     | None -> failwith "Failed to retreive certificate data"
@@ -2584,6 +2572,6 @@ let runNoCertClients server_name port hint =
          Tcp.close st.ns 
        with e ->
          (log.Info ("exception: "^(e.ToString()));
-         log.Debug(sprintf "END FAILURE deviant trace %d" n);
-         Tcp.close st.ns)) nocert_funs
+         log.Info(sprintf "END FAILURE deviant trace %d" n);
+         Tcp.close st.ns)) [(104,tr104)]
 
