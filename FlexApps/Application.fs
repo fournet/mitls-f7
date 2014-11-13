@@ -11,6 +11,7 @@ open FlexApps
 open Attack_Alert
 open Attack_FragmentClientHello
 open Attack_EarlyCCS
+open Attack_EarlyResume
 open Attack_JavaLateCCS
 open Attack_TripleHandshake
 open Attack_SmallSubgroup_DHE
@@ -88,8 +89,8 @@ let main argv =
 //    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" false in
 //    printf "Client no-cert trace interpreter finished\n";
 
-    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" true in
-    printf "Client cert trace interpreter finished\n";
+//    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" true in
+//    printf "Client cert trace interpreter finished\n";
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,6 +112,9 @@ let main argv =
     (* Early CCS attack MITM *)
 //    let sst,cst = Attack_EarlyCCS.runMITM("0.0.0.0","127.0.0.1",4433) in
 //    printf "Early CCS attack finished\n";
+
+    (* Early Resume attack *)
+//    let st = Attack_EarlyResume.run("rsa.cert-01.mitls.org",6443) in
 
     (* Java Late CCS attack as Server *)
 //    let sst,cst = LateCCS.server("0.0.0.0") in
