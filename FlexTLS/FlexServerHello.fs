@@ -152,9 +152,10 @@ type FlexServerHello =
                     match parseServerExtensions sexts with
                     | Error(ad,x) -> [] //BB FIXME : Temporary patch until improved support for extension is merged
                     | Correct(sextL)-> 
-                        if not (checkVD && TLSExtensions.checkServerRenegotiationInfoExtension ({TLSInfo.defaultConfig with safe_renegotiation = true}) sextL st.write.verify_data st.read.verify_data) then 
+                        if (not checkVD) || TLSExtensions.checkServerRenegotiationInfoExtension ({TLSInfo.defaultConfig with safe_renegotiation = true}) sextL st.write.verify_data st.read.verify_data then 
+                            sextL
+                        else
                             failwith (perror __SOURCE_FILE__ __LINE__ "Check for renegotiation verify data failed")
-                        else sextL
                 in
                 let negExts = 
                     match negotiateClientExtensions cextL sextL IsResuming cs with
