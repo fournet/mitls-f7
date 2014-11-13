@@ -71,6 +71,7 @@
     <Compile Include="Attack_Alert.fs" />
     <Compile Include="Attack_FragmentClientHello.fs" />
     <Compile Include="Attack_EarlyCCS.fs" />
+    <Compile Include="Attack_EarlyResume.fs" />
     <Compile Include="Attack_TripleHandshake.fs" />
     <Compile Include="Attack_JavaLateCCS.fs" />
     <Compile Include="Attack_SmallSubgroup_DHE.fs" />
