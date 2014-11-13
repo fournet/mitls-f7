@@ -23,7 +23,11 @@ open FlexServerKeyExchange
 
 open NLog
 
-let log = LogManager.GetLogger("file") in(*no of configs = 280
+let log = LogManager.GetLogger("file");
+
+exception UnsupportedScenario of System.Exception
+
+(*no of configs = 280
 no of web configs = 12
 no of traces = 280
 no of web traces = 12
@@ -47,7 +51,11 @@ let tr1 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -76,7 +84,11 @@ let tr3 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -101,7 +113,11 @@ let tr4 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -124,7 +140,11 @@ let tr5 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -149,7 +169,11 @@ let tr6 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -174,7 +198,11 @@ let tr7 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -200,7 +228,11 @@ let tr8 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -227,7 +259,11 @@ let tr9 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -255,7 +291,11 @@ let tr10 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -285,7 +325,11 @@ let tr11 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -308,7 +352,11 @@ let tr12 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -331,7 +379,11 @@ let tr13 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -355,7 +407,11 @@ let tr14 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -380,7 +436,11 @@ let tr15 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -406,7 +466,11 @@ let tr16 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -460,7 +524,11 @@ let tr30 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -481,7 +549,11 @@ let tr31 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -504,7 +576,11 @@ let tr32 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -527,7 +603,11 @@ let tr33 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -551,7 +631,11 @@ let tr34 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -576,7 +660,11 @@ let tr35 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -602,7 +690,11 @@ let tr36 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -630,7 +722,11 @@ let tr37 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -651,7 +747,11 @@ let tr38 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -672,7 +772,11 @@ let tr39 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -694,7 +798,11 @@ let tr40 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -717,7 +825,11 @@ let tr41 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -741,7 +853,11 @@ let tr42 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -767,7 +883,11 @@ let tr43 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -792,7 +912,11 @@ let tr44 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -817,7 +941,11 @@ let tr45 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -844,7 +972,11 @@ let tr46 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -871,7 +1003,11 @@ let tr47 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -898,7 +1034,11 @@ let tr48 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -927,7 +1067,11 @@ let tr49 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -956,7 +1100,11 @@ let tr50 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -985,7 +1133,11 @@ let tr51 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1014,7 +1166,11 @@ let tr52 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1045,7 +1201,11 @@ let tr53 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1076,7 +1236,11 @@ let tr54 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1107,7 +1271,11 @@ let tr55 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1138,7 +1306,11 @@ let tr56 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1169,7 +1341,11 @@ let tr57 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1192,7 +1368,11 @@ let tr58 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1217,7 +1397,11 @@ let tr59 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1242,7 +1426,11 @@ let tr60 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1269,7 +1457,11 @@ let tr61 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1296,7 +1488,11 @@ let tr62 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1323,7 +1519,11 @@ let tr63 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1352,7 +1552,11 @@ let tr64 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1381,7 +1585,11 @@ let tr65 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1410,7 +1618,11 @@ let tr66 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1487,7 +1699,11 @@ let tr91 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1510,7 +1726,11 @@ let tr92 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1533,7 +1753,11 @@ let tr93 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1558,7 +1782,11 @@ let tr94 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1583,7 +1811,11 @@ let tr95 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1608,7 +1840,11 @@ let tr96 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1635,7 +1871,11 @@ let tr97 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1662,7 +1902,11 @@ let tr98 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1689,7 +1933,11 @@ let tr99 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1716,7 +1964,11 @@ let tr100 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1745,7 +1997,11 @@ let tr101 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1774,7 +2030,11 @@ let tr102 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1803,7 +2063,11 @@ let tr103 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1832,7 +2096,11 @@ let tr104 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1861,7 +2129,11 @@ let tr105 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1882,7 +2154,11 @@ let tr106 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1905,7 +2181,11 @@ let tr107 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1928,7 +2208,11 @@ let tr108 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1953,7 +2237,11 @@ let tr109 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -1978,7 +2266,11 @@ let tr110 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2003,7 +2295,11 @@ let tr111 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2030,7 +2326,11 @@ let tr112 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2057,7 +2357,11 @@ let tr113 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2084,7 +2388,11 @@ let tr114 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2122,7 +2430,11 @@ let tr118 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2143,7 +2455,11 @@ let tr119 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2165,7 +2481,11 @@ let tr120 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2195,7 +2515,11 @@ let tr124 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2214,7 +2538,11 @@ let tr125 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2234,7 +2562,11 @@ let tr126 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2274,7 +2606,11 @@ let tr136 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2295,7 +2631,11 @@ let tr137 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2318,7 +2658,11 @@ let tr138 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2341,7 +2685,11 @@ let tr139 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2366,7 +2714,11 @@ let tr140 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2391,7 +2743,11 @@ let tr141 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2428,7 +2784,11 @@ let tr148 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2447,7 +2807,11 @@ let tr149 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2468,7 +2832,11 @@ let tr150 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2489,7 +2857,11 @@ let tr151 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2512,7 +2884,11 @@ let tr152 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2535,7 +2911,11 @@ let tr153 st chain salg skey =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let log = log @| fch.payload in
-  let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+  let st,nsc,fsh   =
+   (try
+      FlexServerHello.receive(st,fch,nsc)
+    with
+    | e -> raise (UnsupportedScenario(e))) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let log = log @| fcert.payload in
@@ -2570,8 +2950,13 @@ let runClients server_name port hint certs =
          f st chain salg skey; 
          log.Info(sprintf "END SUCCESS deviant trace %d" n);
          Tcp.close st.ns 
-       with e ->
-         (log.Info ("exception: "^(e.ToString()));
-         log.Info(sprintf "END FAILURE deviant trace %d" n);
-         Tcp.close st.ns)) funs
+       with
+         | UnsupportedScenario(e) ->
+           (log.Info ("unsupported: "^(e.ToString()));
+           log.Info(sprintf "END UNSUPPORTED deviant trace %d" n);
+           Tcp.close st.ns)
+         | e ->
+           (log.Info ("exception: "^(e.ToString()));
+           log.Info(sprintf "END FAILURE deviant trace %d" n);
+           Tcp.close st.ns)) funs
 
