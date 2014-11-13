@@ -94,9 +94,11 @@ type FlexServerHello =
     /// <param name="fch"> FClientHello containing the client extensions </param>
     /// <param name="nsc"> Optional Next security context being negociated </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
-    static member receive (st:state, fch:FClientHello, ?nsc:nextSecurityContext) : state * nextSecurityContext * FServerHello =
+    static member receive (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?checkVD:bool, ?isResuming:bool) : state * nextSecurityContext * FServerHello =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
-        let st,fsh,negExts = FlexServerHello.receive(st,(FlexClientHello.getExt fch)) in
+        let checkVD = defaultArg checkVD true in
+        let isResuming = defaultArg isResuming false in
+        let st,fsh,negExts = FlexServerHello.receive(st,(FlexClientHello.getExt fch), checkVD = checkVD, isResuming = isResuming) in
         let si  = { nsc.si with 
                     init_srand = fsh.rand;
                     protocol_version = getPV fsh;
@@ -134,10 +136,10 @@ type FlexServerHello =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * Updated next securtity context * FServerHello message record * Negociated extensions </returns>
-    static member receive (st:state, cextL:list<clientExtension>, ?checkVD:bool, ?IsResuming:bool) : state * FServerHello * negotiatedExtensions =
+    static member receive (st:state, cextL:list<clientExtension>, ?checkVD:bool, ?isResuming:bool) : state * FServerHello * negotiatedExtensions =
         LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.receive");
         let checkVD = defaultArg checkVD true in
-        let IsResuming = defaultArg IsResuming false in
+        let isResuming = defaultArg isResuming false in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_server_hello  ->    
@@ -158,7 +160,7 @@ type FlexServerHello =
                             failwith (perror __SOURCE_FILE__ __LINE__ "Check for renegotiation verify data failed")
                 in
                 let negExts = 
-                    match negotiateClientExtensions cextL sextL IsResuming cs with
+                    match negotiateClientExtensions cextL sextL isResuming cs with
                     | Error(ad,x) -> failwith x
                     | Correct(exts) -> exts
                 in
