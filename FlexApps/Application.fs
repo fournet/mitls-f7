@@ -16,6 +16,7 @@ open Attack_JavaLateCCS
 open Attack_TripleHandshake
 open Attack_SmallSubgroup_DHE
 open Handshake_full_RSA
+open Handshake_full_alert_RSA
 open Handshake_full_DHE
 open Handshake_resumption
 open Handshake_tls13
@@ -33,7 +34,7 @@ let main argv =
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
     (* Standard RSA full handshake as Client *)
-//    let st = Handshake_full_RSA.client("www.inria.fr") in
+//    let st = Handshake_full_RSA.client("localhost",6443) in
 //    printf "RSA client finished\n";
 
     (* Standard RSA full handshake as stateful Client *)
@@ -82,6 +83,10 @@ let main argv =
 //    printf "Running RSA server. Please connect to port 44204\n";
 //    let st = Handshake_full_DHE.server_with_client_auth("127.0.0.1","rsa.cert-01.mitls.org",44204) in
 //    printf "DHE server_with_client_auth finished\n";
+
+    (* Standard RSA full handshake as Client, with an alert in between *)
+//    let st = Handshake_full_alert_RSA.client("localhost",6443) in
+//    printf "RSA client finished\n";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
