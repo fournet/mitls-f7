@@ -65,13 +65,30 @@ type FlexConnection =
         let pv = defaultArg pv defaultConfig.maxVer in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn = defaultArg cn address in
+
+        LogManager.GetLogger("file").Info("TCP : Listening on {0}:{1}", address, port);
+        let l    = Tcp.listen address port in
+        match timeout with
+        | None ->
+            FlexConnection.serverOpenTcpConnection(l,cn,pv)
+        | Some(timeout) ->
+            FlexConnection.serverOpenTcpConnection(l,cn,pv,timeout)
+    
+    /// <summary>
+    /// Server role, accepts a tcp connection from a client
+    /// </summary>
+    /// <param name="l"> Socket listener </param>
+    /// <param name="cn"> Common name </param>
+    /// <param name="pv"> Optional protocol version required to generate randomness </param>
+    /// <returns> Updated state * Updated config </returns>
+    static member serverOpenTcpConnection (l:TcpListener, cn:string, ?pv:ProtocolVersion, ?timeout:int) : state * config =
+        let pv = defaultArg pv defaultConfig.maxVer in
         let cfg = {
             defaultConfig with
                 server_name = cn
         } in
 
-        LogManager.GetLogger("file").Info("TCP : Listening on {0}:{2} as {1}", address, cn, port);
-        let l    = Tcp.listen address port in
+        LogManager.GetLogger("file").Info("TCP : Accepting as {0}", cn);
         let ns   = 
             match timeout with
             | None -> Tcp.accept l
