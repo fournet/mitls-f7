@@ -133,7 +133,7 @@ type Handshake_full_DHE =
         let st,nsc,fcertC = FlexCertificate.send(st,Client,chain,nsc) in
         let st,nsc,fcke  = FlexClientKeyExchange.sendDHE(st,nsc) in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fcreq.payload @| fshd.payload @| fcertC.payload @| fcke.payload in
-        let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
+        let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,nsc.keys.ms) in
         let log          = log @| fcver.payload in
 
         // Advertise that we will encrypt the trafic from now on
