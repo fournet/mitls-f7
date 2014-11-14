@@ -117,11 +117,10 @@ type Handshake_full_RSA =
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
-            pv = Some(TLS_1p0);
             ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
@@ -200,7 +199,7 @@ type Handshake_full_RSA =
     static member client_with_auth (server_name:string, hint:string, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let chain,salg,skey =
-            match Cert.for_signing FlexConstants.sigAlgs_ALL hint [(SA_RSA, MD5SHA1)] with
+            match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
             | None -> failwith "Failed to retreive certificate data"
             | Some(c,a,s) -> c,a,s
         in
@@ -216,11 +215,10 @@ type Handshake_full_RSA =
 
         // Ensure we use RSA
         let fch = {FlexConstants.nullFClientHello with
-            pv = Some(TLS_1p0);
             ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
@@ -229,7 +227,7 @@ type Handshake_full_RSA =
         let st,nsc,fcertC = FlexCertificate.send(st,Client,chain,nsc) in
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fcreq.payload @| fshd.payload @| fcertC.payload @| fcke.payload in
-        let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si,salg,skey,nsc.keys.ms) in
+        let st,fcver     = FlexCertificateVerify.send(st,log,nsc.si,salg,skey) in
         let log          = log @| fcver.payload in
 
         // Advertise that we will encrypt the trafic from now on
