@@ -75,10 +75,11 @@ type Handshake_full_DHE =
 
         // Ensure we use DHE
         let fch = {FlexConstants.nullFClientHello with
+            pv = Some(TLS_1p0);
             ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
@@ -104,7 +105,7 @@ type Handshake_full_DHE =
     static member client_with_auth (server_name:string, hint:string, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let chain,salg,skey =
-            match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
+            match Cert.for_signing FlexConstants.sigAlgs_ALL hint [(SA_RSA, MD5SHA1)] with
             | None -> failwith "Failed to retreive certificate data"
             | Some(c,a,s) -> c,a,s
         in
@@ -120,10 +121,11 @@ type Handshake_full_DHE =
 
         // Ensure we use DHE
         let fch = {FlexConstants.nullFClientHello with
+            pv = Some(TLS_1p0);
             ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
 
         let st,nsc,fch   = FlexClientHello.send(st,fch) in
-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
+        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc,minDHsize=(512,160)) in
         let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
