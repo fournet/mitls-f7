@@ -2938,10 +2938,72 @@ let nocert_funs = !cfuns
 
 let sfuns = ref [];
 
+let tr154 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
+  let st,ffS  = FlexFinished.send(st,verify_data2) in
+  let log = log @| ffS.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (154,tr154)::!sfuns;
 
 
 
 
+let tr156 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
+  let st,ffS  = FlexFinished.send(st,verify_data2) in
+  let log = log @| ffS.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (156,tr156)::!sfuns;
 
 
 let tr157 st chain salg skey rsakey = 
@@ -2951,25 +3013,93 @@ let tr157 st chain salg skey rsakey =
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
 sfuns := (157,tr157)::!sfuns;
 
 
+let tr158 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (158,tr158)::!sfuns;
 
 
 let tr159 st chain salg skey rsakey = 
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -2980,23 +3110,137 @@ let tr160 st chain salg skey rsakey =
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
 sfuns := (160,tr160)::!sfuns;
 
 
+let tr161 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (161,tr161)::!sfuns;
 
 
+let tr162 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (162,tr162)::!sfuns;
 
 
+let tr163 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (163,tr163)::!sfuns;
 
 
 let tr164 st chain salg skey rsakey = 
@@ -3010,17 +3254,24 @@ let tr164 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-  let st,ffS  = FlexFinished.send(st,verify_data2) in
-  let log = log @| ffS.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3052,9 +3303,10 @@ let tr165 st chain salg skey rsakey =
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-  let st,ffS  = FlexFinished.send(st,verify_data2) in
-  let log = log @| ffS.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3070,8 +3322,26 @@ let tr166 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
   let st,fcreq = FlexCertificateRequest.send(st,nsc) in
   let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3087,23 +3357,6 @@ let tr167 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (167,tr167)::!sfuns;
-
-
-let tr168 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
   let st,fcreq = FlexCertificateRequest.send(st,nsc) in
@@ -3114,17 +3367,20 @@ let tr168 st chain salg skey rsakey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-  let st,ffS  = FlexFinished.send(st,verify_data2) in
-  let log = log @| ffS.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
   let _ = FlexAlert.receive(st) in
   ()
 
-sfuns := (168,tr168)::!sfuns;
+sfuns := (167,tr167)::!sfuns;
 
 
 
@@ -3137,33 +3393,19 @@ sfuns := (168,tr168)::!sfuns;
 
 
 
-let tr174 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-  let st,ffS  = FlexFinished.send(st,verify_data2) in
-  let log = log @| ffS.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (174,tr174)::!sfuns;
 
 
-let tr175 st chain salg skey rsakey = 
+
+
+
+
+
+
+
+
+
+
+let tr179 st chain salg skey rsakey = 
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
@@ -3186,16 +3428,16 @@ let tr175 st chain salg skey rsakey =
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-  let st,ffS  = FlexFinished.send(st,verify_data2) in
-  let log = log @| ffS.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
-sfuns := (175,tr175)::!sfuns;
+sfuns := (179,tr179)::!sfuns;
 
 
-let tr176 st chain salg skey rsakey = 
+let tr180 st chain salg skey rsakey = 
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
@@ -3212,59 +3454,209 @@ let tr176 st chain salg skey rsakey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-  let st,ffS  = FlexFinished.send(st,verify_data2) in
-  let log = log @| ffS.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
-sfuns := (176,tr176)::!sfuns;
+sfuns := (180,tr180)::!sfuns;
 
 
+let tr181 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (181,tr181)::!sfuns;
 
 
+let tr182 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (182,tr182)::!sfuns;
 
 
+let tr183 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (183,tr183)::!sfuns;
 
 
+let tr184 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (184,tr184)::!sfuns;
 
 
+let tr185 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
+  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
 
-
-
-
-
-
-
-
+sfuns := (185,tr185)::!sfuns;
 
 
 let tr186 st chain salg skey rsakey = 
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3275,111 +3667,44 @@ let tr187 st chain salg skey rsakey =
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (187,tr187)::!sfuns;
-
-
-let tr188 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (188,tr188)::!sfuns;
-
-
-let tr189 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (189,tr189)::!sfuns;
-
-
-let tr190 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
+  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
+  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
   let _ = FlexAlert.receive(st) in
   ()
 
-sfuns := (190,tr190)::!sfuns;
+sfuns := (187,tr187)::!sfuns;
+
+
+
+let server_cert_funs = !sfuns
+
+sfuns := [];
+
+
+
+
+
 
 
 let tr191 st chain salg skey rsakey = 
@@ -3389,80 +3714,25 @@ let tr191 st chain salg skey rsakey =
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
 sfuns := (191,tr191)::!sfuns;
 
 
-let tr192 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (192,tr192)::!sfuns;
 
 
 let tr193 st chain salg skey rsakey = 
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3473,129 +3743,23 @@ let tr194 st chain salg skey rsakey =
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
   let _ = FlexAlert.receive(st) in
   ()
 
 sfuns := (194,tr194)::!sfuns;
 
 
-let tr195 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (195,tr195)::!sfuns;
 
 
-let tr196 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (196,tr196)::!sfuns;
 
 
-let tr197 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (197,tr197)::!sfuns;
 
 
 let tr198 st chain salg skey rsakey = 
@@ -3609,22 +3773,17 @@ let tr198 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
+  let st,ffS  = FlexFinished.send(st,verify_data2) in
+  let log = log @| ffS.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3640,24 +3799,8 @@ let tr199 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
   let st,fcreq = FlexCertificateRequest.send(st,nsc) in
   let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3673,27 +3816,8 @@ let tr200 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3719,172 +3843,47 @@ let tr201 st chain salg skey rsakey =
   let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
+  let st,ffS  = FlexFinished.send(st,verify_data2) in
+  let log = log @| ffS.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
 sfuns := (201,tr201)::!sfuns;
 
 
-let tr202 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (202,tr202)::!sfuns;
 
 
-let tr203 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (203,tr203)::!sfuns;
 
 
-let tr204 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (204,tr204)::!sfuns;
 
 
-let tr205 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (205,tr205)::!sfuns;
 
 
 let tr206 st chain salg skey rsakey = 
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
+  let st,ffS  = FlexFinished.send(st,verify_data2) in
+  let log = log @| ffS.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -3895,210 +3894,48 @@ let tr207 st chain salg skey rsakey =
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (207,tr207)::!sfuns;
-
-
-let tr208 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (208,tr208)::!sfuns;
-
-
-let tr209 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (209,tr209)::!sfuns;
-
-
-let tr210 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (210,tr210)::!sfuns;
-
-
-let tr211 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (211,tr211)::!sfuns;
-
-
-let tr212 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (212,tr212)::!sfuns;
-
-
-let tr213 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (213,tr213)::!sfuns;
-
-
-let tr214 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (214,tr214)::!sfuns;
-
-
-let tr215 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (215,tr215)::!sfuns;
-
-
-let tr216 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
   let st,fcreq = FlexCertificateRequest.send(st,nsc) in
   let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
   let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
   let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
+  let st,ffS  = FlexFinished.send(st,verify_data2) in
+  let log = log @| ffS.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
-sfuns := (216,tr216)::!sfuns;
+sfuns := (207,tr207)::!sfuns;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 let tr217 st chain salg skey rsakey = 
@@ -4112,20 +3949,17 @@ let tr217 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4143,20 +3977,16 @@ let tr218 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
-  let log = log @| fske.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4174,20 +4004,16 @@ let tr219 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4205,12 +4031,8 @@ let tr220 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
@@ -4236,12 +4058,8 @@ let tr221 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
@@ -4270,12 +4088,8 @@ let tr222 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
@@ -4303,12 +4117,8 @@ let tr223 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
@@ -4336,12 +4146,8 @@ let tr224 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
   let log = log @| fcke.payload in
   let st,_,_ = FlexCCS.receive(st) in
@@ -4350,8 +4156,8 @@ let tr224 st chain salg skey rsakey =
   let log = log @| ffC.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4369,6 +4175,518 @@ let tr225 st chain salg skey rsakey =
   let log = log @| fcert.payload in
   let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
   let log = log @| fske.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (225,tr225)::!sfuns;
+
+
+let tr226 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (226,tr226)::!sfuns;
+
+
+let tr227 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (227,tr227)::!sfuns;
+
+
+let tr228 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (228,tr228)::!sfuns;
+
+
+let tr229 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (229,tr229)::!sfuns;
+
+
+let tr230 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (230,tr230)::!sfuns;
+
+
+let tr231 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (231,tr231)::!sfuns;
+
+
+let tr232 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (232,tr232)::!sfuns;
+
+
+let tr233 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (233,tr233)::!sfuns;
+
+
+let tr234 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (234,tr234)::!sfuns;
+
+
+let tr235 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (235,tr235)::!sfuns;
+
+
+let tr236 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (236,tr236)::!sfuns;
+
+
+let tr237 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (237,tr237)::!sfuns;
+
+
+let tr238 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (238,tr238)::!sfuns;
+
+
+let tr239 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (239,tr239)::!sfuns;
+
+
+let tr240 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (240,tr240)::!sfuns;
+
+
+let tr241 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (241,tr241)::!sfuns;
+
+
+let tr242 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (242,tr242)::!sfuns;
+
+
+let tr243 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (243,tr243)::!sfuns;
+
+
+let tr244 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
+  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
+  let log = log @| fcertC.payload in
+  let st,nsc,fcke   = FlexClientKeyExchange.receiveDHE(st,nsc) in
+  let log = log @| fcke.payload in
+  let st,_,_ = FlexCCS.receive(st) in
+  let st = FlexState.installReadKeys st nsc in
+  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
+  let log = log @| ffC.payload in
+  let st,_  = FlexCCS.send(st) in
+  let st = FlexState.installWriteKeys st nsc in
+  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
+  let log = log @| fcreq.payload in
+  let _ = FlexAlert.receive(st) in
+  ()
+
+sfuns := (244,tr244)::!sfuns;
+
+
+let tr245 st chain salg skey rsakey = 
+  let log = empty_bytes in
+  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
+  let log = log @| fch.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
+  let st,nsc,fske  = FlexServerKeyExchange.sendDHE(st,nsc,(salg,skey)) in
+  let log = log @| fske.payload in
   let st,fcreq = FlexCertificateRequest.send(st,nsc) in
   let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
@@ -4388,10 +4706,10 @@ let tr225 st chain salg skey rsakey =
   let _ = FlexAlert.receive(st) in
   ()
 
-sfuns := (225,tr225)::!sfuns;
+sfuns := (245,tr245)::!sfuns;
 
 
-let tr226 st chain salg skey rsakey = 
+let tr246 st chain salg skey rsakey = 
   let log = empty_bytes in
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let log = log @| fch.payload in
@@ -4421,7 +4739,7 @@ let tr226 st chain salg skey rsakey =
   let _ = FlexAlert.receive(st) in
   ()
 
-sfuns := (226,tr226)::!sfuns;
+sfuns := (246,tr246)::!sfuns;
 
 
 
@@ -4482,276 +4800,6 @@ sfuns := (226,tr226)::!sfuns;
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-let tr268 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (268,tr268)::!sfuns;
-
-
-let tr269 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (269,tr269)::!sfuns;
-
-
-let tr270 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (270,tr270)::!sfuns;
-
-
-let tr271 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (271,tr271)::!sfuns;
-
-
-let tr272 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (272,tr272)::!sfuns;
-
-
-let tr273 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (273,tr273)::!sfuns;
-
-
-let tr274 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (274,tr274)::!sfuns;
-
-
-let tr275 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (275,tr275)::!sfuns;
-
-
-let tr276 st chain salg skey rsakey = 
-  let log = empty_bytes in
-  let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
-  let log = log @| fch.payload in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
-  let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
-  let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
-  let st,_,_ = FlexCCS.receive(st) in
-  let st = FlexState.installReadKeys st nsc in
-  let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
-  let log = log @| ffC.payload in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
-  let _ = FlexAlert.receive(st) in
-  ()
-
-sfuns := (276,tr276)::!sfuns;
 
 
 let tr277 st chain salg skey rsakey = 
@@ -4763,22 +4811,17 @@ let tr277 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4794,22 +4837,16 @@ let tr278 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,fshd      = FlexServerHelloDone.send(st) in
-  let log = log @| fshd.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4825,25 +4862,16 @@ let tr279 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
-  let st,_  = FlexCCS.send(st) in
-  let st = FlexState.installWriteKeys st nsc in
-  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
-  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
-  let log = log @| fsh.payload in
+  let st,fshd      = FlexServerHelloDone.send(st) in
+  let log = log @| fshd.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4859,24 +4887,19 @@ let tr280 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
-  let log = log @| fcert.payload in
+  let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
+  let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
+  let log = log @| fsh.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4892,24 +4915,18 @@ let tr281 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
   let log = log @| ffC.payload in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
+  let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
+  let log = log @| fcert.payload in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -4925,16 +4942,10 @@ let tr282 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
@@ -4958,16 +4969,10 @@ let tr283 st chain salg skey rsakey =
   let log = log @| fsh.payload in
   let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
   let log = log @| fcert.payload in
-  let st,fcreq = FlexCertificateRequest.send(st,nsc) in
-  let log = log @| fcreq.payload in
   let st,fshd      = FlexServerHelloDone.send(st) in
   let log = log @| fshd.payload in
-  let st,nsc,fcertC = FlexCertificate.receive(st,Server,nsc) in
-  let log = log @| fcertC.payload in
   let st,nsc,fcke   = FlexClientKeyExchange.receiveRSA(st,nsc,fch,sk=rsakey) in
   let log = log @| fcke.payload in
-  let st,fcver   = FlexCertificateVerify.receive(st,nsc,fcreq,log) in
-  let log = log @| fcver.payload in
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,(log,Client)) in
@@ -5365,7 +5370,7 @@ sfuns := (298,tr298)::!sfuns;
 
 
 
-let server_funs = !sfuns
+let server_nocert_funs = !sfuns
 
 let runClients server_name port hint certs =
   let funs = if certs then cert_funs else nocert_funs in
@@ -5391,7 +5396,8 @@ let runClients server_name port hint certs =
            log.Info(sprintf "END FAILURE deviant trace %d" n);
            Tcp.close st.ns)) funs
 
-let runServers port hint =
+let runServers port hint certs =
+  let funs = if certs then server_cert_funs else server_nocert_funs in
   let l = Tcp.listen "0.0.0.0" port in
   let chain,salg,skey,rsakey =
     let chain,salg,skey =
@@ -5421,5 +5427,5 @@ let runServers port hint =
       | e ->
         (log.Info ("exception: "^(e.ToString()));
         log.Info(sprintf "END FAILURE deviant trace %d" n);
-        Tcp.close st.ns)) server_funs
+        Tcp.close st.ns)) funs
 
