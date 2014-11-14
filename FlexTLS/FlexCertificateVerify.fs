@@ -30,12 +30,10 @@ type FlexCertificateVerify =
     /// <param name="nsc"> Next security context to be updated </param>
     /// <param name="fcreq"> FCertificateRequest previously used in the handshake that contains allowed signature and hash algorithms </param>
     /// <param name="log"> Optional log that will be verified if provided </param>
-    /// <param name="ms"> Optional master secret that has to be provided to check the log if protocol version is SSL3 </param>
     /// <returns> Updated state * Certificate Verify message </returns>
-    static member receive (st:state, nsc:nextSecurityContext, fcreq:FCertificateRequest, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
-        let ms = defaultArg ms empty_bytes in
+    static member receive (st:state, nsc:nextSecurityContext, fcreq:FCertificateRequest, ?log:bytes) : state * FCertificateVerify =
         let log = defaultArg log empty_bytes in 
-        FlexCertificateVerify.receive(st,nsc,fcreq.sigAlgs,log,ms)
+        FlexCertificateVerify.receive(st,nsc,fcreq.sigAlgs,log)
 
     /// <summary>
     /// Overload : Receive a CertificateVerify message from the network stream and check the log on demand
@@ -44,12 +42,10 @@ type FlexCertificateVerify =
     /// <param name="nsc"> Next security context to be updated </param>
     /// <param name="algs"> Signature and hash algorithms allowed and usually provided by a Certificate Request </param>
     /// <param name="log"> Optional log that will be verified if provided </param>
-    /// <param name="ms"> Optional master secret that has to be provided to check the log if protocol version is SSL3 </param>
     /// <returns> Updated state * Certificate Verify message </returns>
-    static member receive (st:state, nsc:nextSecurityContext, algs:list<Sig.alg>, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
-        let ms = defaultArg ms empty_bytes in
+    static member receive (st:state, nsc:nextSecurityContext, algs:list<Sig.alg>, ?log:bytes) : state * FCertificateVerify =
         let log = defaultArg log empty_bytes in 
-        FlexCertificateVerify.receive(st,nsc.si,algs,log,ms)
+        FlexCertificateVerify.receive(st,nsc.si,algs,log,nsc.keys.ms)
 
     /// <summary>
     /// Receive a CertificateVerify message from the network stream and check the log on demand
