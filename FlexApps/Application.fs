@@ -51,16 +51,54 @@ let main argv =
     let opts = Parsing.innerParseCommandLineOpts defaultOpts args in
 
     // Execute the correct scenario according to user input
-    printf "Rules %A" opts;
+    let res = 
+        match opts.scenario with
+        
+        // Type of scenario
+        | Some(FullHandshake) ->
+            (match opts.role with
+            
+            // Role
+            | Some(RoleClient) ->
+
+                // Address and port
+                let connect_addr = 
+                    (match opts.connect_addr with
+                    | Some(addr) -> addr
+                    | None -> "localhost"
+                    )
+                in
+                let connect_port = 
+                    (match opts.connect_port with
+                    | Some(port) -> port
+                    | None -> 443
+                    )
+                in
+                (match opts.kex with
+                
+                // Key Exchange
+                | Some(KeyExchangeRSA) -> 
+
+                    (* Standard RSA full handshake as Client *)
+                    let st = Handshake_full_RSA.client(connect_addr,connect_port) in
+                    printf "RSA client finished\n"
+                
+                | Some(KeyExchangeDHE) ->
+
+                    (* Standard DHE full handshake as Client *)
+                    let st = Handshake_full_DHE.client(connect_addr,connect_port) in
+                    printf "DHE client finished\n";
+
+                | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
+            | Some(RoleServer) -> eprintf "ROLE SERVER\n"
+            | Some(RoleMITM) -> eprintf "ROLE MITM\n")
+        | None -> eprintf "SCENARIO\n"
+    in
     0
 
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
-
-    (* Standard RSA full handshake as Client *)
-//    let st = Handshake_full_RSA.client("localhost",6443) in
-//    printf "RSA client finished\n";
 
     (* Standard RSA full handshake as stateful Client *)
 //    let st = Handshake_full_RSA.stateful_client("www.inria.fr") in
@@ -81,9 +119,6 @@ let main argv =
  //   let st = Handshake_full_RSA.client_with_auth("localhost","rsa.cert-02.mitls.org",port=6443) in
  //   printf "RSA client_auth finished\n";
     
-    (* Standard DHE full handshake as Client *)
-//    let st = Handshake_full_DHE.client("www.inria.fr") in
-//    printf "DHE client finished\n";
 
     (* Standard DHE full handshake with client authentication as Client *)
 //    let st = Handshake_full_DHE.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44102) in

@@ -10,7 +10,7 @@ open TLSConstants
 type ScenarioOpt    = FullHandshake | FullHanshakeANDResumption | Tests
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
 type LogLevelOpt    = LogLevelTrace | LogLevelDebug | LogLevelInfo | LogLevelNone
-type KeyExchangeOpt = KeyExchangeRSA | KeyExchangeDHE
+type KeyExchangeOpt = KeyExchangeRSA | KeyExchangeDHE | KeyExchangeECDHE
 
 
 type CommandLineOpts = {
