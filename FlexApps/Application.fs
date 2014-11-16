@@ -30,22 +30,28 @@ open Metrics_DHE
 
 [<EntryPoint>]
 let main argv = 
+
+    // Transform arguments array into a list
     let args = argv |> List.ofSeq in 
     
-    let handleCommandLineOpts args =
-        let defaultOpts : CommandLineOpts = {
-            scenario = None;
-            role = None;
-            kex = None;
-            connect_addr = None;
-            connect_port = None;
-            listen_addr = None;
-            listen_port = None;
-            min_pv = None;
-            verbosity = None;
-        } in 
-        Parsing.innerParseCommandLineOpts defaultOpts args
-    in
+    // Set default options
+    let defaultOpts : CommandLineOpts = {
+        scenario = None;
+        role = None;
+        kex = None;
+        connect_addr = None;
+        connect_port = None;
+        listen_addr = None;
+        listen_port = None;
+        min_pv = None;
+        verbosity = None;
+    } in
+
+    // Parse command line arguments
+    let opts = Parsing.innerParseCommandLineOpts defaultOpts args in
+
+    // Execute the correct scenario according to user input
+    printf "Rules %A" opts;
     0
 
 

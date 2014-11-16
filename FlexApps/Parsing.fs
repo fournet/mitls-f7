@@ -25,13 +25,24 @@ type CommandLineOpts = {
     verbosity     : option<LogLevelOpt>;
 }
 
-
+let nullOpts = {
+    scenario = None;
+    role = None;
+    kex = None;
+    connect_addr = None;
+    connect_port = None;
+    listen_addr = None;
+    listen_port = None;
+    min_pv = None;
+    verbosity = None;
+}
 
 
 type Parsing =
     class
 
-    static member innerParseCommandLineOpts parsedArgs args =
+    static member innerParseCommandLineOpts parsedArgs args : CommandLineOpts =
+
         let banner () =
             printf "FlexTLS Command Line Interface\n"
         in
@@ -86,8 +97,8 @@ type Parsing =
         // Process options
         match args with
         // Infos and Help
-        | []        -> ()
-        | "-h"::t   -> help ()
+        | []        -> parsedArgs
+        | "-h"::t   -> help (); nullOpts
 
         // Match valid options
         | "-s"::t ->
@@ -96,7 +107,7 @@ type Parsing =
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FullHandshake)} tt
             | "Tests"::tt | "tests"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(Tests)} tt
-            | _ -> help(); eprintf "ERROR : -s argument is not a valid scenario"
+            | _ -> help(); eprintf "ERROR : -s argument is not a valid scenario"; nullOpts
             )
 
         | "-r"::t ->
@@ -104,52 +115,50 @@ type Parsing =
             | "Client"::tt | "C"::tt | "c"::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with role = Some(RoleClient)} tt
             | "Server"::tt | "S"::tt | "s"::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with role = Some(RoleServer)} tt
             | "MITM"::tt | "M"::tt | "m"::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with role = Some(RoleMITM)} tt
-            | _ -> help(); eprintf "ERROR : -r argument is not a valid role"
+            | _ -> help(); eprintf "ERROR : -r argument is not a valid role"; nullOpts
             )
 
         | "-ca"::t ->
             (match t with
             | addr::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with connect_addr = Some(addr)} tt
-            | [] -> help(); eprintf "ERROR : -ca has to be provided either a domain name or an ip address"
+            | [] -> help(); eprintf "ERROR : -ca has to be provided either a domain name or an ip address"; nullOpts
             )
 
         | "-cp"::t ->
             (match t with
             | sport::tt ->
                 let success,port = System.Int32.TryParse sport in
-                if success then
-                    Parsing.innerParseCommandLineOpts {parsedArgs with connect_port = Some(port)} tt
-                else help(); eprintf "ERROR : -cp argument not a correct integer"
-            | [] -> help(); eprintf "ERROR : -cp has to be provided a port number"
+                    if success then Parsing.innerParseCommandLineOpts {parsedArgs with connect_port = Some(port)} tt
+                    else let _ = help(); eprintf "ERROR : -cp argument not a correct integer" in nullOpts
+            | [] -> help(); eprintf "ERROR : -cp has to be provided a port number"; nullOpts
             )
 
         | "-la"::t ->
             (match t with
             | addr::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_addr = Some(addr)} tt
-            | [] -> help(); eprintf "ERROR : -la has to be provided either a domain name or an ip address"
+            | [] -> help(); eprintf "ERROR : -la has to be provided either a domain name or an ip address"; nullOpts
             )
 
         | "-lp"::t ->
             (match t with
             | sport::tt ->
                 let success,port = System.Int32.TryParse sport in
-                if success then
-                    Parsing.innerParseCommandLineOpts {parsedArgs with connect_port = Some(port)} tt
-                else help(); eprintf "ERROR : -lp argument is not a correct integer"
-            | [] -> help(); eprintf "ERROR : -lp has to be provided a port number"
+                    if success then Parsing.innerParseCommandLineOpts {parsedArgs with connect_port = Some(port)} tt
+                    else let _ = help(); eprintf "ERROR : -lp argument is not a correct integer" in nullOpts
+            | [] -> help(); eprintf "ERROR : -lp has to be provided a port number"; nullOpts
             )
 
         | "-k"::t ->
             (match t with
             | "RSA"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeRSA)} t
             | "DHE"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeDHE)} t
-            | "ECDHE"::t -> eprintf "ERROR : -k ECDHE support is in progress ! Be back soon =)"
-            | h::t -> help(); eprintf "ERROR : -k argument is not a valid key exchange mechanism"
+            | "ECDHE"::t -> eprintf "ERROR : -k ECDHE support is in progress ! Be back soon =)"; nullOpts
+            | _ -> help(); eprintf "ERROR : -k argument is not a valid key exchange mechanism"; nullOpts
             )
 
-        | "-i"::t -> info ()
+        | "-i"::t -> info ();nullOpts
         
         // Invalid command
-        | h::t      -> help(); eprintf "Error : %A is not a valid option !\n" h
+        | h::t      -> help(); eprintf "Error : %A is not a valid option !\n" h; nullOpts
 
     end
