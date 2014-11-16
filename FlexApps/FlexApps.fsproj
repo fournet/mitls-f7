@@ -68,6 +68,7 @@
   </Target>
   <ItemGroup>
     <None Include="App.config" />
+    <Compile Include="Parsing.fs" />
     <Compile Include="Attack_Alert.fs" />
     <Compile Include="Attack_FragmentClientHello.fs" />
     <Compile Include="Attack_EarlyCCS.fs" />
