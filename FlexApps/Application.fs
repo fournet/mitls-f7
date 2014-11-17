@@ -111,15 +111,15 @@ let main argv =
         (match opts.scenario with
         
         // Type of scenario
-        | Some(FullHandshake) | None ->
+        | Some(FullHandshake) ->
             (match opts.role with
             
             // Role
-            | Some(RoleClient) ->
+            | Some(RoleClient) | None ->
                 (match opts.kex with
                 
                 // Key Exchange
-                | Some(KeyExchangeRSA) -> 
+                | Some(KeyExchangeRSA) | None -> 
 
                     (* Standard RSA full handshake as Client *)
                     // BB : Cross flags
@@ -145,13 +145,13 @@ let main argv =
                     else 
                         let st = Handshake_full_DHE.client(connect_addr,connect_port) in () 
 
-                | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
+                | Some(KeyExchangeECDHE) -> printf "\n"; eprintf "ECDHE\n")
             
             | Some(RoleServer) ->
                 (match opts.kex with
                 
                 // Key Exchange
-                | Some(KeyExchangeRSA) -> 
+                | Some(KeyExchangeRSA) | None -> 
 
                     (* Standard DHE full handshake as Server *)
                     if cert_req then
@@ -167,26 +167,27 @@ let main argv =
                     else
                         let st = Handshake_full_DHE.server(listen_addr,listen_cert,listen_port) in ()
 
-                | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
-            | Some(RoleMITM) -> eprintf "ROLE MITM\n")
+                | Some(KeyExchangeECDHE) -> printf "\n"; eprintf "ECDHE\n" )
+            | Some(RoleMITM) -> printf "\n"; eprintf "ROLE MITM\n")
 
         // Trace Interpreter
         | Some(TraceInterpreter) ->
             (match opts.role with
-            | Some(RoleClient) -> let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert cert_req in ()
-            | Some(RoleServer) -> let _ = TraceInterpreter.runServers listen_port listen_cert cert_req in () )
-        
+            | Some(RoleClient) | None -> let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert cert_req in ()
+            | Some(RoleServer) -> let _ = TraceInterpreter.runServers listen_port listen_cert cert_req in ()
+            | Some(RoleMITM) -> printf "\n"; eprintf "ROLE MITM\n" )
+
         // Attacks
         | Some(Attack) ->
             (match opts.attack with
+            | Some (FragmentedClientHello) | None -> 
+                let st = Attack_FragmentClientHello.run(connect_addr,fp=All(5)) in ()
+
             | Some (FragmentedAlert) -> 
                 let st = Attack_Alert.run(connect_addr, connect_port) in ()
             
             | Some (MalformedAlert) -> 
                 let st = Handshake_full_alert_RSA.client(connect_addr,connect_port) in ()
-
-            | Some (FragmentedClientHello) -> 
-                let st = Attack_FragmentClientHello.run(connect_addr,fp=All(5)) in ()
 
             | Some (EarlyCCS) ->
                 let sst,cst = Attack_EarlyCCS.runMITM(listen_addr,connect_addr,listen_port,connect_port) in ()
@@ -220,11 +221,14 @@ let main argv =
         // Metrics
         | Some(Metrics) ->
             ( match opts.metrics with
-            | Some(DHParams) ->
+            | Some(DHParams) | None ->
                 let _ = Metrics_DHE.run_multi("list.data") in () ) 
         
         // Unit tests
         | Some(UnitTests) -> UnitTests.runAll()
+
+        // Nothing has been provided
+        | None -> ()
         )
     in
     printf "Scenario Finished\n";

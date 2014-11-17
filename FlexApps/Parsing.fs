@@ -59,71 +59,74 @@ let nullOpts = {
 }
 
 
+
+
+let flexbanner () =
+    printf "FlexTLS Command Line Interface\n"
+        
+let flexinfo () = 
+    flexbanner ();
+    printf "\n";
+    printf "  - Version : FlexTLS 0.0.1\n";
+    printf "              November 20, 2014\n";
+    printf "\n";
+    printf "  - Authors : Benjamin Beurdouche & Alfredo Pironti\n";
+    printf "              INRIA Paris-Rocquencourt\n";
+    printf "              Team Prosecco\n";
+    printf "\n";
+    printf "  - Website : http://www.mitls.org\n"
+        
+let flexhelp () = 
+    flexbanner ();
+    printf "  -i    : Infos about this software\n";
+    printf "\n";
+    printf "  -s     : *  Scenario to execute";
+    printf "  -r     : *  Role                                 (required)\n";
+    printf "               - Client : {c,C,Client}\n";
+    printf "               - Server : {s,S,Server}\n";
+    printf "               - Both   : {m,M,MITM}\n";
+    printf "  -k     : *  Key exchange                         (required)\n";
+    printf "               - RSA    : {r,rsa,RSA}\n";
+    printf "               - DHE    : {dhe,DHE}\n";
+    printf "               - ECDHE  : {ec,ecdhe,ECDHE}\n";
+    printf "  -pv    : [] Protocol version minimum             (default : TLS1p2)\n";
+    printf "               - SSL 3.0 : {30,ssl3,SSL3}\n";
+    printf "               - TLS 1.0 : {10,tls10,TLS10}\n";
+    printf "               - TLS 1.1 : {11,tls11,TLS11}\n";
+    printf "               - TLS 1.2 : {12,tls12,TLS12}\n";
+    printf "               - TLS 1.3 : {13,tls13,TLS13}\n";
+    printf "  -ca    : [] Connect to address or domain _       (default : localhost)\n";
+    printf "  -cp    : [] Connect to port number _             (default : 443)\n";
+    printf "  -ccert : [] Certificate CN to use if Client _    (default : rsa.cert-02.mitls.org)\n";
+    printf "  -la    : [] Listening to address or domain _     (default : localhost)\n";
+    printf "  -lp    : [] Listening to port number _           (default : 4433)\n";
+    printf "  -lcert : [] Certificate CN to use if Server      (default : rsa.cert-01.mitls.org)\n";
+    printf "  -lauth :    Request client authentication\n";
+    printf "  -resum :    Resume after full handshake\n";
+    printf "  -reneg :    Renegotiate after full handshake\n";
+    printf "  -t     : [] Timeout for TCP connections          (default : 7.5s)\n";
+    printf "  -tests :    Run self unit testing\n";
+    printf "  -v     : [] Verbosity                            (default : Info)\n";
+    printf "               - Trace : {3,trace,Trace}\n";
+    printf "               - Debug : {2,debug,Debug}\n";
+    printf "               - Info  : {1,info,Info}\n";
+    printf "               - None  : {0,none,None}\n";
+    printf "\n";
+    printf " *  =>  Require an argument\n";
+    printf " [] =>  Default will be used if not provided\n"
+
+
+
+
 type Parsing =
     class
 
     static member innerParseCommandLineOpts parsedArgs args : CommandLineOpts =
-
-        let banner () =
-            printf "FlexTLS Command Line Interface\n"
-        in
-        let info () = 
-            banner ();
-            printf "\n";
-            printf "  - Version : FlexTLS 0.0.1\n";
-            printf "              November 20, 2014\n";
-            printf "\n";
-            printf "  - Authors : Benjamin Beurdouche & Alfredo Pironti\n";
-            printf "              INRIA Paris-Rocquencourt\n";
-            printf "              Team Prosecco\n";
-            printf "\n";
-            printf "  - Website : http://www.mitls.org\n"
-        in
-        let help () = 
-            banner ();
-            printf "  -i    : Infos about this software\n";
-            printf "\n";
-            printf "  -s     :    Scenario to execute                  (default : FullHandshake)\n";
-            printf "  -r     : *  Role                                 (required)\n";
-            printf "               - Client : {c,C,Client}\n";
-            printf "               - Server : {s,S,Server}\n";
-            printf "               - Both   : {m,M,MITM}\n";
-            printf "  -k     : *  Key exchange                         (required)\n";
-            printf "               - RSA    : {r,rsa,RSA}\n";
-            printf "               - DHE    : {dhe,DHE}\n";
-            printf "               - ECDHE  : {ec,ecdhe,ECDHE}\n";
-            printf "  -pv    : [] Protocol version minimum             (default : TLS1p2)\n";
-            printf "               - SSL 3.0 : {30,ssl3,SSL3}\n";
-            printf "               - TLS 1.0 : {10,tls10,TLS10}\n";
-            printf "               - TLS 1.1 : {11,tls11,TLS11}\n";
-            printf "               - TLS 1.2 : {12,tls12,TLS12}\n";
-            printf "               - TLS 1.3 : {13,tls13,TLS13}\n";
-            printf "  -ca    : [] Connect to address or domain _       (default : localhost)\n";
-            printf "  -cp    : [] Connect to port number _             (default : 443)\n";
-            printf "  -ccert : [] Certificate CN to use if Client _    (default : rsa.cert-02.mitls.org)\n";
-            printf "  -la    : [] Listening to address or domain _     (default : localhost)\n";
-            printf "  -lp    : [] Listening to port number _           (default : 4433)\n";
-            printf "  -lcert : [] Certificate CN to use if Server      (default : rsa.cert-01.mitls.org)\n";
-            printf "  -lauth :    Request client authentication\n";
-            printf "  -resum :    Resume after full handshake\n";
-            printf "  -reneg :    Renegotiate after full handshake\n";
-            printf "  -t     : [] Timeout for TCP connections          (default : 7.5s)\n";
-            printf "  -tests :    Run self unit testing\n";
-            printf "  -v     : [] Verbosity                            (default : Info)\n";
-            printf "               - Trace : {3,trace,Trace}\n";
-            printf "               - Debug : {2,debug,Debug}\n";
-            printf "               - Info  : {1,info,Info}\n";
-            printf "               - None  : {0,none,None}\n";
-            printf "\n";
-            printf " *  =>  Require an argument\n";
-            printf " [] =>  Default will be used if not provided\n";
-        in
-
         // Process options
         match args with
         // Infos and Help
         | []        -> parsedArgs
-        | "-h"::t   -> help (); nullOpts
+        | "-h"::t   -> flexhelp (); nullOpts
 
         // Match valid options
         | "-s"::t ->
@@ -132,7 +135,7 @@ type Parsing =
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FullHandshake)} tt
             | "Traces"::tt | "traces"::tt | "ti"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TraceInterpreter)} tt
-            | _ -> help(); eprintf "ERROR : -s argument is not a valid scenario"; nullOpts
+            | _ -> flexhelp(); eprintf "ERROR : -s argument is not a valid scenario\n"; nullOpts
             )
 
         | "-r"::t ->
@@ -140,13 +143,13 @@ type Parsing =
             | "Client"::tt | "C"::tt | "c"::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with role = Some(RoleClient)} tt
             | "Server"::tt | "S"::tt | "s"::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with role = Some(RoleServer)} tt
             | "MITM"::tt | "M"::tt | "m"::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with role = Some(RoleMITM)} tt
-            | _ -> help(); eprintf "ERROR : -r argument is not a valid role"; nullOpts
+            | _ -> flexhelp(); eprintf "ERROR : -r argument is not a valid role\n"; nullOpts
             )
 
         | "-ca"::t ->
             (match t with
             | addr::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with connect_addr = Some(addr)} tt
-            | [] -> help(); eprintf "ERROR : -ca has to be provided either a domain name or an ip address"; nullOpts
+            | [] -> flexhelp(); eprintf "ERROR : -ca has to be provided either a domain name or an ip address\n"; nullOpts
             )
 
         | "-cp"::t ->
@@ -154,20 +157,20 @@ type Parsing =
             | sport::tt ->
                 let success,port = System.Int32.TryParse sport in
                     if success then Parsing.innerParseCommandLineOpts {parsedArgs with connect_port = Some(port)} tt
-                    else let _ = help(); eprintf "ERROR : -cp argument not a correct integer" in nullOpts
-            | [] -> help(); eprintf "ERROR : -cp has to be provided a port number"; nullOpts
+                    else let _ = flexhelp(); eprintf "ERROR : -cp argument not a correct integer\n" in nullOpts
+            | [] -> flexhelp(); eprintf "ERROR : -cp has to be provided a port number\n"; nullOpts
             )
 
         | "-ccert"::t ->
             (match t with
             | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true); connect_cert = Some(cn)} tt
-            | _ -> help(); eprintf "ERROR : -ccert has to be provided a Certificate Common Name"; nullOpts
+            | _ -> flexhelp(); eprintf "ERROR : -ccert has to be provided a Certificate Common Name\n"; nullOpts
             )
 
         | "-la"::t ->
             (match t with
             | addr::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_addr = Some(addr)} tt
-            | [] -> help(); eprintf "ERROR : -la has to be provided either a domain name or an ip address"; nullOpts
+            | [] -> flexhelp(); eprintf "ERROR : -la has to be provided either a domain name or an ip address\n"; nullOpts
             )
 
         | "-lp"::t ->
@@ -175,14 +178,14 @@ type Parsing =
             | sport::tt ->
                 let success,port = System.Int32.TryParse sport in
                     if success then Parsing.innerParseCommandLineOpts {parsedArgs with connect_port = Some(port)} tt
-                    else let _ = help(); eprintf "ERROR : -lp argument is not a correct integer" in nullOpts
-            | [] -> help(); eprintf "ERROR : -lp has to be provided a port number"; nullOpts
+                    else let _ = flexhelp(); eprintf "ERROR : -lp argument is not a correct integer\n" in nullOpts
+            | [] -> flexhelp(); eprintf "ERROR : -lp has to be provided a port number\n"; nullOpts
             )
 
         | "-lcert"::t ->
             (match t with
             | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true); listen_cert = Some(cn)} tt
-            | [] -> help(); eprintf "ERROR : -lcert has to be provided a Certificate Common Name"; nullOpts
+            | [] -> flexhelp(); eprintf "ERROR : -lcert has to be provided a Certificate Common Name\n"; nullOpts
             )
 
         | "-cauth"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true)} t
@@ -193,10 +196,10 @@ type Parsing =
 
         | "-k"::t ->
             (match t with
-            | "RSA"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeRSA)} t
-            | "DHE"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeDHE)} t
-            | "ECDHE"::t -> eprintf "ERROR : -k ECDHE support is in progress ! Be back soon =)"; nullOpts
-            | _ -> help(); eprintf "ERROR : -k argument is not a valid key exchange mechanism"; nullOpts
+            | "RSA"::t | "rsa"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeRSA)} t
+            | "DHE"::t | "dhe"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeDHE)} t
+            | "ECDHE"::t | "ecdhe"::t -> eprintf "ERROR : -k ECDHE support is in progress ! Be back soon =)\n"; nullOpts
+            | _ -> flexhelp(); eprintf "ERROR : -k argument is not a valid key exchange mechanism\n"; nullOpts
             )
 
         | "-t"::t ->
@@ -204,17 +207,17 @@ type Parsing =
             | sport::tt ->
                 let success,timeout = System.Int32.TryParse sport in
                     if success then Parsing.innerParseCommandLineOpts {parsedArgs with timeout = Some(timeout)} tt
-                    else let _ = help(); eprintf "ERROR : -t argument not a correct integer" in nullOpts
-            | [] -> help(); eprintf "ERROR : -t has to be provided a port number"; nullOpts
+                    else let _ = flexhelp(); eprintf "ERROR : -t argument not a correct integer\n" in nullOpts
+            | [] -> flexhelp(); eprintf "ERROR : -t has to be provided a port number\n"; nullOpts
             )
 
         // Unit Testing
         | "-tests"::t -> {nullOpts with testing = Some(true); scenario = Some(UnitTests)}
 
         // Info on the program
-        | "-i"::t -> info (); nullOpts
+        | "-i"::t -> flexinfo (); nullOpts
         
         // Invalid command
-        | h::t      -> help(); eprintf "Error : %A is not a valid option !\n" h; nullOpts
+        | h::t    -> flexhelp(); eprintf "ERROR : %A is not a valid option !\n" h; nullOpts
 
     end
