@@ -35,25 +35,8 @@ let main argv =
     // Transform arguments array into a list
     let args = argv |> List.ofSeq in 
     
-    // Set default options
-    let defaultOpts : CommandLineOpts = {
-        scenario = None;
-        role = None;
-        kex = None;
-        connect_addr = None;
-        connect_port = None;
-        connect_cert = None;
-        listen_addr = None;
-        listen_port = None;
-        listen_cert = None;
-        client_req = None;
-        min_pv = None;
-        timeout = None;
-        verbosity = None;
-    } in
-
     // Parse command line arguments
-    let opts = Parsing.innerParseCommandLineOpts defaultOpts args in
+    let opts = Parsing.innerParseCommandLineOpts nullOpts args in
 
     // Execute the correct scenario according to user input
     let res = 
