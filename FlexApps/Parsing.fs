@@ -7,7 +7,7 @@ open TLSConstants
 
 
 
-type ScenarioOpt    = FullHandshake | FullHanshakeANDResumption | Tests
+type ScenarioOpt    = FullHandshake | TraceInterpreter
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
 type LogLevelOpt    = LogLevelTrace | LogLevelDebug | LogLevelInfo | LogLevelNone
 type KeyExchangeOpt = KeyExchangeRSA | KeyExchangeDHE | KeyExchangeECDHE
@@ -19,9 +19,13 @@ type CommandLineOpts = {
     kex           : option<KeyExchangeOpt>;
     connect_addr  : option<string>;
     connect_port  : option<int>;
+    connect_cert  : option<string>;
     listen_addr   : option<string>;
     listen_port   : option<int>;
+    listen_cert   : option<string>;
+    client_req    : option<bool>;
     min_pv        : option<ProtocolVersion>;
+    timeout       : option<int>;
     verbosity     : option<LogLevelOpt>;
 }
 
@@ -31,9 +35,13 @@ let nullOpts = {
     kex = None;
     connect_addr = None;
     connect_port = None;
+    connect_cert = None;
     listen_addr = None;
     listen_port = None;
+    listen_cert = None;
+    client_req = None;
     min_pv = None;
+    timeout = None;
     verbosity = None;
 }
 
@@ -79,11 +87,12 @@ type Parsing =
             printf "               - TLS 1.3 : {13,tls13,TLS13}\n";
             printf "  -ca    : [] Connect to address or domain _       (default : localhost)\n";
             printf "  -cp    : [] Connect to port number _             (default : 443)\n";
-            printf "  -ccert : [] Certificate CN to use if Client _    (default : rsa.mitls.org)\n";
+            printf "  -ccert : [] Certificate CN to use if Client _    (default : rsa.cert-02.mitls.org)\n";
             printf "  -la    : [] Listening to address or domain _     (default : localhost)\n";
             printf "  -lp    : [] Listening to port number _           (default : 4433)\n";
-            printf "  -lcert : [] Certificate CN to use if Server      (default : rsa.mitls.org)\n";
+            printf "  -lcert : [] Certificate CN to use if Server      (default : rsa.cert-01.mitls.org)\n";
             printf "  -lauth :    Request client authentication\n";
+            printf "  -t     : [] Timeout for TCP connections          (default : 7.5s)\n";
             printf "  -v     : [] Verbosity                            (default : Info)\n";
             printf "               - Trace : {3,trace,Trace}\n";
             printf "               - Debug : {2,debug,Debug}\n";
@@ -105,8 +114,8 @@ type Parsing =
             (match t with
             | "FullHandshake"::tt | "fullhandshake"::tt | "fh"::tt | "FH"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FullHandshake)} tt
-            | "Tests"::tt | "tests"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(Tests)} tt
+            | "Traces"::tt | "traces"::tt | "ti"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TraceInterpreter)} tt
             | _ -> help(); eprintf "ERROR : -s argument is not a valid scenario"; nullOpts
             )
 
@@ -133,6 +142,12 @@ type Parsing =
             | [] -> help(); eprintf "ERROR : -cp has to be provided a port number"; nullOpts
             )
 
+        | "-ccert"::t ->
+            (match t with
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with connect_cert = Some(cn)} tt
+            | _ -> help(); eprintf "ERROR : -ccert has to be provided a Certificate Common Name"; nullOpts
+            )
+
         | "-la"::t ->
             (match t with
             | addr::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_addr = Some(addr)} tt
@@ -148,6 +163,12 @@ type Parsing =
             | [] -> help(); eprintf "ERROR : -lp has to be provided a port number"; nullOpts
             )
 
+        | "-lcert"::t ->
+            (match t with
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_cert = Some(cn)} tt
+            | [] -> help(); eprintf "ERROR : -lcert has to be provided a Certificate Common Name"; nullOpts
+            )
+
         | "-k"::t ->
             (match t with
             | "RSA"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeRSA)} t
@@ -156,7 +177,17 @@ type Parsing =
             | _ -> help(); eprintf "ERROR : -k argument is not a valid key exchange mechanism"; nullOpts
             )
 
-        | "-i"::t -> info ();nullOpts
+        | "-t"::t ->
+            (match t with
+            | sport::tt ->
+                let success,timeout = System.Int32.TryParse sport in
+                    if success then Parsing.innerParseCommandLineOpts {parsedArgs with timeout = Some(timeout)} tt
+                    else let _ = help(); eprintf "ERROR : -t argument not a correct integer" in nullOpts
+            | [] -> help(); eprintf "ERROR : -t has to be provided a port number"; nullOpts
+            )
+
+        // Info on the program
+        | "-i"::t -> info (); nullOpts
         
         // Invalid command
         | h::t      -> help(); eprintf "Error : %A is not a valid option !\n" h; nullOpts

@@ -24,6 +24,7 @@ open Handshake_full_DHE
 open Handshake_resumption
 open Handshake_tls13
 open Metrics_DHE
+open TraceInterpreter
 
 
 
@@ -41,9 +42,13 @@ let main argv =
         kex = None;
         connect_addr = None;
         connect_port = None;
+        connect_cert = None;
         listen_addr = None;
         listen_port = None;
+        listen_cert = None;
+        client_req = None;
         min_pv = None;
+        timeout = None;
         verbosity = None;
     } in
 
@@ -52,57 +57,109 @@ let main argv =
 
     // Execute the correct scenario according to user input
     let res = 
-        match opts.scenario with
+
+        // Address and port when Client
+        let connect_addr = 
+            (match opts.connect_addr with
+            | Some(addr) -> addr
+            | None -> "localhost"
+            )
+        in
+        let connect_port = 
+            (match opts.connect_port with
+            | Some(port) -> port
+            | None -> 443
+            )
+        in
+        let connect_cert = 
+            (match opts.connect_cert with
+            | Some(cn) -> cn
+            | None -> "rsa.cert-02.mitls.org"
+            )
+        in
+        // Address and port when Server
+        let listen_addr = 
+            (match opts.listen_addr with
+            | Some(addr) -> addr
+            | None -> "localhost"
+            )
+        in
+        let listen_port = 
+            (match opts.listen_port with
+            | Some(port) -> port
+            | None -> 4433
+            )
+        in
+        let listen_cert = 
+            (match opts.listen_cert with
+            | Some(cn) -> cn
+            | None -> "rsa.cert-01.mitls.org"
+            )
+        in
+        // Client authentication
+        let client_req = 
+            (match opts.client_req with
+            | Some(client_req) -> client_req
+            | None -> false
+            )
+        in
+        // TCP timeout
+        let timeout = 
+            (match opts.timeout with
+            | Some(timeout) -> timeout
+            | None -> 0
+            )
+        in
+        (match opts.scenario with
         
         // Type of scenario
-        | Some(FullHandshake) ->
+        | Some(FullHandshake) | None ->
             (match opts.role with
             
             // Role
             | Some(RoleClient) ->
-
-                // Address and port
-                let connect_addr = 
-                    (match opts.connect_addr with
-                    | Some(addr) -> addr
-                    | None -> "localhost"
-                    )
-                in
-                let connect_port = 
-                    (match opts.connect_port with
-                    | Some(port) -> port
-                    | None -> 443
-                    )
-                in
                 (match opts.kex with
                 
                 // Key Exchange
                 | Some(KeyExchangeRSA) -> 
 
                     (* Standard RSA full handshake as Client *)
-                    let st = Handshake_full_RSA.client(connect_addr,connect_port) in
-                    printf "RSA client finished\n"
+                    let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in ()
                 
                 | Some(KeyExchangeDHE) ->
 
                     (* Standard DHE full handshake as Client *)
-                    let st = Handshake_full_DHE.client(connect_addr,connect_port) in
-                    printf "DHE client finished\n";
+                    let st = Handshake_full_DHE.client(connect_addr,connect_port) in ()
 
                 | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
             | Some(RoleServer) -> eprintf "ROLE SERVER\n"
             | Some(RoleMITM) -> eprintf "ROLE MITM\n")
-        | None -> eprintf "SCENARIO\n"
+
+        | Some(TraceInterpreter) ->
+            (match opts.role with
+            
+            // Role
+            | Some(RoleClient) ->
+                if client_req then 
+                    let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert true in ()
+                else 
+                    let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert false in ()
+                
+            | Some(RoleServer) -> 
+                if client_req then 
+                    let _ = TraceInterpreter.runServers listen_port listen_cert  true in ()
+                else 
+                    let _ = TraceInterpreter.runServers listen_port listen_cert false in ()
+            )
+        )
     in
+    printf "Scenario Finished\n";
     0
 
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-    (* Standard RSA full handshake as stateful Client *)
-//    let st = Handshake_full_RSA.stateful_client("www.inria.fr") in
-//    printf "RSA client stateful finished\n";
 
     (* Standard RSA handshake with resumption as Client*)
 //    let st = Handshake_full_RSA.client("www.inria.fr") in

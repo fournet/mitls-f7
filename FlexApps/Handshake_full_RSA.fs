@@ -31,13 +31,14 @@ type Handshake_full_RSA =
     class
 
     (* Run a stateful full Handshake RSA with server side authentication only as Client*)
-    static member stateful_client (server_name:string, ?port:int, ?st:state) : state =
+    static member stateful_client (server_name:string, ?port:int, ?st:state, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        
+        let timeout = defaultArg timeout 0 in
+
         // Start TCP connection with the server if no state is provided by the user
         let st,_ = 
             match st with
-            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port)
+            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=timeout)
             | Some(st) -> st,TLSInfo.defaultConfig
         in
 
@@ -103,13 +104,14 @@ type Handshake_full_RSA =
         st
 
     (* Run a full Handshake RSA with server side authentication only *)
-    static member client (server_name:string, ?port:int, ?st:state) : state =
+    static member client (server_name:string, ?port:int, ?st:state, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
+        let timeout = defaultArg timeout 0 in
         
         // Start TCP connection with the server if no state is provided by the user
         let st,_ = 
             match st with
-            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port)
+            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=timeout)
             | Some(st) -> st,TLSInfo.defaultConfig
         in
 
@@ -196,8 +198,9 @@ type Handshake_full_RSA =
 
 
     (* Run a full Handshake RSA with both server and client authentication *)
-    static member client_with_auth (server_name:string, hint:string, ?port:int) : state =
+    static member client_with_auth (server_name:string, hint:string, ?port:int, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
+        let timeout = defaultArg timeout 0 in
         let chain,salg,skey =
             match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
             | None -> failwith "Failed to retreive certificate data"
@@ -205,8 +208,9 @@ type Handshake_full_RSA =
         in
         Handshake_full_RSA.client_with_auth (server_name,chain,salg,skey,port)
 
-    static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int) : state =
+    static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
+        let timeout = defaultArg timeout 0 in
 
         // Start TCP connection with the server
         let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
