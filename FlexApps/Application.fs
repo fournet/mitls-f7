@@ -80,9 +80,9 @@ let main argv =
             )
         in
         // Client authentication
-        let client_req = 
-            (match opts.client_req with
-            | Some(client_req) -> client_req
+        let cert_req = 
+            (match opts.cert_req with
+            | Some(cert_req) -> cert_req
             | None -> false
             )
         in
@@ -120,20 +120,8 @@ let main argv =
 
         | Some(TraceInterpreter) ->
             (match opts.role with
-            
-            // Role
-            | Some(RoleClient) ->
-                if client_req then 
-                    let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert true in ()
-                else 
-                    let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert false in ()
-                
-            | Some(RoleServer) -> 
-                if client_req then 
-                    let _ = TraceInterpreter.runServers listen_port listen_cert  true in ()
-                else 
-                    let _ = TraceInterpreter.runServers listen_port listen_cert false in ()
-            )
+            | Some(RoleClient) -> let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert cert_req in ()
+            | Some(RoleServer) -> let _ = TraceInterpreter.runServers listen_port listen_cert cert_req in () )
         )
     in
     printf "Scenario Finished\n";
@@ -187,21 +175,6 @@ let main argv =
     (* Standard RSA full handshake as Client, with an alert in between *)
 //    let st = Handshake_full_alert_RSA.client("localhost",6443) in
 //    printf "RSA client finished\n";
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-    (* Trace Interpreter *)
-//    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" false in
-//    printf "Client no-cert trace interpreter finished\n";
-
-//    let st = TraceInterpreter.runClients "localhost" 6443 "rsa.cert-02.mitls.org" true in
-//    printf "Client cert trace interpreter finished\n";
-
-//    let st = TraceInterpreter.runServers 6443 "rsa.cert-01.mitls.org" false in
-//    printf "Server no-cert trace interpreter finished\n";
-
-//    let st = TraceInterpreter.runServers 6443 "rsa.cert-01.mitls.org" true in
-//    printf "Server cert trace interpreter finished\n";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 

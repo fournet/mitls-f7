@@ -23,7 +23,7 @@ type CommandLineOpts = {
     listen_addr   : option<string>;
     listen_port   : option<int>;
     listen_cert   : option<string>;
-    client_req    : option<bool>;
+    cert_req      : option<bool>;
     min_pv        : option<ProtocolVersion>;
     timeout       : option<int>;
     verbosity     : option<LogLevelOpt>;
@@ -39,7 +39,7 @@ let nullOpts = {
     listen_addr = None;
     listen_port = None;
     listen_cert = None;
-    client_req = None;
+    cert_req = None;
     min_pv = None;
     timeout = None;
     verbosity = None;
@@ -144,7 +144,7 @@ type Parsing =
 
         | "-ccert"::t ->
             (match t with
-            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with connect_cert = Some(cn)} tt
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true); connect_cert = Some(cn)} tt
             | _ -> help(); eprintf "ERROR : -ccert has to be provided a Certificate Common Name"; nullOpts
             )
 
@@ -165,9 +165,11 @@ type Parsing =
 
         | "-lcert"::t ->
             (match t with
-            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_cert = Some(cn)} tt
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true); listen_cert = Some(cn)} tt
             | [] -> help(); eprintf "ERROR : -lcert has to be provided a Certificate Common Name"; nullOpts
             )
+
+        | "-cauth"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true)} t
 
         | "-k"::t ->
             (match t with
