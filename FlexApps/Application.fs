@@ -107,15 +107,42 @@ let main argv =
                 | Some(KeyExchangeRSA) -> 
 
                     (* Standard RSA full handshake as Client *)
-                    let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in ()
+                    if cert_req then
+                        let st = Handshake_full_RSA.client_with_auth(connect_addr,connect_cert,connect_port) in ()
+                    else
+                        let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in ()
                 
                 | Some(KeyExchangeDHE) ->
 
                     (* Standard DHE full handshake as Client *)
-                    let st = Handshake_full_DHE.client(connect_addr,connect_port) in ()
+                    if cert_req then
+                        let st = Handshake_full_DHE.client_with_auth(connect_addr,connect_cert,connect_port) in ()
+                    else
+                        let st = Handshake_full_DHE.client(connect_addr,connect_port) in ()
 
                 | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
-            | Some(RoleServer) -> eprintf "ROLE SERVER\n"
+            
+            | Some(RoleServer) ->
+                (match opts.kex with
+                
+                // Key Exchange
+                | Some(KeyExchangeRSA) -> 
+
+                    (* Standard DHE full handshake as Client *)
+                    if cert_req then
+                        let st = Handshake_full_RSA.server_with_client_auth(listen_addr,listen_cert,listen_port) in ()
+                    else
+                        let st = Handshake_full_RSA.server(listen_addr,listen_cert,listen_port) in ()
+                
+                | Some(KeyExchangeDHE) ->
+
+                    (* Standard DHE full handshake as Server *)
+                    if cert_req then
+                        let st = Handshake_full_DHE.server_with_client_auth(listen_addr,listen_cert,listen_port) in ()
+                    else
+                        let st = Handshake_full_DHE.server(listen_addr,listen_cert,listen_port) in ()
+
+                | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
             | Some(RoleMITM) -> eprintf "ROLE MITM\n")
 
         | Some(TraceInterpreter) ->
@@ -131,7 +158,6 @@ let main argv =
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-
     (* Standard RSA handshake with resumption as Client*)
 //    let st = Handshake_full_RSA.client("www.inria.fr") in
 //    let _  = Tcp.close st.ns in 
@@ -142,35 +168,6 @@ let main argv =
 //   let st = Handshake_full_RSA.client("127.0.0.1",4433) in
 //    let st = Handshake_full_RSA.client("127.0.0.1",4433,st) in
 //    printf "RSA client renegotiation finished\n";
-
-    (* Standard RSA full handshake with client authentication as Client *)
- //   let st = Handshake_full_RSA.client_with_auth("localhost","rsa.cert-02.mitls.org",port=6443) in
- //   printf "RSA client_auth finished\n";
-    
-
-    (* Standard DHE full handshake with client authentication as Client *)
-//    let st = Handshake_full_DHE.client_with_auth("127.0.0.1","rsa.cert-01.mitls.org",44102) in
-//    printf "DHE client_auth finished\n";
-
-    (* Standard RSA full handshake as Server *)
-//    printf "Running RSA server. Please connect to port 6443\n";
-//    let st = Handshake_full_RSA.server("0.0.0.0","rsa.cert-02.mitls.org",6443) in
-//    printf "RSA server finished\n";
-
-    (* Standard RSA full handshake with client authentication as Server *)
-//    printf "Running RSA server. Please connect to port 44202\n";
-//    let st = Handshake_full_RSA.server_with_client_auth("0.0.0.0","rsa.cert-01.mitls.org",44202) in
-//    printf "RSA server_with_client_auth finished\n";
-
-    (* Standard DHE full handshake as Server *)
-//    printf "Running RSA server. Please connect to port 44203\n";
-//    let st = Handshake_full_DHE.server("127.0.0.1","rsa.cert-01.mitls.org",44203) in
-//    printf "DHE server finished\n";
-
-    (* Standard DHE full handshake with client authentication as Server *)
-//    printf "Running RSA server. Please connect to port 44204\n";
-//    let st = Handshake_full_DHE.server_with_client_auth("127.0.0.1","rsa.cert-01.mitls.org",44204) in
-//    printf "DHE server_with_client_auth finished\n";
 
     (* Standard RSA full handshake as Client, with an alert in between *)
 //    let st = Handshake_full_alert_RSA.client("localhost",6443) in
