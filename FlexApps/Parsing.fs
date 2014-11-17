@@ -7,7 +7,7 @@ open TLSConstants
 
 
 
-type ScenarioOpt    = FullHandshake | TraceInterpreter | Attack | Metrics
+type ScenarioOpt    = FullHandshake | TraceInterpreter | Attack | Metrics | UnitTests
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
 type LogLevelOpt    = LogLevelTrace | LogLevelDebug | LogLevelInfo | LogLevelNone
 type KeyExchangeOpt = KeyExchangeRSA | KeyExchangeDHE | KeyExchangeECDHE
@@ -33,6 +33,7 @@ type CommandLineOpts = {
     resume        : option<bool>;
     renego        : option<bool>;
     timeout       : option<int>;
+    testing       : option<bool>;
     verbosity     : option<LogLevelOpt>;
 }
 
@@ -53,6 +54,7 @@ let nullOpts = {
     resume = None;
     renego = None;
     timeout = None;
+    testing = None;
     verbosity = None;
 }
 
@@ -106,6 +108,7 @@ type Parsing =
             printf "  -resum :    Resume after full handshake\n";
             printf "  -reneg :    Renegotiate after full handshake\n";
             printf "  -t     : [] Timeout for TCP connections          (default : 7.5s)\n";
+            printf "  -tests :    Run self unit testing\n";
             printf "  -v     : [] Verbosity                            (default : Info)\n";
             printf "               - Trace : {3,trace,Trace}\n";
             printf "               - Debug : {2,debug,Debug}\n";
@@ -204,6 +207,9 @@ type Parsing =
                     else let _ = help(); eprintf "ERROR : -t argument not a correct integer" in nullOpts
             | [] -> help(); eprintf "ERROR : -t has to be provided a port number"; nullOpts
             )
+
+        // Unit Testing
+        | "-tests"::t -> {nullOpts with testing = Some(true); scenario = Some(UnitTests)}
 
         // Info on the program
         | "-i"::t -> info (); nullOpts

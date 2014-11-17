@@ -25,6 +25,7 @@ open Handshake_resumption
 open Handshake_tls13
 open Metrics_DHE
 open TraceInterpreter
+open UnitTests
 
 
 
@@ -220,7 +221,11 @@ let main argv =
         | Some(Metrics) ->
             ( match opts.metrics with
             | Some(DHParams) ->
-                let _ = Metrics_DHE.run_multi("list.data") in () ) )
+                let _ = Metrics_DHE.run_multi("list.data") in () ) 
+        
+        // Unit tests
+        | Some(UnitTests) -> UnitTests.runAll()
+        )
     in
     printf "Scenario Finished\n";
     0
