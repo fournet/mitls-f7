@@ -30,8 +30,7 @@ open UnitTests
 
 
 
-[<EntryPoint>]
-let main argv = 
+let runRelease argv =
 
     // Transform arguments array into a list
     let args = argv |> List.ofSeq in 
@@ -112,91 +111,86 @@ let main argv =
         
         // Type of scenario
         | Some(FullHandshake) ->
-            (match opts.role with
+            (match opts.role,opts.kex,cert_req with
             
-            // Role
-            | Some(RoleClient) | None ->
-                (match opts.kex with
-                
-                // Key Exchange
-                | Some(KeyExchangeRSA) | None -> 
-
-                    (* Standard RSA full handshake as Client *)
-                    // BB : Cross flags
-                    if cert_req then
-                        let st = Handshake_full_RSA.client_with_auth(connect_addr,connect_cert,connect_port) in ()
-                    else
-                    if resume then
-                        let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in
-                        let _  = Tcp.close st.ns in 
-                        let st = Handshake_resumption.client(st,connect_addr,connect_port) in ()
-                    else
-                    if renego then
-                        let st = Handshake_full_RSA.client(connect_addr,connect_port) in
-                        let st = Handshake_full_RSA.client(connect_addr,connect_port,st) in ()
-                    else
-                        let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in ()
-                
-                | Some(KeyExchangeDHE) ->
-
-                    (* Standard DHE full handshake as Client *)
-                    if cert_req then
-                        let st = Handshake_full_DHE.client_with_auth(connect_addr,connect_cert,connect_port) in ()
-                    else 
-                        let st = Handshake_full_DHE.client(connect_addr,connect_port) in () 
-
-                | Some(KeyExchangeECDHE) -> printf "\n"; eprintf "ECDHE\n")
+            // Role * KeyExchange * Client Auth
+            | None,None,false
+            | None, Some(KeyExchangeRSA),false
+            | Some(RoleClient),None,false
+            | Some(RoleClient),Some(KeyExchangeRSA),false ->
+                let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in true
             
-            | Some(RoleServer) ->
-                (match opts.kex with
-                
-                // Key Exchange
-                | Some(KeyExchangeRSA) | None -> 
+            | None,None,true
+            | None, Some(KeyExchangeRSA),true
+            | Some(RoleClient),None,true
+            | Some(RoleClient),Some(KeyExchangeRSA),true ->
+                let st = Handshake_full_RSA.client_with_auth(connect_addr,connect_cert,connect_port) in true
+            
+            | None,Some(KeyExchangeDHE),false
+            | Some(RoleClient),Some(KeyExchangeDHE),false ->
+                let st = Handshake_full_DHE.client(connect_addr,connect_port) in true
 
-                    (* Standard DHE full handshake as Server *)
-                    if cert_req then
-                        let st = Handshake_full_RSA.server_with_client_auth(listen_addr,listen_cert,listen_port) in ()
-                    else
-                        let st = Handshake_full_RSA.server(listen_addr,listen_cert,listen_port) in ()
-                
-                | Some(KeyExchangeDHE) ->
+            | None,Some(KeyExchangeDHE),true
+            | Some(RoleClient),Some(KeyExchangeDHE),true ->
+                let st = Handshake_full_DHE.client_with_auth(connect_addr,connect_cert,connect_port) in true
 
-                    (* Standard DHE full handshake as Server *)
-                    if cert_req then
-                        let st = Handshake_full_DHE.server_with_client_auth(listen_addr,listen_cert,listen_port) in ()
-                    else
-                        let st = Handshake_full_DHE.server(listen_addr,listen_cert,listen_port) in ()
+            | Some(RoleServer),None,false
+            | Some(RoleServer),Some(KeyExchangeRSA),false ->
+                let st = Handshake_full_RSA.server(listen_addr,listen_cert,listen_port) in true
 
-                | Some(KeyExchangeECDHE) -> printf "\n"; eprintf "ECDHE\n" )
-            | Some(RoleMITM) -> printf "\n"; eprintf "ROLE MITM\n")
+            | Some(RoleServer),None,true
+            | Some(RoleServer),Some(KeyExchangeRSA),true ->
+                let st = Handshake_full_RSA.server_with_client_auth(listen_addr,listen_cert,listen_port) in true
+
+            | None,Some(KeyExchangeDHE),false
+            | Some(RoleServer),Some(KeyExchangeDHE),false ->
+                let st = Handshake_full_DHE.server(listen_addr,listen_cert,listen_port) in true
+
+            | None,Some(KeyExchangeDHE),true
+            | Some(RoleServer),Some(KeyExchangeDHE),true ->
+                let st = Handshake_full_DHE.server_with_client_auth(listen_addr,listen_cert,listen_port) in true
+
+            | _,Some(KeyExchangeECDHE),_ -> printf "\n"; eprintf "ERROR : ECDHE not supported yet...\n"; false
+            | Some(RoleMITM),_,_ -> printf "\n"; eprintf "ERROR : No Full Handshake scenario as MITM...\n"; false
+            )
+
+//                if resume then
+//                    let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in
+//                    let _  = Tcp.close st.ns in 
+//                    let st = Handshake_resumption.client(st,connect_addr,connect_port) in true
+//                else
+//                if renego then
+//                    let st = Handshake_full_RSA.client(connect_addr,connect_port) in
+//                    let st = Handshake_full_RSA.client(connect_addr,connect_port,st) in true
+//                else
 
         // Trace Interpreter
         | Some(TraceInterpreter) ->
             (match opts.role with
-            | Some(RoleClient) | None -> let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert cert_req in ()
-            | Some(RoleServer) -> let _ = TraceInterpreter.runServers listen_port listen_cert cert_req in ()
-            | Some(RoleMITM) -> printf "\n"; eprintf "ROLE MITM\n" )
+            | Some(RoleClient) | None -> let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert cert_req in true
+            | Some(RoleServer) -> let _ = TraceInterpreter.runServers listen_port listen_cert cert_req in true
+            | Some(RoleMITM) -> printf "\n"; eprintf "ROLE MITM\n"; false )
 
         // Attacks
         | Some(Attack) ->
             (match opts.attack with
             | Some (FragmentedClientHello) | None -> 
-                let st = Attack_FragmentClientHello.run(connect_addr,fp=All(5)) in ()
+                let st = Attack_FragmentClientHello.run(connect_addr,fp=All(5)) in true
 
             | Some (FragmentedAlert) -> 
-                let st = Attack_Alert.run(connect_addr, connect_port) in ()
+                let _ = Attack_Alert.run(connect_addr, connect_port) in true
             
             | Some (MalformedAlert) -> 
-                let st = Handshake_full_alert_RSA.client(connect_addr,connect_port) in ()
+                let _ = Handshake_full_alert_RSA.client(connect_addr,connect_port) in true
 
             | Some (EarlyCCS) ->
-                let sst,cst = Attack_EarlyCCS.runMITM(listen_addr,connect_addr,listen_port,connect_port) in ()
+                let _ = Attack_EarlyCCS.runMITM(listen_addr,connect_addr,listen_port,connect_port) in true
 
             | Some (LateCCS) ->
-                let _ = LateCCS.server(listen_addr,listen_port) in ()
+                let _ = LateCCS.server(listen_addr,listen_port) in true
                 
             | Some (TripleHandshake) ->
-                let sst,cst = Attack_TripleHandshake.runMITM(listen_addr,listen_cert,listen_port,connect_addr,connect_port) in ()
+                let _ = Attack_TripleHandshake.runMITM(listen_addr,listen_cert,listen_port,connect_addr,connect_port) in true
 
             | Some (SmallSubgroup) ->
                     // Test with local OpenSSL server using MODP 1024-bit group:
@@ -211,28 +205,48 @@ let main argv =
                     // jnOvoy13nVkY0IvIhY9Nzvl8KiSFXm7rIrOy5Q==
                     // -----END DH PARAMETERS-----
                     //
-                    Attack_SmallSubgroup_DHE.run(true, 223,
-                           "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
-                           "223",connect_addr)
+                    let _ = Attack_SmallSubgroup_DHE.run(true, 223,
+                            "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
+                            "223",connect_addr) in true
             
             | Some (EarlyResume) ->
-                let _ = Attack_EarlyResume.run(listen_addr,listen_cert,listen_port) in () )
+                let _ = Attack_EarlyResume.run(listen_addr,listen_cert,listen_port) in true )
        
         // Metrics
         | Some(Metrics) ->
             ( match opts.metrics with
             | Some(DHParams) | None ->
-                let _ = Metrics_DHE.run_multi("list.data") in () ) 
+                let _ = Metrics_DHE.run_multi("list.data") in true ) 
         
         // Unit tests
-        | Some(UnitTests) -> UnitTests.runAll()
+        | Some(UnitTests) -> UnitTests.runAll(); true
 
         // Nothing has been provided
-        | None -> ()
+        | None -> false
         )
+    in res
+
+
+
+
+[<EntryPoint>]
+let main argv = 
+#if DEBUG
+    
+    let success = 
+        let _ = Handshake_full_RSA.client("www.inria.fr") in true
     in
-    printf "Scenario Finished\n";
-    0
+
+#else
+    let success = 
+        let _ = runRelease(argv) in true
+    in
+#endif
+    if success then 
+        let _ = printf "Scenario Finished\n" in 0
+    else 
+        let _ = printf "\n" in 0
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
