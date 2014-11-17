@@ -145,10 +145,23 @@ let main argv =
                 | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
             | Some(RoleMITM) -> eprintf "ROLE MITM\n")
 
+        // Trace Interpreter
         | Some(TraceInterpreter) ->
             (match opts.role with
             | Some(RoleClient) -> let _ = TraceInterpreter.runClients connect_addr connect_port connect_cert cert_req in ()
             | Some(RoleServer) -> let _ = TraceInterpreter.runServers listen_port listen_cert cert_req in () )
+        
+        // Attacks
+        | Some(Attack) ->
+            (match opts.attack with
+            | Some (FragmentedAlert)        -> eprintf "ATTACK\n"
+            | Some (MalformedAlert)         -> eprintf "ATTACK\n"
+            | Some (FragmentedClientHello)  -> eprintf "ATTACK\n"
+            | Some (EarlyCCS)               -> eprintf "ATTACK\n"
+            | Some (LateCCS)                -> eprintf "ATTACK\n"
+            | Some (TripleHandshake)        -> eprintf "ATTACK\n"
+            | Some (SmallSubgroup)          -> eprintf "ATTACK\n"
+            )
         )
     in
     printf "Scenario Finished\n";

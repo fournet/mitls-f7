@@ -11,10 +11,13 @@ type ScenarioOpt    = FullHandshake | TraceInterpreter
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
 type LogLevelOpt    = LogLevelTrace | LogLevelDebug | LogLevelInfo | LogLevelNone
 type KeyExchangeOpt = KeyExchangeRSA | KeyExchangeDHE | KeyExchangeECDHE
+type AttackOpt      = FragmentedAlert | MalformedAlert | FragmentedClientHello 
+                      | LateCCS | EarlyCCS | TripleHandshake | SmallSubgroup
 
 
 type CommandLineOpts = {
     scenario      : option<ScenarioOpt>;
+    attack        : option<AttackOpt>;
     role          : option<RoleOpt>;
     kex           : option<KeyExchangeOpt>;
     connect_addr  : option<string>;
@@ -31,6 +34,7 @@ type CommandLineOpts = {
 
 let nullOpts = {
     scenario = None;
+    attack = None;
     role = None;
     kex = None;
     connect_addr = None;
