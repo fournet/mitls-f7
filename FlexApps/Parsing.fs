@@ -7,17 +7,19 @@ open TLSConstants
 
 
 
-type ScenarioOpt    = FullHandshake | TraceInterpreter
+type ScenarioOpt    = FullHandshake | TraceInterpreter | Attack | Metrics
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
 type LogLevelOpt    = LogLevelTrace | LogLevelDebug | LogLevelInfo | LogLevelNone
 type KeyExchangeOpt = KeyExchangeRSA | KeyExchangeDHE | KeyExchangeECDHE
+type MetricsOpt     = DHParams
 type AttackOpt      = FragmentedAlert | MalformedAlert | FragmentedClientHello 
-                      | LateCCS | EarlyCCS | TripleHandshake | SmallSubgroup
+                      | LateCCS | EarlyCCS | TripleHandshake | SmallSubgroup | EarlyResume
 
 
 type CommandLineOpts = {
     scenario      : option<ScenarioOpt>;
     attack        : option<AttackOpt>;
+    metrics       : option<MetricsOpt>;
     role          : option<RoleOpt>;
     kex           : option<KeyExchangeOpt>;
     connect_addr  : option<string>;
@@ -28,6 +30,8 @@ type CommandLineOpts = {
     listen_cert   : option<string>;
     cert_req      : option<bool>;
     min_pv        : option<ProtocolVersion>;
+    resume        : option<bool>;
+    renego        : option<bool>;
     timeout       : option<int>;
     verbosity     : option<LogLevelOpt>;
 }
@@ -35,6 +39,7 @@ type CommandLineOpts = {
 let nullOpts = {
     scenario = None;
     attack = None;
+    metrics = None;
     role = None;
     kex = None;
     connect_addr = None;
@@ -45,6 +50,8 @@ let nullOpts = {
     listen_cert = None;
     cert_req = None;
     min_pv = None;
+    resume = None;
+    renego = None;
     timeout = None;
     verbosity = None;
 }
@@ -96,6 +103,8 @@ type Parsing =
             printf "  -lp    : [] Listening to port number _           (default : 4433)\n";
             printf "  -lcert : [] Certificate CN to use if Server      (default : rsa.cert-01.mitls.org)\n";
             printf "  -lauth :    Request client authentication\n";
+            printf "  -resum :    Resume after full handshake\n";
+            printf "  -reneg :    Renegotiate after full handshake\n";
             printf "  -t     : [] Timeout for TCP connections          (default : 7.5s)\n";
             printf "  -v     : [] Verbosity                            (default : Info)\n";
             printf "               - Trace : {3,trace,Trace}\n";
@@ -174,6 +183,10 @@ type Parsing =
             )
 
         | "-cauth"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true)} t
+        
+        | "-resum"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with resume = Some(true)} t
+        
+        | "-reneg"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with renego = Some(true)} t
 
         | "-k"::t ->
             (match t with

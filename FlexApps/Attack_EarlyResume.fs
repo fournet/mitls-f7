@@ -24,6 +24,9 @@ open FlexHandshake
 
 open System
 
+
+
+
 let fromHex (s:string) = 
   s
   |> Seq.windowed 2
@@ -42,14 +45,17 @@ let srandb = abytes (fromHex "54647E725994C1AF4F5C96FB7C5A83F4094E935BC884A03ECA
 let sticks = "0400000B0000AAAA00051122334455"
 let stickb = abytes (fromHex sticks)
 
+
+
+
 type Attack_EarlyResume =
     class
 
-    static member run (cn:string, ?port:int) : state =
-        let port = defaultArg port FlexConstants.defaultTCPPort in
+    static member run (listen_addr:string, listen_cert:string, ?listen_port:int) : state =
+        let listen_port = defaultArg listen_port FlexConstants.defaultTCPPort in
 
         // Accept TCP connection from client
-        let st,_ = FlexConnection.serverOpenTcpConnection("0.0.0.0",cn,port) in
+        let st,_ = FlexConnection.serverOpenTcpConnection(listen_addr,listen_cert,listen_port) in
 
         let st,nsc,fch = FlexClientHello.receive(st) in
         //let fsh = {FlexConstants.nullFServerHello with

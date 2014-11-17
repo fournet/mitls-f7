@@ -86,6 +86,20 @@ let main argv =
             | None -> false
             )
         in
+        // Resumption
+        let resume = 
+            (match opts.resume with
+            | Some(resume) -> resume
+            | None -> false
+            )
+        in
+        // Renegotiation
+        let renego = 
+            (match opts.renego with
+            | Some(renego) -> renego
+            | None -> false
+            )
+        in
         // TCP timeout
         let timeout = 
             (match opts.timeout with
@@ -107,8 +121,18 @@ let main argv =
                 | Some(KeyExchangeRSA) -> 
 
                     (* Standard RSA full handshake as Client *)
+                    // BB : Cross flags
                     if cert_req then
                         let st = Handshake_full_RSA.client_with_auth(connect_addr,connect_cert,connect_port) in ()
+                    else
+                    if resume then
+                        let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in
+                        let _  = Tcp.close st.ns in 
+                        let st = Handshake_resumption.client(st,connect_addr,connect_port) in ()
+                    else
+                    if renego then
+                        let st = Handshake_full_RSA.client(connect_addr,connect_port) in
+                        let st = Handshake_full_RSA.client(connect_addr,connect_port,st) in ()
                     else
                         let st = Handshake_full_RSA.client(connect_addr,connect_port,timeout=timeout) in ()
                 
@@ -117,8 +141,8 @@ let main argv =
                     (* Standard DHE full handshake as Client *)
                     if cert_req then
                         let st = Handshake_full_DHE.client_with_auth(connect_addr,connect_cert,connect_port) in ()
-                    else
-                        let st = Handshake_full_DHE.client(connect_addr,connect_port) in ()
+                    else 
+                        let st = Handshake_full_DHE.client(connect_addr,connect_port) in () 
 
                 | Some(KeyExchangeECDHE) -> eprintf "ECDHE\n")
             
@@ -128,7 +152,7 @@ let main argv =
                 // Key Exchange
                 | Some(KeyExchangeRSA) -> 
 
-                    (* Standard DHE full handshake as Client *)
+                    (* Standard DHE full handshake as Server *)
                     if cert_req then
                         let st = Handshake_full_RSA.server_with_client_auth(listen_addr,listen_cert,listen_port) in ()
                     else
@@ -188,30 +212,18 @@ let main argv =
                     Attack_SmallSubgroup_DHE.run(true, 223,
                            "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
                            "223",connect_addr)
-            )
-        )
+            
+            | Some (EarlyResume) ->
+                let _ = Attack_EarlyResume.run(listen_addr,listen_cert,listen_port) in () )
+       
+        // Metrics
+        | Some(Metrics) ->
+            ( match opts.metrics with
+            | Some(DHParams) ->
+                let _ = Metrics_DHE.run_multi("list.data") in () ) )
     in
     printf "Scenario Finished\n";
     0
-
-
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-    (* Standard RSA handshake with resumption as Client*)
-//    let st = Handshake_full_RSA.client("www.inria.fr") in
-//    let _  = Tcp.close st.ns in 
-//    let st = Handshake_resumption.client(st,"www.inria.fr") in
-//    printf "RSA client resumption finished\n";
-
-    (* Standard RSA handshake with renegotiation as Client *)
-//   let st = Handshake_full_RSA.client("127.0.0.1",4433) in
-//    let st = Handshake_full_RSA.client("127.0.0.1",4433,st) in
-//    printf "RSA client renegotiation finished\n";
-
-    (* Standard RSA full handshake as Client, with an alert in between *)
-//    let st = Handshake_full_alert_RSA.client("localhost",6443) in
-//    printf "RSA client finished\n";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -225,9 +237,6 @@ let main argv =
     (* Early CCS attack MITM *)
 //    let sst,cst = Attack_EarlyCCS.runMITM("0.0.0.0","127.0.0.1",4433) in
 //    printf "Early CCS attack finished\n";
-
-    (* Early Resume attack *)
-//    let st = Attack_EarlyResume.run("test_CN",6443) in
 
     (* Java Late CCS attack MITM *)
 //    let sst,cst = LateCCS.runMITM("www.inria.fr") in
@@ -244,12 +253,6 @@ let main argv =
 //    printf "Starting TLS 1.3 server\n";
 //    let st = Handshake_tls13.server("0.0.0.0","rsa.cert-01.mitls.org",4433) in
 //    printf "TLS 1.3 server finished\n";
-
-////////////////////////////////////////////////////////////////////////////////////////////////
-
-    (* Metrics for DH parameters of ServerKeyExchange *)
-//    printf "Running Metrics for DH parameters\n";
-//    Metrics_DHE.run_multi("list.data");
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
