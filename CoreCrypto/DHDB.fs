@@ -12,6 +12,8 @@ type dhdb = {
     filename: string;
 }
 
+let defaultFileName = "dhparams-db.bin"
+
 (* ------------------------------------------------------------------------------- *)
 let bytes_of_key (k : Key) : byte[] =
     let bf = new BinaryFormatter () in
@@ -99,3 +101,12 @@ let keys self =
             DB.closedb db
     in
         List.map key_of_bytes aout
+
+(* ------------------------------------------------------------------------------- *)
+let merge self db1 =
+    let db = DB.opendb self.filename in
+    
+    try
+        DB.tx db (fun db -> DB.merge db db1); self
+    finally
+        DB.closedb db
