@@ -38,7 +38,7 @@ let genElement dhp: elt =
     e
 
 let checkParams dhdb minSize p g =
-    match CoreDH.check_params dhdb minSize p g with
+    match CoreDH.check_params dhdb DHDBManager.defaultDHPrimeConfidence minSize p g with
     | Error(x) -> Error(AD_insufficient_security,x)
     | Correct(res) ->
         let (dhdb,dhp) = res in

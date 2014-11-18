@@ -77,11 +77,11 @@ let check_p_g_q conf minPl minQl pbytes gbytes qbytes =
         else
             Error(perror __SOURCE_FILE__ __LINE__ "Subgroup too small")
 
-let check_params dhdb minSize (pbytes:bytes) (gbytes:bytes) =
+let check_params dhdb conf minSize (pbytes:bytes) (gbytes:bytes) =
     match DHDB.select dhdb (pbytes, gbytes) with
     | None -> // unknown group
         let (minPl,minQl) = minSize in
-        match check_p_g 80 minPl minQl pbytes gbytes with
+        match check_p_g conf minPl minQl pbytes gbytes with
         | Error(x) -> Error(x)
         | Correct(qbytes) ->
             let dhdb = DHDB.insert dhdb (pbytes, gbytes) (qbytes, true) in

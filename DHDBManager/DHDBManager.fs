@@ -34,6 +34,7 @@ type options = {
 exception ArgError of string
 exception InvalidPEMFile of string
 
+let defaultDHPrimeConfidence = 80
 
 (* ------------------------------------------------------------------------ *)
 let PEM_DH_PARAMETERS_HEADER  = "DH PARAMETERS"       (* p, g, [len] *)
@@ -78,7 +79,7 @@ let load_default_params pem_file dhdb minSize =
         match load_params_from_file pem_file with
         | DH(p,g) -> p,g
         | DHX(p,_,g) -> p,g
-    match CoreDH.check_params dhdb minSize p g with
+    match CoreDH.check_params dhdb defaultDHPrimeConfidence minSize p g with
     | Error(x) -> raise (InvalidPEMFile(x))
     | Correct(res) -> res
 
@@ -151,7 +152,6 @@ let cmdParse () =
     let defaultDBFile  = DHDB.defaultFileName
     let defaultMinPlen = fst CoreDH.defaultPQMinLength
     let defaultMinQlen = snd CoreDH.defaultPQMinLength
-    let defaultConfidence = 80
   
     let options = ref {
         command = None;
@@ -159,7 +159,7 @@ let cmdParse () =
         minplen = defaultMinPlen;
         minqlen = defaultMinQlen; 
         force   = false; 
-        confidence = defaultConfidence; }
+        confidence = defaultDHPrimeConfidence; }
 
     let o_dbfile = fun s ->
         options := { !options with dbfile = s }
@@ -211,7 +211,7 @@ let cmdParse () =
         "-import",    ArgType.String o_dbfile2 , "Import all parameters from given database"
         "-minPlen",   ArgType.Int o_minplen    , sprintf "Minimum modulus length in bits (used for validation); default: %d" defaultMinPlen
         "-minQlen",   ArgType.Int o_minqlen    , sprintf "Minimum subgroup size in bits (used for validation); default: %d" defaultMinQlen
-        "-confidence",ArgType.Int o_confidence , sprintf "Confidence level for primality checks; default: %d" defaultConfidence
+        "-confidence",ArgType.Int o_confidence , sprintf "Confidence level for primality checks; default: %d" defaultDHPrimeConfidence
         "-force",     ArgType.Unit o_force     , "Do not validate parameters before inserting or importing them"   
     ]
 
