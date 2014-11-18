@@ -30,6 +30,13 @@ open UnitTests
 
 
 
+// This script will run in Debug mode
+let runScript () =
+    let _ = Handshake_full_RSA.client("www.inria.fr") in true
+
+
+
+// This will run the CLI in Release mode
 let runRelease argv =
 
     // Transform arguments array into a list
@@ -172,57 +179,54 @@ let runRelease argv =
             | Some(RoleMITM) -> printf "\n"; eprintf "ROLE MITM\n"; false )
 
         // Attacks
-        | Some(Attack) ->
-            (match opts.attack with
-            | Some (FragmentedClientHello) | None -> 
-                let st = Attack_FragmentClientHello.run(connect_addr,fp=All(5)) in true
+        | Some (FragmentedClientHello) -> 
+            let st = Attack_FragmentClientHello.run(connect_addr,fp=All(5)) in true
 
-            | Some (FragmentedAlert) -> 
-                let _ = Attack_Alert.run(connect_addr, connect_port) in true
+        | Some (FragmentedAlert) -> 
+            let _ = Attack_Alert.run(connect_addr, connect_port) in true
             
-            | Some (MalformedAlert) -> 
-                let _ = Handshake_full_alert_RSA.client(connect_addr,connect_port) in true
+        | Some (MalformedAlert) -> 
+            let _ = Handshake_full_alert_RSA.client(connect_addr,connect_port) in true
 
-            | Some (EarlyCCS) ->
-                let _ = Attack_EarlyCCS.runMITM(listen_addr,connect_addr,listen_port,connect_port) in true
+        | Some (EarlyCCS) ->
+            let _ = Attack_EarlyCCS.runMITM(listen_addr,connect_addr,listen_port,connect_port) in true
 
-            | Some (LateCCS) ->
-                let _ = LateCCS.server(listen_addr,listen_port) in true
+        | Some (LateCCS) ->
+            let _ = LateCCS.server(listen_addr,listen_port) in true
                 
-            | Some (TripleHandshake) ->
-                let _ = Attack_TripleHandshake.runMITM(listen_addr,listen_cert,listen_port,connect_addr,connect_port) in true
+        | Some (TripleHandshake) ->
+            let _ = Attack_TripleHandshake.runMITM(listen_addr,listen_cert,listen_port,connect_addr,connect_port) in true
 
-            | Some (SmallSubgroup) ->
-                    // Test with local OpenSSL server using MODP 1024-bit group:
-                    // $ openssl s_server -accept 443 -dhparam modp1024.pem
-                    //
-                    // -----BEGIN DH PARAMETERS-----
-                    // MIIBCAKBgQCxC4+WoIDgHd6S3l6uXVTsUsmfvPsGo8aaap3KUtI7YWBz4oZ1oj0Y
-                    // mDjvHi7mUsAT7LSuqQYRIySXXDzUm4O/rMvdfZDEvXCYSI6cIZpzck7/1vrlZEc4
-                    // +qMaT/VbzMChUa9fDci0vUW/N982XBpl5oz9p21NpwjfH7K8LkpDcQKBgQCk0cvV
-                    // w/00EmdlpELvuZkF+BBN0lisUH/WQGz/FCZtMSZv6h5cQVZLd35pD1UE8hMWAhe0
-                    // sBuIal6RVH+eJ0n01/vX07mpLuGQnQ0iY/gKdqaiTAh6CR9THb8KAWm2oorWYqTR
-                    // jnOvoy13nVkY0IvIhY9Nzvl8KiSFXm7rIrOy5Q==
-                    // -----END DH PARAMETERS-----
-                    //
-                    let _ = Attack_SmallSubgroup_DHE.run(true, 223,
-                            "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
-                            "223",connect_addr) in true
+        | Some (SmallSubgroup) ->
+                // Test with local OpenSSL server using MODP 1024-bit group:
+                // $ openssl s_server -accept 443 -dhparam modp1024.pem
+                //
+                // -----BEGIN DH PARAMETERS-----
+                // MIIBCAKBgQCxC4+WoIDgHd6S3l6uXVTsUsmfvPsGo8aaap3KUtI7YWBz4oZ1oj0Y
+                // mDjvHi7mUsAT7LSuqQYRIySXXDzUm4O/rMvdfZDEvXCYSI6cIZpzck7/1vrlZEc4
+                // +qMaT/VbzMChUa9fDci0vUW/N982XBpl5oz9p21NpwjfH7K8LkpDcQKBgQCk0cvV
+                // w/00EmdlpELvuZkF+BBN0lisUH/WQGz/FCZtMSZv6h5cQVZLd35pD1UE8hMWAhe0
+                // sBuIal6RVH+eJ0n01/vX07mpLuGQnQ0iY/gKdqaiTAh6CR9THb8KAWm2oorWYqTR
+                // jnOvoy13nVkY0IvIhY9Nzvl8KiSFXm7rIrOy5Q==
+                // -----END DH PARAMETERS-----
+                //
+                let _ = Attack_SmallSubgroup_DHE.run(true, 223,
+                        "124325339146889384540494091085456630009856882741872806181731279018491820800119460022367403769795008250021191767583423221479185609066059226301250167164084041279837566626881119772675984258163062926954046545485368458404445166682380071370274810671501916789361956272226105723317679562001235501455748016154805420913",
+                        "223",connect_addr) in true
             
-            | Some (EarlyResume) ->
-                let _ = Attack_EarlyResume.run(listen_addr,listen_cert,listen_port) in true )
+        | Some (EarlyResume) ->
+            let _ = Attack_EarlyResume.run(listen_addr,listen_cert,listen_port) in true
        
         // Metrics
-        | Some(Metrics) ->
-            ( match opts.metrics with
-            | Some(DHParams) | None ->
-                let _ = Metrics_DHE.run_multi("list.data") in true ) 
+        | Some(DHParams) ->
+            let _ = Metrics_DHE.run_multi("list.data") in true 
         
-        // Unit tests
-        | Some(UnitTests) -> UnitTests.runAll(); true
+//        // Unit tests
+//        | Some(UnitTests) -> 
+//            let _ = UnitTests.runAll() in true
 
         // Nothing has been provided
-        | None -> false
+        | None -> flexhelp(); false
         )
     in res
 
@@ -232,15 +236,9 @@ let runRelease argv =
 [<EntryPoint>]
 let main argv = 
 #if DEBUG
-    
-    let success = 
-        let _ = Handshake_full_RSA.client("www.inria.fr") in true
-    in
-
+    let success = runScript() in
 #else
-    let success = 
-        let _ = runRelease(argv) in true
-    in
+    let success = runRelease(argv) in
 #endif
     if success then 
         let _ = printf "Scenario Finished\n" in 0

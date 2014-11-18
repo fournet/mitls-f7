@@ -7,19 +7,24 @@ open TLSConstants
 
 
 
-type ScenarioOpt    = FullHandshake | TraceInterpreter | Attack | Metrics | UnitTests
+type ScenarioOpt    = // Normal
+                      | FullHandshake 
+                      // TraceIN
+                      | TraceInterpreter
+                      // Metrics
+                      | DHParams
+                      // Attacks
+                      | FragmentedAlert | MalformedAlert | FragmentedClientHello 
+                      | LateCCS | EarlyCCS | TripleHandshake | SmallSubgroup | EarlyResume
+
+
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
 type LogLevelOpt    = LogLevelTrace | LogLevelDebug | LogLevelInfo | LogLevelNone
 type KeyExchangeOpt = KeyExchangeRSA | KeyExchangeDHE | KeyExchangeECDHE
-type MetricsOpt     = DHParams
-type AttackOpt      = FragmentedAlert | MalformedAlert | FragmentedClientHello 
-                      | LateCCS | EarlyCCS | TripleHandshake | SmallSubgroup | EarlyResume
 
 
 type CommandLineOpts = {
     scenario      : option<ScenarioOpt>;
-    attack        : option<AttackOpt>;
-    metrics       : option<MetricsOpt>;
     role          : option<RoleOpt>;
     kex           : option<KeyExchangeOpt>;
     connect_addr  : option<string>;
@@ -39,8 +44,6 @@ type CommandLineOpts = {
 
 let nullOpts = {
     scenario = None;
-    attack = None;
-    metrics = None;
     role = None;
     kex = None;
     connect_addr = None;
@@ -75,49 +78,62 @@ let flexinfo () =
     printf "              Team Prosecco\n";
     printf "\n";
     printf "  - Website : http://www.mitls.org\n"
+
         
 let flexhelp () = 
     flexbanner ();
-    printf "  -i        : Infos about this software\n";
+    printf "  -info     : Infos about this software\n";
+    printf "  -s        : *  Scenario to execute\n";
     printf "\n";
-    printf "  -s        : *  Scenario to execute                  (required)\n";
-    printf "  -r        : *  Role                                 (required)\n";
-    printf "                 - Client : {c,C,Client}\n";
-    printf "                 - Server : {s,S,Server}\n";
-    printf "                 - Both   : {m,M,MITM}\n";
-    printf "  -k        : *  Key exchange                         (required)\n";
-    printf "                 - RSA    : {r,rsa,RSA}\n";
-    printf "                 - DHE    : {dhe,DHE}\n";
-    printf "                 - ECDHE  : {ec,ecdhe,ECDHE}\n";
+    printf "                 - Full Handshake        {fh}\n";
+    printf "                 - Trace Interpreter     {ti,traceinterpreter}\n";
+    printf "                 - Metrics\n";
+    printf "                     DH Parameters       {dhp,dhparams}\n";
+    printf "                 - Attacks\n";
+    printf "                     Malformed alert     {mal,malformedalert}\n";
+    printf "                     Fragmented alert    {fal,fragmentedalert}\n";
+    printf "                     Fragmented Client Hello {fch,fragmentedch}\n";
+    printf "                     Early CCS           {eccs,earlyccs}\n";
+    printf "                     Late CCS            {lccs,lateccs}\n";
+    printf "                     Triple Handshake    {ths,triplehandshake}\n";
+    printf "                     Small Subgroup      {sgp,smallsubgroup}\n";
+    printf "                     Early Resume        {eres,earlyresume}\n";
+    printf "                 - Unit Testing\n";
+    printf "                     All                 {uall,unitall}\n";
+    printf "\n";
+    printf "  -r        : []  Role\n";
+    printf "                 - Client                {c,C,Client}  (default)\n";
+    printf "                 - Server                {s,S,Server}\n";
+    printf "                 - Both                  {m,M,MITM}\n";
+    printf "  -k        : []  Key exchange\n";
+    printf "                 - RSA                   {r,rsa,RSA}   (default)\n";
+    printf "                 - DHE                   {dh,dhe,DHE}\n";
+    printf "                 - ECDHE                 {ec,ecdhe,ECDHE}\n";
 //    printf "  -pv     : [] Protocol version minimum\n";
 //    printf "                - SSL 3.0 : {30,ssl3,SSL3}\n";
 //    printf "                - TLS 1.0 : {10,tls10,TLS10}\n";
 //    printf "                - TLS 1.1 : {11,tls11,TLS11}\n";
-//    printf "                - TLS 1.2 : {12,tls12,TLS12}        (default)\n";
+//    printf "                - TLS 1.2 : {12,tls12,TLS12}         (default)\n";
 //    printf "                - TLS 1.3 : {13,tls13,TLS13}\n";
 //    printf "  -cipher : [] Specify a ciphersuite\n";
-    printf "  -ca       : [] Connect to address or domain _       (default : localhost)\n";
-    printf "  -cp       : [] Connect to port number _             (default : 443)\n";
-    printf "  -ccert    : [] Certificate CN to use if Client _    (default : rsa.cert-02.mitls.org)\n";
-    printf "  -la       : [] Listening to address or domain _     (default : localhost)\n";
-    printf "  -lp       : [] Listening to port number _           (default : 4433)\n";
-    printf "  -lcert    : [] Certificate CN to use if Server      (default : rsa.cert-01.mitls.org)\n";
+    printf "  -ca       : [] Connect to address or domain _        (default : localhost)\n";
+    printf "  -cp       : [] Connect to port number _              (default : 443)\n";
+    printf "  -ccert    : [] Certificate CN to use if Client _     (default : rsa.cert-02.mitls.org)\n";
+    printf "  -la       : [] Listening to address or domain _      (default : localhost)\n";
+    printf "  -lp       : [] Listening to port number _            (default : 4433)\n";
+    printf "  -lcert    : [] Certificate CN to use if Server       (default : rsa.cert-01.mitls.org)\n";
     printf "  -lauth    :    Request client authentication\n";
     printf "  -resum    :    Resume after full handshake\n";
     printf "  -reneg    :    Renegotiate after full handshake\n";
-//    printf "  -t      : [] Timeout for TCP connections          (default : 7.5s)\n";
+//    printf "  -t      : [] Timeout for TCP connections           (default : 7.5s)\n";
 //    printf "  -tests  :    Run self unit testing\n";
-    printf "\n";
+//    printf "\n";
 //    printf "  -disable-exts     :    Disable all extensions\n";
 //    printf "  -disable-vd-fin   :    Disable Finished verify data check \n";
 //    printf "  -disable-vd-rni   :    Disable checking verify data in case of \n";
 //    printf "                           Renegotiation Indication Extension\n";
     printf "\n";
-    printf "  -v        : [] Verbosity\n";
-    printf "                 - Trace : {3,trace,Trace}\n";
-    printf "                 - Debug : {2,debug,Debug}\n";
-    printf "                 - Info  : {1,info,Info}             (default : Info)\n";
-    printf "                 - None  : {0,none,None}\n";
+    printf "  -v        : [] Verbosity  (-) {0..3} (+) \n";
     printf "\n";
     printf " *  =>  Require an argument\n";
     printf " [] =>  Default will be used if not provided\n"
@@ -138,10 +154,29 @@ type Parsing =
         // Match valid options
         | "-s"::t ->
             (match t with
-            | "FullHandshake"::tt | "fullhandshake"::tt | "fh"::tt | "FH"::tt ->
+            | "fullhandshake"::tt | "fh"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FullHandshake)} tt
-            | "Traces"::tt | "traces"::tt | "ti"::tt ->
+            | "traceinterpreter"::tt | "traces"::tt | "ti"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TraceInterpreter)} tt
+            | "dhparams"::tt | "dhp"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(DHParams)} tt
+            | "malformedalert"::tt | "mal"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(MalformedAlert)} tt
+            | "fragmentedch"::tt | "fch"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FragmentedClientHello)} tt
+            | "fragmentedalert"::tt | "fal"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FragmentedAlert)} tt
+            | "earlyccs"::tt | "eccs"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(EarlyCCS)} tt
+            | "lateccs"::tt | "lccs"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(LateCCS)} tt
+            | "triplehandshake"::tt | "ths"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TripleHandshake)} tt
+            | "smallsubgroup"::tt | "ssg"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(SmallSubgroup)} tt
+            | "earlyresume"::tt | "eres"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(EarlyResume)} tt
+
             | _ -> flexhelp(); eprintf "ERROR : -s argument is not a valid scenario\n"; nullOpts
             )
 
@@ -217,9 +252,6 @@ type Parsing =
                     else let _ = flexhelp(); eprintf "ERROR : -t argument not a correct integer\n" in nullOpts
             | [] -> flexhelp(); eprintf "ERROR : -t has to be provided a port number\n"; nullOpts
             )
-
-        // Unit Testing
-        | "-tests"::t -> {nullOpts with testing = Some(true); scenario = Some(UnitTests)}
 
         // Info on the program
         | "-i"::t -> flexinfo (); nullOpts
