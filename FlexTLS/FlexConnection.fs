@@ -50,6 +50,7 @@ type FlexConnection =
                     hs_buffer = empty_bytes;
                     alert_buffer = empty_bytes;
                     appdata_buffer = empty_bytes};
+          hs_log = empty_bytes;
           ns = ns }
 
 

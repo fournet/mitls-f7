@@ -37,6 +37,15 @@ type FlexState =
             // In practice, we don't care about its value anyway.
             TLSInfo.abbrEpoch e ai nsc.si e
 
+    /// <summary>
+    /// Update the Handshake log with the bytes received or sent by the Record Level
+    /// </summary>
+    /// <param name="st"> State to update the hs_log with </param>
+    /// <param name="log"> Log of the handshake </param>
+    static member updateHandshakeLog (st:state) (log:bytes) :state =
+        let hs_log_u = st.hs_log @| log in
+        {st with hs_log = hs_log_u} 
+
     /// <summary> Update the state with a new readin (incoming) record </summary>
     static member updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
         let read_s = {st.read with record = incoming} in

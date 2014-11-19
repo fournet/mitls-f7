@@ -64,7 +64,7 @@ type FlexCCS =
     static member send (st:state, ?fccs:FChangeCipherSpecs) : state * FChangeCipherSpecs =
         LogManager.GetLogger("file").Info("# CCS : FlexCCS.send");
         let fccs = defaultArg fccs FlexConstants.nullFChangeCipherSpecs in
-        let record_write,_ = FlexRecord.send(
+        let record_write,_,_ = FlexRecord.send(
                 st.ns, st.write.epoch, st.write.record,
                 Change_cipher_spec, fccs.payload,
                 st.write.epoch_init_pv) in

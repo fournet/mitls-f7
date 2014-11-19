@@ -148,6 +148,8 @@ type state = {
     write: channel;
     /// <summary> Network stream where the data is exchanged with the peer </summary>
     ns: Tcp.NetworkStream;
+    /// <summary> Handshake log </summary>
+    hs_log: bytes;
 }
 
 /// <summary>

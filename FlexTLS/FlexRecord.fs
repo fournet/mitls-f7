@@ -89,6 +89,11 @@ type FlexRecord =
                 let st = FlexState.updateIncomingRecord st rec_in in
                 let id = TLSInfo.id st.read.epoch in
                 let fragb = TLSFragment.reprFragment id ct rg frag in
+                let st =
+                    match ct with
+                    | Handshake -> FlexState.updateHandshakeLog st fragb
+                    | _ -> st
+                in
                 LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
                 (st,fragb)
 
@@ -132,8 +137,8 @@ type FlexRecord =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ct,pv,len,header = FlexRecord.parseFragmentHeader(stin) in
         let stin,payload = FlexRecord.getFragmentContent(stin,ct,len) in
-        let k,_ = FlexRecord.send(stout.ns,stout.write.epoch,stout.write.record,ct,payload,stout.write.epoch_init_pv,fp) in
-        let stout = FlexState.updateOutgoingRecord stout k in
+        let stout = FlexState.updateOutgoingBuffer stout ct payload in
+        let stout = FlexRecord.send(stout,ct,fp) in
         stin,stout,payload
 
     /// <summary>
@@ -147,7 +152,8 @@ type FlexRecord =
     static member send (st:state, ct:ContentType, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let payload = pickCTBuffer st.write ct in
-        let k,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.record,ct,payload,st.write.epoch_init_pv,fp) in
+        let k,b,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.record,ct,payload,st.write.epoch_init_pv,fp) in
+        let st = FlexState.updateHandshakeLog st b in
         let st = FlexState.updateOutgoingBuffer st ct rem in
         let st = FlexState.updateOutgoingRecord st k in
         st
@@ -163,7 +169,7 @@ type FlexRecord =
     /// <param name="epoch_init_pv"> Optional Protocol version set for the Initial epoch </param>
     /// <param name="fp"> Optional fragmentation policy applied to the message </param>
     /// <returns> Updated outgoing record state * remainder of the plaindata </returns>
-    static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?epoch_init_pv:ProtocolVersion, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes =
+    static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?epoch_init_pv:ProtocolVersion, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes * bytes =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let pv = 
             if TLSInfo.isInitEpoch e then
@@ -183,10 +189,10 @@ type FlexRecord =
             match fp with
             | All(fs) -> 
                 if rem = empty_bytes then
-                    (k,rem)
+                    (k,b,rem)
                 else
                     FlexRecord.send(ns,e,k,ct,rem,pv,fp)
-            | One(fs) -> (k,rem)
+            | One(fs) -> (k,b,rem)
        
 
     /// <summary>
