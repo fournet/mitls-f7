@@ -45,7 +45,7 @@ type FlexState =
     /// <returns> The state with the updated log </returns>
     static member updateHandshakeLog (st:state) (log:bytes) :state =
         let hs_log = st.hs_log @| log in
-        {st with hs_log = hs_log} 
+        {st with hs_log = hs_log}
 
     /// <summary>
     /// Update the log according to the given content type (currently only the Handshake log is maintained)
@@ -62,6 +62,20 @@ type FlexState =
         | TLSConstants.Alert
         | TLSConstants.Change_cipher_spec -> st
 
+    static member resetHandshakeLog (st:state) : state =
+        {st with hs_log = empty_bytes}
+
+    static member resetLog (st:state) (ct:TLSConstants.ContentType) : state =
+        match ct with
+        | TLSConstants.Handshake ->
+            FlexState.resetHandshakeLog st
+        | TLSConstants.Application_data
+        | TLSConstants.Alert
+        | TLSConstants.Change_cipher_spec -> st
+
+    static member resetLogs (st:state) : state =
+        // Add here reset for other logs if we ever add them
+        FlexState.resetLog st TLSConstants.Handshake
 
     /// <summary> Update the state with a new readin (incoming) record </summary>
     static member updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
