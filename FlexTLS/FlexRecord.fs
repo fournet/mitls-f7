@@ -89,11 +89,7 @@ type FlexRecord =
                 let st = FlexState.updateIncomingRecord st rec_in in
                 let id = TLSInfo.id st.read.epoch in
                 let fragb = TLSFragment.reprFragment id ct rg frag in
-                let st =
-                    match ct with
-                    | Handshake -> FlexState.updateHandshakeLog st fragb
-                    | _ -> st
-                in
+                let st = FlexState.updateLog st ct fragb in
                 LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
                 (st,fragb)
 
@@ -153,7 +149,7 @@ type FlexRecord =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let payload = pickCTBuffer st.write ct in
         let k,b,rem = FlexRecord.send(st.ns,st.write.epoch,st.write.record,ct,payload,st.write.epoch_init_pv,fp) in
-        let st = FlexState.updateHandshakeLog st b in
+        let st = FlexState.updateLog st ct b in
         let st = FlexState.updateOutgoingBuffer st ct rem in
         let st = FlexState.updateOutgoingRecord st k in
         st
@@ -189,10 +185,11 @@ type FlexRecord =
             match fp with
             | All(fs) -> 
                 if rem = empty_bytes then
-                    (k,b,rem)
+                    (k,msgb,rem)
                 else
-                    FlexRecord.send(ns,e,k,ct,rem,pv,fp)
-            | One(fs) -> (k,b,rem)
+                    let k,b,rem = FlexRecord.send(ns,e,k,ct,rem,pv,fp) in
+                    (k,msgb@|b,rem)
+            | One(fs) -> (k,msgb,rem)
        
 
     /// <summary>
