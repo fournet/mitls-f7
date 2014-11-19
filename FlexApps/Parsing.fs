@@ -62,51 +62,52 @@ let stdout = System.Console.Out
 let stderr = System.Console.Error
 
 let flexbanner w =
-    fprintf w "FlexTLS Command Line Interface\n"
+    fprintf w "\n    --- FlexTLS Command Line Interface ---\n";
+    fprintf w "\n"
         
 let flexinfo w = 
     flexbanner w;
     fprintf w "\n";
-    fprintf w "  - Version : FlexTLS 0.0.1\n";
-    fprintf w "              November 20, 2014\n";
-    fprintf w "\n";
-    fprintf w "  - Authors : Benjamin Beurdouche & Alfredo Pironti\n";
-    fprintf w "              INRIA Paris-Rocquencourt\n";
-    fprintf w "              Team Prosecco\n";
-    fprintf w "\n";
-    fprintf w "  - Website : http://www.mitls.org\n"
+    fprintf w "  - Version     : FlexTLS 0.0.1\n";
+    fprintf w "                  November 20, 2014\n";
+    fprintf w "\n";            
+    fprintf w "  - Authors     : Benjamin Beurdouche & Alfredo Pironti\n";
+    fprintf w "                  INRIA Paris-Rocquencourt\n";
+    fprintf w "                  Team Prosecco\n";
+    fprintf w "\n";            
+    fprintf w "  - Website     : http://www.mitls.org\n"
 
         
 let flexhelp w = 
     flexbanner w;
-    fprintf w "  -h --help     : This help message\n";
-    fprintf w "  --version  : Infos about this software\n";
+    fprintf w "  -h --help     :    This help message\n";
+    fprintf w "  -v --version  :    Infos about this software\n";
+    fprintf w "\n";
     fprintf w "  -s --scenario : *  Scenario to execute\n";
-    fprintf w "\n";
-    fprintf w "                 - Full Handshake        {fh}\n";
-    fprintf w "                 - Trace Interpreter     {ti,traceinterpreter}\n";
-    fprintf w "                 - Metrics\n";
-    fprintf w "                     DH Parameters       {dhp,dhparams}\n";
-    fprintf w "                 - Attacks\n";
-    fprintf w "                     Malformed alert     {mal,malformedalert}\n";
-    fprintf w "                     Fragmented alert    {fal,fragmentedalert}\n";
-    fprintf w "                     Fragmented Client Hello {fch,fragmentedch}\n";
-    fprintf w "                     Early CCS           {eccs,earlyccs}\n";
-    fprintf w "                     Early Finished      {efin,earlyfinished}\n";
-    fprintf w "                     Triple Handshake    {ths,triplehandshake}\n";
-    fprintf w "                     Small Subgroup      {sgp,smallsubgroup}\n";
-    fprintf w "                     Early Resume        {eres,earlyresume}\n";
-//    printf "                 - Unit Testing\n";
-//    printf "                     All                 {uall,unitall}\n";
-    fprintf w "\n";
-    fprintf w "  -r --role : []  Role\n";
-    fprintf w "                 - Client                {c,C,Client}  (default)\n";
-    fprintf w "                 - Server                {s,S,Server}\n";
-    fprintf w "                 - Both                  {m,M,MITM}\n";
-    fprintf w "  -k --kex  : []  Key exchange\n";
-    fprintf w "                 - RSA                   {r,rsa,RSA}   (default)\n";
-    fprintf w "                 - DHE                   {dh,dhe,DHE}\n";
-    fprintf w "                 - ECDHE                 {ec,ecdhe,ECDHE}\n";
+    fprintf w "                     - Full Handshake                {fh}\n";
+    fprintf w "                     - Trace Interpreter             {ti,traceinterpreter}\n";
+    fprintf w "                     - Metrics\n";                   
+    fprintf w "                         DH Parameters               {dhp,dhparams}\n";
+    fprintf w "                     - Attacks\n";                   
+    fprintf w "                         Malformed alert             {mal,malformedalert}\n";
+    fprintf w "                         Fragmented alert            {fal,fragmentedalert}\n";
+    fprintf w "                         Fragmented Client Hello     {fch,fragmentedch}\n";
+    fprintf w "                         Early CCS                   {eccs,earlyccs}\n";
+    fprintf w "                         Early Finished              {efin,earlyfinished}\n";
+    fprintf w "                         Triple Handshake            {ths,triplehandshake}\n";
+    fprintf w "                         Small Subgroup              {sgp,smallsubgroup}\n";
+    fprintf w "                         Early Resume                {eres,earlyresume}\n";
+//    printf "                      - Unit Testing\n";               
+//    printf "                          All                         {uall,unitall}\n";
+    fprintf w "\n";                                             
+    fprintf w "  -r --role     : []  Role\n";                  
+    fprintf w "                     - Client                        {c,C,Client}  (default)\n";
+    fprintf w "                     - Server                        {s,S,Server}\n";
+    fprintf w "                     - Both                          {m,M,MITM}\n";
+    fprintf w "  -k --kex      : []  Key exchange\n";               
+    fprintf w "                     - RSA                           {r,rsa,RSA}   (default)\n";
+    fprintf w "                     - DHE                           {dh,dhe,DHE}\n";
+    fprintf w "                     - ECDHE                         {ec,ecdhe,ECDHE}\n";
 //    printf "  -pv     : [] Protocol version minimum\n";
 //    printf "                - SSL 3.0 : {30,ssl3,SSL3}\n";
 //    printf "                - TLS 1.0 : {10,tls10,TLS10}\n";
@@ -114,13 +115,13 @@ let flexhelp w =
 //    printf "                - TLS 1.2 : {12,tls12,TLS12}         (default)\n";
 //    printf "                - TLS 1.3 : {13,tls13,TLS13}\n";
 //    printf "  -cipher : [] Specify a ciphersuite\n";
-    fprintf w "  --connect  : [] Connect to address (or domain) and port _        (default : localhost:443)\n";
-    fprintf w "  --client-cert : [] Certificate CN to use if Client _     (default : rsa.cert-02.mitls.org)\n";
-    fprintf w "  --accept  : [] accept address (or domain) and port _      (default : localhost:4433)\n";
-    fprintf w "  --server-cert : [] Certificate CN to use if Server       (default : rsa.cert-01.mitls.org)\n";
+    fprintf w "  --connect     : [] Connect to address (or domain) and port _  (default : localhost:443)\n";
+    fprintf w "  --client-cert : [] Certificate CN to use if Client _          (default : rsa.cert-02.mitls.org)\n";
+    fprintf w "  --accept      : [] accept address (or domain) and port _      (default : localhost:4433)\n";
+    fprintf w "  --server-cert : [] Certificate CN to use if Server            (default : rsa.cert-01.mitls.org)\n";
     fprintf w "  --client-auth :    Request client authentication\n";
-    fprintf w "  --resume  :    Resume after full handshake\n";
-    fprintf w "  --renego  :    Renegotiate after full handshake\n";
+    fprintf w "  --resume      :    Resume after full handshake\n";
+    fprintf w "  --renego      :    Renegotiate after full handshake\n";
 //    fprintf w "  -t --timeout : [] Timeout for TCP connections           (default : 7500ms)\n";
 //    printf "  -tests  :    Run self unit testing\n";
 //    printf "\n";
