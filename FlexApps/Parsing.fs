@@ -247,16 +247,16 @@ type Parsing =
             | [] -> flexhelp stderr; eprintf "ERROR : key exchange not provided\n"; None
             )
 
-        | "-t"::t
-        | "--timeout"::t ->
-            (match t with
-            | tout::tt ->
-                (match System.Int32.TryParse tout with
-                | true,tout when tout > 0 -> Parsing.innerParseCommandLineOpts {parsedArgs with timeout = Some(tout)} tt
-                | true,tout -> flexhelp stderr; eprintf "ERROR : invalid timeout provided: %d\n" tout; None
-                | false,_ -> flexhelp stderr; eprintf "ERROR : invalid timeout provided: %s\n" tout; None)
-            | [] -> flexhelp stderr; eprintf "ERROR : timeout not provided\n"; None
-            )
+ //       | "-t"::t
+ //       | "--timeout"::t ->
+ //           (match t with
+ //           | tout::tt ->
+ //               (match System.Int32.TryParse tout with
+ //               | true,tout when tout > 0 -> Parsing.innerParseCommandLineOpts {parsedArgs with timeout = Some(tout)} tt
+ //               | true,tout -> flexhelp stderr; eprintf "ERROR : invalid timeout provided: %d\n" tout; None
+ //               | false,_ -> flexhelp stderr; eprintf "ERROR : invalid timeout provided: %s\n" tout; None)
+ //           | [] -> flexhelp stderr; eprintf "ERROR : timeout not provided\n"; None
+ //           )
 
         // Info on the program
         | "--version"::t -> flexinfo stdout; None
