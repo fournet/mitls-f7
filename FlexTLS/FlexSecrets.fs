@@ -70,7 +70,12 @@ type FlexSecrets =
         let pms =
             let eb = empty_bytes in
             PMS.DHPMS(eb,eb,eb,eb,apms) in
-        let ams = KEF.extract si pms in
+        let ams =
+            if si.extensions.ne_extended_ms then
+                KEF.extract_extended si pms
+            else
+                KEF.extract si pms
+        in
         PRF.leak (msi si) ams
 
     /// <summary>
