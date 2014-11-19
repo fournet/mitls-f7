@@ -24,38 +24,38 @@ type CommandLineOpts = {
     scenario      : option<ScenarioOpt>;
     role          : option<RoleOpt>;
     kex           : option<KeyExchangeOpt>;
-    connect_addr  : option<string>;
-    connect_port  : option<int>;
-    connect_cert  : option<string>;
-    listen_addr   : option<string>;
-    listen_port   : option<int>;
-    listen_cert   : option<string>;
-    cert_req      : option<bool>;
-    min_pv        : option<ProtocolVersion>;
-    resume        : option<bool>;
-    renego        : option<bool>;
-    timeout       : option<int>;
-    testing       : option<bool>;
-    verbosity     : option<LogLevelOpt>;
+    connect_addr  : string;
+    connect_port  : int;
+    connect_cert  : string;
+    listen_addr   : string;
+    listen_port   : int;
+    listen_cert   : string;
+    cert_req      : bool;
+    min_pv        : ProtocolVersion;
+    resume        : bool;
+    renego        : bool;
+    timeout       : int;
+    testing       : bool;
+    verbosity     : LogLevelOpt;
 }
 
 let nullOpts = {
     scenario = None;
     role = None;
     kex = None;
-    connect_addr = None;
-    connect_port = None;
-    connect_cert = None;
-    listen_addr = None;
-    listen_port = None;
-    listen_cert = None;
-    cert_req = None;
-    min_pv = None;
-    resume = None;
-    renego = None;
-    timeout = None;
-    testing = None;
-    verbosity = None;
+    connect_addr = "localhost";
+    connect_port = 443;
+    connect_cert = "rsa.cert-02.mitls.org";
+    listen_addr = "localhost";
+    listen_port = 4433;
+    listen_cert = "rsa.cert-01.mitls.org";
+    cert_req = false;
+    min_pv = TLS_1p2;
+    resume = false;
+    renego = false;
+    timeout = 7500;
+    testing = false;
+    verbosity = LogLevelInfo;
 }
 
 let stdout = System.Console.Out
@@ -198,7 +198,7 @@ type Parsing =
                 else
                     (let a,p = addra.[0],addra.[1] in
                     match System.Int32.TryParse p with
-                    | true,p when p>0 -> Parsing.innerParseCommandLineOpts {parsedArgs with connect_addr = Some(a); connect_port = Some(p)} tt
+                    | true,p when p>0 -> Parsing.innerParseCommandLineOpts {parsedArgs with connect_addr = a; connect_port =  p} tt
                     | true,p -> flexhelp stderr; eprintf "ERROR : invalid connect port provided: %d\n" p; None
                     | false,_ -> flexhelp stderr; eprintf "ERROR : invalid connect port provided: %s\n" p; None)
             | [] -> flexhelp stderr; eprintf "ERROR : accept connect not provided\n"; None
@@ -206,7 +206,7 @@ type Parsing =
 
         | "--client-cert"::t ->
             (match t with
-            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true); connect_cert = Some(cn)} tt
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = true; connect_cert = cn} tt
             | _ -> flexhelp stderr; eprintf "ERROR : no client common name provided\n"; None
             )
 
@@ -219,7 +219,7 @@ type Parsing =
                 else
                     (let a,p = addra.[0],addra.[1] in
                     match System.Int32.TryParse p with
-                    | true,p when p>0 -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_addr = Some(a); listen_port = Some(p)} tt
+                    | true,p when p>0 -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_addr = a; listen_port = p} tt
                     | true,p -> flexhelp stderr; eprintf "ERROR : invalid accept port provided: %d\n" p; None
                     | false,_ -> flexhelp stderr; eprintf "ERROR : invalid accept port provided: %s\n" p; None)
             | [] -> flexhelp stderr; eprintf "ERROR : accept address not provided\n"; None
@@ -227,15 +227,15 @@ type Parsing =
 
         | "--server-cert"::t ->
             (match t with
-            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true); listen_cert = Some(cn)} tt
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = true; listen_cert = cn} tt
             | [] -> flexhelp stderr; eprintf "ERROR : server common name not provided\n"; None
             )
 
-        | "--client-auth"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = Some(true)} t
+        | "--client-auth"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = true} t
         
-        | "--resume"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with resume = Some(true)} t
+        | "--resume"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with resume = true} t
         
-        | "--renego"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with renego = Some(true)} t
+        | "--renego"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with renego = true} t
 
         | "-k"::t
         | "--kex"::t ->
