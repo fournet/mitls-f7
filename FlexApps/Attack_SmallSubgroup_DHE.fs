@@ -119,7 +119,6 @@ type Attack_SmallSubgroup_DHE =
 
             // Start encrypting
             let st           = FlexState.installWriteKeys st nsc in
-            let log          = fch.payload @| fsh.payload @| fcert.payload @| fske.payload @| fshd.payload @| fcke.payload in
         
             // Send encrypted Finished message, if the server answers with a CCS message, our pms guess 
             // is correct with overwhelming probability

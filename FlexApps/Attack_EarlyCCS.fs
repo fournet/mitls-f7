@@ -59,14 +59,12 @@ type Attack_EarlyCCS =
         // We continue the usual handshake procedure
         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,{nscAtt with keys = FlexConstants.nullKeys},fch) in
         
-        let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload  @| fcke.payload in
         let st,ffC       = FlexFinished.send(st,nsc,role=Client) in
         let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nscAtt in
 
-        let log          = log @| ffC.payload in
         let st,ffS       = FlexFinished.receive(st,nsc,Server) in
         st
 

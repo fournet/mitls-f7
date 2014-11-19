@@ -69,7 +69,6 @@ type Handshake_resumption =
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let log          = fch.payload @| fsh.payload in
         let st,ffS       = FlexFinished.receive(st,nsc,Server) in
 
          let st,_         = FlexCCS.send(st) in
@@ -77,7 +76,6 @@ type Handshake_resumption =
         // Start encrypting
         let st           = FlexState.installWriteKeys st nsc in
 
-        let log          = log @| ffS.payload in
         let st,ffC       = FlexFinished.send(st,nsc,Client) in
         st
 
@@ -114,16 +112,13 @@ type Handshake_resumption =
         // Start encrypting
         let st           = FlexState.installWriteKeys st nsc in
 
-        let log          = fch.payload @| fsh.payload in
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-        let st,ffS       = FlexFinished.send(st,verify_data) in
+        let st,ffS       = FlexFinished.send(st,nsc,Server) in
 
          let st,_,_      = FlexCCS.receive(st) in
             
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
-        let log          = log @| ffS.payload in
         let st,ffC       = FlexFinished.receive(st,nsc,Client) in
         st
 

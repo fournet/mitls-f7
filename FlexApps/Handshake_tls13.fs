@@ -55,17 +55,14 @@ type Handshake_tls13 =
         let st           = FlexState.installReadKeys st nsc in
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
 
-        let log = fch.payload @| fcks.payload @| fsh.payload @| fsks.payload @| fcert.payload in
         let st,scertv    = FlexCertificateVerify.receive(st,nsc,FlexConstants.sigAlgs_ALL) in
         
-        let log = log @| scertv.payload in
         let st,ffS       = FlexFinished.receive(st,nsc,Server) in
         
         // We advertize that we will encrypt the traffic
         let st,_         = FlexCCS.send(st) in
         let st           = FlexState.installWriteKeys st nsc in
         
-        let log          = log @| ffS.payload in    
         let st,ffC       = FlexFinished.send(st,nsc,Client) in
         st
 
@@ -100,18 +97,14 @@ type Handshake_tls13 =
         let st           = FlexState.installWriteKeys st nsc in
         let st,nsc,fcert = FlexCertificate.send(st,Server,chain,nsc) in
 
-        let log = fch.payload @| fcke.payload @| fsh.payload @| fske.payload @| fcert.payload in
         let st,scertv    = FlexCertificateVerify.send(st,nsc.si,sigAlg,skey) in
 
-        let log = log @| scertv.payload in        
-        let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server log in
-        let st,ffS       = FlexFinished.send(st,verify_data) in
+        let st,ffS       = FlexFinished.send(st,nsc,Server) in
         
         // Peer advertize that it will encrypt the traffic
         let st,_,_       = FlexCCS.receive(st) in
         let st           = FlexState.installReadKeys st nsc in
         
-        let log          = log @| ffS.payload in    
         let st,ffC       = FlexFinished.send(st,nsc,Client) in
         st
 

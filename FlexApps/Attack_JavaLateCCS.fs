@@ -53,10 +53,8 @@ type LateCCS =
             let fsh = { FlexConstants.nullFServerHello with 
                 ciphersuite = Some(TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
             let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc,fsh) in
-            let log         = fch.payload @| fsh.payload in
             let st, nsc, fc = FlexCertificate.send(st, Server, chain, nsc) in
-            let log = log @| fc.payload in
-            let verify_data = FlexSecrets.makeVerifyData nsc.si (abytes [||]) Server log in
+            let verify_data = FlexSecrets.makeVerifyData nsc.si (abytes [||]) Server st.hs_log in
         
             let st,fin = FlexFinished.send(st,verify_data=verify_data) in
 //            let st, req = FlexAppData.receive(st) in
