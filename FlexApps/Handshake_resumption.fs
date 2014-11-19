@@ -70,7 +70,7 @@ type Handshake_resumption =
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = fch.payload @| fsh.payload in
-        let st,ffS       = FlexFinished.receive(st,nsc,(log,Server)) in
+        let st,ffS       = FlexFinished.receive(st,nsc,Server) in
 
          let st,_         = FlexCCS.send(st) in
             
@@ -78,7 +78,7 @@ type Handshake_resumption =
         let st           = FlexState.installWriteKeys st nsc in
 
         let log          = log @| ffS.payload in
-        let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
+        let st,ffC       = FlexFinished.send(st,nsc,Client) in
         st
 
 //
@@ -124,7 +124,7 @@ type Handshake_resumption =
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = log @| ffS.payload in
-        let st,ffC       = FlexFinished.receive(st,nsc,logRole=(log,Client)) in
+        let st,ffC       = FlexFinished.receive(st,nsc,Client) in
         st
 
     end

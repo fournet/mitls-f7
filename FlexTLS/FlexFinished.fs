@@ -30,12 +30,12 @@ type FlexFinished =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="nsc"> NextSecurityContext embedding required parameters </param>
-    /// <param name="logRole"> Optional log, role used to compute an eventual verify data </param>
+    /// <param name="role"> Optional role used to compute an eventual verify data </param>
     /// <returns> Updated state * FFinished message record </returns>
-    static member receive (st:state, nsc:nextSecurityContext, ?logRole:bytes*Role) : state * FFinished = 
-        match logRole with
-        | Some(log,role) -> 
-            FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite,verify_data=(FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log))
+    static member receive (st:state, nsc:nextSecurityContext, ?role:Role) : state * FFinished = 
+        match role with
+        | Some(role) -> 
+            FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite,verify_data=(FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role st.hs_log))
         | None -> 
             FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite)
         
@@ -108,14 +108,12 @@ type FlexFinished =
     /// Send a Finished message from the verify_data and send it to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="logRole"> Log the role necessary to compute the verify data </param>
+    /// <param name="role"> Role necessary to compute the verify data </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FFinished message record </returns>
-    static member send (st:state, nsc:nextSecurityContext, logRole:bytes * Role, ?fp:fragmentationPolicy) : state * FFinished =     
+    static member send (st:state, nsc:nextSecurityContext, role:Role, ?fp:fragmentationPolicy) : state * FFinished =     
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let verify_data =
-            let (log,role) = logRole in FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role log
-        in
+        let verify_data =FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role st.hs_log in
         FlexFinished.send (st,verify_data,fp)
 
 

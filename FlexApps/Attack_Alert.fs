@@ -54,14 +54,14 @@ type Attack_Alert =
         let st           = FlexState.installWriteKeys st nsc in
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
             
-        let st,cff       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
+        let st,cff       = FlexFinished.send(st,nsc,role=Client) in
         let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
         let log = log @| cff.payload in
-        let st,sff       = FlexFinished.receive(st,nsc,(log,Server)) in
+        let st,sff       = FlexFinished.receive(st,nsc,Server) in
 
 
         // RSA handshake is over. Send some plaintext

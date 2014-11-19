@@ -52,14 +52,14 @@ type Attack_FragmentClientHello =
         let st           = FlexState.installWriteKeys st nsc in
         
         let log          = fch.payload @| fsh.payload @| fcert.payload @| fshd.payload @| fcke.payload in
-        let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
+        let st,ffC       = FlexFinished.send(st,nsc,Client) in
         let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = log @| ffC.payload in
-        let st,ffS       = FlexFinished.receive(st,nsc,(log,Server)) in
+        let st,ffS       = FlexFinished.receive(st,nsc,Server) in
         st
 
     static member runMITM (accept, server_name:string, ?port:int) : state * state =

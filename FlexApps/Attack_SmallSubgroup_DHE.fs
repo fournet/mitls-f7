@@ -123,7 +123,7 @@ type Attack_SmallSubgroup_DHE =
         
             // Send encrypted Finished message, if the server answers with a CCS message, our pms guess 
             // is correct with overwhelming probability
-            let st,ffC       = FlexFinished.send(st,nsc,logRole=(log,Client)) in
+            let st,ffC       = FlexFinished.send(st,nsc,Client) in
             try 
                 let st,_,_   = FlexCCS.receive(st) in
                 printfn "y == %4d mod %s" z (q.ToString());

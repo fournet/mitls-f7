@@ -29,11 +29,10 @@ type FlexCertificateVerify =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="nsc"> Next security context to be updated </param>
     /// <param name="fcreq"> FCertificateRequest previously used in the handshake that contains allowed signature and hash algorithms </param>
-    /// <param name="log"> Optional log that will be verified if provided </param>
     /// <returns> Updated state * Certificate Verify message </returns>
-    static member receive (st:state, nsc:nextSecurityContext, fcreq:FCertificateRequest, ?log:bytes) : state * FCertificateVerify =
-        let log = defaultArg log empty_bytes in 
-        FlexCertificateVerify.receive(st,nsc,fcreq.sigAlgs,log)
+    static member receive (st:state, nsc:nextSecurityContext, fcreq:FCertificateRequest, ?check_log:bool) : state * FCertificateVerify =
+        let checkLog = defaultArg check_log true in
+        FlexCertificateVerify.receive(st,nsc,fcreq.sigAlgs,checkLog)
 
     /// <summary>
     /// Overload : Receive a CertificateVerify message from the network stream and check the log on demand
@@ -41,11 +40,10 @@ type FlexCertificateVerify =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="nsc"> Next security context to be updated </param>
     /// <param name="algs"> Signature and hash algorithms allowed and usually provided by a Certificate Request </param>
-    /// <param name="log"> Optional log that will be verified if provided </param>
     /// <returns> Updated state * Certificate Verify message </returns>
-    static member receive (st:state, nsc:nextSecurityContext, algs:list<Sig.alg>, ?log:bytes) : state * FCertificateVerify =
-        let log = defaultArg log empty_bytes in 
-        FlexCertificateVerify.receive(st,nsc.si,algs,log,nsc.keys.ms)
+    static member receive (st:state, nsc:nextSecurityContext, algs:list<Sig.alg>, ?check_log:bool) : state * FCertificateVerify =
+        let checkLog = defaultArg check_log true in
+        FlexCertificateVerify.receive(st,nsc.si,algs,check_log=checkLog,ms=nsc.keys.ms)
 
     /// <summary>
     /// Receive a CertificateVerify message from the network stream and check the log on demand
@@ -53,16 +51,12 @@ type FlexCertificateVerify =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="si"> Session info being negociated in the next security context </param>
     /// <param name="algs"> Signature and hash algorithms allowed and usually provided by a Certificate Request </param>
-    /// <param name="log"> Optional log that will be verified if provided </param>
     /// <param name="ms"> Optional master secret that has to be provided to check the log if protocol version is SSL3 </param>
     /// <returns> Updated state * Certificate Verify message </returns>
-    static member receive (st:state, si:SessionInfo, algs:list<Sig.alg>, ?log:bytes, ?ms:bytes) : state * FCertificateVerify =
+    static member receive (st:state, si:SessionInfo, algs:list<Sig.alg>, ?check_log:bool, ?ms:bytes) : state * FCertificateVerify =
         LogManager.GetLogger("file").Info("# CERTIFICATE VERIFY : FlexCertificateVerify.receive");
         let ms = defaultArg ms empty_bytes in
-        let log = defaultArg log empty_bytes in 
-        let checkLog = 
-            if not (log = empty_bytes) then true else false
-        in
+        let checkLog = defaultArg check_log true in
             
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
@@ -76,7 +70,7 @@ type FlexCertificateVerify =
                             (match Cert.get_chain_public_signing_key si.serverID alg with
                             | Error(ad,x) -> failwith x
                             | Correct(vkey) ->
-                                if Sig.verify alg vkey log signature then
+                                if Sig.verify alg vkey st.hs_log signature then
                                     (alg,signature)
                                 else
                                     failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
@@ -84,7 +78,7 @@ type FlexCertificateVerify =
                             (match Cert.get_chain_public_signing_key si.clientID alg with
                             | Error(ad,x) -> failwith x
                             | Correct(vkey) ->
-                                if Sig.verify alg vkey log signature then
+                                if Sig.verify alg vkey st.hs_log signature then
                                     (alg,signature)
                                 else
                                     failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
@@ -97,7 +91,7 @@ type FlexCertificateVerify =
                             in
                             let (sigAlg,_) = alg in
                             let alg = (sigAlg,NULL) in
-                            let expected = PRF.ssl_certificate_verify si ms sigAlg log in
+                            let expected = PRF.ssl_certificate_verify si ms sigAlg st.hs_log in
                             (match Cert.get_chain_public_signing_key si.clientID alg with
                             | Error(ad,x) -> failwith x
                             | Correct(vkey) ->
@@ -145,23 +139,21 @@ type FlexCertificateVerify =
     /// Overload : Send a CertificateVerify (signature over the current log) message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="log"> Log of the current handshake </param>
     /// <param name="si"> Session info being negociated in the next security context </param>
     /// <param name="alg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
     /// <param name="skey"> Signature secret key associated to the algorithm </param>
     /// <param name="ms"> Optional master secret that has to be provided to compute the log if protocol version is SSL3 </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Certificate Verify message </returns>
-    static member send (st:state, log:bytes, si:SessionInfo, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =
+    static member send (st:state, si:SessionInfo, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ms = defaultArg ms empty_bytes in
-        FlexCertificateVerify.send(st,log,si.cipher_suite,si.protocol_version,alg,skey,ms,fp)
+        FlexCertificateVerify.send(st,si.cipher_suite,si.protocol_version,alg,skey,ms,fp)
 
     /// <summary>
     /// Send a CertificateVerify (signature over the current log) message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="log"> Log of the current handshake </param>
     /// <param name="cs"> Ciphersuite of the current Handshake </param>
     /// <param name="pv"> Protocol version of the current Handshake </param>
     /// <param name="alg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
@@ -169,12 +161,12 @@ type FlexCertificateVerify =
     /// <param name="ms"> Optional master secret that has to be provided to compute the log if protocol version is SSL3 </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Certificate Verify message </returns>
-    static member send (st:state, log:bytes, cs:cipherSuite, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =
+    static member send (st:state, cs:cipherSuite, pv:ProtocolVersion, alg:Sig.alg, skey:Sig.skey, ?ms:bytes, ?fp:fragmentationPolicy) : state * FCertificateVerify =
         LogManager.GetLogger("file").Info("# CERTIFICATE VERIFY : FlexCertificateVerify.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let ms = defaultArg ms empty_bytes in
 
-        let fcver = FlexCertificateVerify.prepare(log,cs,pv,alg,skey,ms) in
+        let fcver = FlexCertificateVerify.prepare(st.hs_log,cs,pv,alg,skey,ms) in
         let st = FlexHandshake.send (st,fcver.payload,fp) in
         st,fcver 
 

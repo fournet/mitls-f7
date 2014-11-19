@@ -90,14 +90,14 @@ type Attack_EarlyResume =
         let log          = fch.payload @| shb
                            //@| stickb
         in
-        let st,ffS       = FlexFinished.send(st,nsc,logRole=(log,Server)) in
+        let st,ffS       = FlexFinished.send(st,nsc,role=Server) in
         let st,_,_       = FlexCCS.receive(st) in
 
         // Start decrypting
         let st           = FlexState.installReadKeys st nsc in
 
         let log          = log @| ffS.payload in
-        let st,ffC       = FlexFinished.receive(st,nsc,(log,Client)) in
+        let st,ffC       = FlexFinished.receive(st,nsc,Client) in
         st
 
     end
