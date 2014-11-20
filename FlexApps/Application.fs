@@ -24,7 +24,7 @@ open Handshake_full_DHE
 open Handshake_resumption
 open Handshake_tls13
 open Metrics_DHE
-open TraceInterpreter
+open SmackTLS
 
 
 // This script will run in Debug mode
@@ -40,7 +40,7 @@ let runRelease argv =
     let args = argv |> List.ofSeq in 
     
     // Parse command line arguments
-    match Parsing.innerParseCommandLineOpts nullOpts args with
+    match Parsing.innerParseCommandLineOpts defaultOpts args with
     | None -> false
     | Some(opts) ->
     
@@ -82,8 +82,8 @@ let runRelease argv =
             else
                 let st = Handshake_full_DHE.server(opts.listen_addr,opts.listen_cert,opts.listen_port) in true
 
-        | _,Some(KeyExchangeECDHE) -> printf "\n"; eprintf "ERROR : ECDHE not supported yet...\n"; false
-        | Some(RoleMITM),_ -> printf "\n"; eprintf "ERROR : No Full Handshake scenario as MITM...\n"; false
+        | _,Some(KeyExchangeECDHE) -> eprintf "\nERROR: ECDHE not supported yet\n"; false
+        | Some(RoleMITM),_ -> eprintf "\nERROR: No Full Handshake scenario as MITM\n"; false
         )
 
 //                if resume then
@@ -97,11 +97,11 @@ let runRelease argv =
 //                else
 
     // Trace Interpreter
-    | Some(TraceInterpreter) ->
+    | Some(SmackTLS) ->
         (match opts.role with
-        | Some(RoleClient) | None -> let _ = TraceInterpreter.runClients opts.connect_addr opts.connect_port opts.connect_cert opts.cert_req in true
-        | Some(RoleServer) -> let _ = TraceInterpreter.runServers opts.listen_port opts.listen_cert opts.cert_req in true
-        | Some(RoleMITM) -> printf "\n"; eprintf "ROLE MITM\n"; false )
+        | Some(RoleClient) | None -> let _ = SmackTLS.runClients opts.connect_addr opts.connect_port opts.connect_cert opts.cert_req in true
+        | Some(RoleServer) -> let _ = SmackTLS.runServers opts.listen_port opts.listen_cert opts.cert_req in true
+        | Some(RoleMITM) -> eprintf "\nERROR: MITM role not implemented for SmackTLS\n"; false )
 
     // Attacks
     | Some (FragmentedClientHello) -> 

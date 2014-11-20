@@ -6,8 +6,8 @@ open TLSConstants
 
 type ScenarioOpt    = // Normal
                       | FullHandshake 
-                      // TraceIN
-                      | TraceInterpreter
+                      // SmackTLS
+                      | SmackTLS
                       // Metrics
                       | DHParams
                       // Attacks
@@ -39,7 +39,7 @@ type CommandLineOpts = {
     verbosity     : LogLevelOpt;
 }
 
-let nullOpts = {
+let defaultOpts = {
     scenario = None;
     role = None;
     kex = None;
@@ -81,11 +81,11 @@ let flexinfo w =
 let flexhelp w = 
     flexbanner w;
     fprintf w "  -h --help     :    This help message\n";
-    fprintf w "  -v --version  :    Infos about this software\n";
+    fprintf w "  --version     :    Infos about this software\n";
     fprintf w "\n";
     fprintf w "  -s --scenario : *  Scenario to execute\n";
     fprintf w "                     - Full Handshake                {fh}\n";
-    fprintf w "                     - Trace Interpreter             {ti,traceinterpreter}\n";
+    fprintf w "                     - SmackTLS                      {smacktls}\n";
     fprintf w "                     - Metrics\n";                   
     fprintf w "                         DH Parameters               {dhp,dhparams}\n";
     fprintf w "                     - Attacks\n";                   
@@ -115,10 +115,10 @@ let flexhelp w =
 //    printf "                - TLS 1.2 : {12,tls12,TLS12}         (default)\n";
 //    printf "                - TLS 1.3 : {13,tls13,TLS13}\n";
 //    printf "  -cipher : [] Specify a ciphersuite\n";
-    fprintf w "  --connect     : [] Connect to address (or domain) and port _  (default : localhost:443)\n";
-    fprintf w "  --client-cert : [] Certificate CN to use if Client _          (default : rsa.cert-02.mitls.org)\n";
-    fprintf w "  --accept      : [] accept address (or domain) and port _      (default : localhost:4433)\n";
-    fprintf w "  --server-cert : [] Certificate CN to use if Server            (default : rsa.cert-01.mitls.org)\n";
+    fprintf w "  --connect     : [] Connect to address (or domain) and port    (default : %s:%d)\n" defaultOpts.connect_addr defaultOpts.connect_port;
+    fprintf w "  --client-cert : [] Certificate CN to use if Client            (default : %s)\n" defaultOpts.connect_cert;
+    fprintf w "  --accept      : [] accept address (or domain) and port        (default : %s:%d)\n" defaultOpts.listen_addr defaultOpts.listen_port;
+    fprintf w "  --server-cert : [] Certificate CN to use if Server            (default : %s)\n" defaultOpts.listen_cert;
     fprintf w "  --client-auth :    Request client authentication\n";
     fprintf w "  --resume      :    Resume after full handshake\n";
     fprintf w "  --renego      :    Renegotiate after full handshake\n";
@@ -155,8 +155,8 @@ type Parsing =
             (match t with
             | "fullhandshake"::tt | "fh"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FullHandshake)} tt
-            | "traceinterpreter"::tt | "traces"::tt | "ti"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TraceInterpreter)} tt
+            | "smacktls"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(SmackTLS)} tt
             | "dhparams"::tt | "dhp"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(DHParams)} tt
             | "malformedalert"::tt | "mal"::tt ->

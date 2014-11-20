@@ -1,4 +1,4 @@
-module TraceInterpreter
+module SmackTLS
 open FlexTLS
 open FlexTypes
 open FlexConstants
