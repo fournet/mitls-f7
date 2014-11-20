@@ -56,7 +56,7 @@ type FlexCertificateVerify =
     static member receive (st:state, si:SessionInfo, algs:list<Sig.alg>, ?check_log:bool, ?ms:bytes) : state * FCertificateVerify =
         LogManager.GetLogger("file").Info("# CERTIFICATE VERIFY : FlexCertificateVerify.receive");
         let ms = defaultArg ms empty_bytes in
-        let checkLog = defaultArg check_log true in
+        let checkLog = if (defaultArg check_log true) then Some(st.hs_log) else None in
             
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
@@ -64,13 +64,14 @@ type FlexCertificateVerify =
             let alg,signature =    
                 match parseDigitallySigned algs payload si.protocol_version with
                 | Correct(alg,signature) ->
-                    if checkLog then
+                    (match checkLog with
+                    | Some(expected) ->
                         (match si.protocol_version with
                         | TLS_1p3 ->
                             (match Cert.get_chain_public_signing_key si.serverID alg with
                             | Error(ad,x) -> failwith x
                             | Correct(vkey) ->
-                                if Sig.verify alg vkey st.hs_log signature then
+                                if Sig.verify alg vkey expected signature then
                                     (alg,signature)
                                 else
                                     failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
@@ -78,7 +79,7 @@ type FlexCertificateVerify =
                             (match Cert.get_chain_public_signing_key si.clientID alg with
                             | Error(ad,x) -> failwith x
                             | Correct(vkey) ->
-                                if Sig.verify alg vkey st.hs_log signature then
+                                if Sig.verify alg vkey expected signature then
                                     (alg,signature)
                                 else
                                     failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
@@ -91,7 +92,7 @@ type FlexCertificateVerify =
                             in
                             let (sigAlg,_) = alg in
                             let alg = (sigAlg,NULL) in
-                            let expected = PRF.ssl_certificate_verify si ms sigAlg st.hs_log in
+                            let expected = PRF.ssl_certificate_verify si ms sigAlg expected in
                             (match Cert.get_chain_public_signing_key si.clientID alg with
                             | Error(ad,x) -> failwith x
                             | Correct(vkey) ->
@@ -100,8 +101,8 @@ type FlexCertificateVerify =
                                 else
                                     failwith (perror __SOURCE_FILE__ __LINE__ "Signature does not match !"))
                         )
-                    else
-                        (alg,signature)
+                    | None ->
+                        (alg,signature))
                 | Error(ad,x) -> failwith x
             in
             let fcver : FCertificateVerify = { sigAlg = alg;
