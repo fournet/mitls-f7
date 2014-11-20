@@ -1,9 +1,8 @@
 ﻿module DHDB
 
-open System.IO
-open System.Runtime.Serialization.Formatters.Binary
-
 open Bytes
+
+open Serialization
 
 type Key   = bytes * bytes
 type Value = bytes * bool
@@ -12,30 +11,7 @@ type dhdb = {
     filename: string;
 }
 
-(* ------------------------------------------------------------------------------- *)
-let bytes_of_key (k : Key) : byte[] =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream () in
-    let p, g = k in
-        bf.Serialize(m, (cbytes p, cbytes g)); m.ToArray ()
-
-let key_of_bytes (k : byte[]) : Key =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream(k) in
-    let p, g = bf.Deserialize(m) :?> byte[] * byte[] in
-        (abytes p, abytes g)
-            
-let bytes_of_value (v : Value) : byte[] =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream () in
-    let (q,b) = v in
-        bf.Serialize(m, (cbytes q, b)); m.ToArray ()
-      
-let value_of_bytes (v : byte[]) : Value =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream(v) in
-    let (q,b) = bf.Deserialize(m) :?> byte[] * bool in
-        (abytes q, b)
+let defaultFileName = "dhparams-db.bin"
 
 (* ------------------------------------------------------------------------------- *)
 let create (filename:string) =
@@ -47,7 +23,7 @@ let create (filename:string) =
 
 (* ------------------------------------------------------------------------------- *)
 let remove self key =
-    let key = bytes_of_key key in
+    let key = serialize<Key> key in
   
     let db  = DB.opendb self.filename in
 
@@ -59,11 +35,11 @@ let remove self key =
 
 (* ------------------------------------------------------------------------------- *)
 let select self key =
-    let key = bytes_of_key key in
+    let key = serialize<Key> key in
 
     let select (db : DB.db) =
         DB.get db key
-            |> Option.map value_of_bytes
+            |> Option.map deserialize<Value>
           
     let db = DB.opendb self.filename in
 
@@ -74,12 +50,13 @@ let select self key =
 
 (* ------------------------------------------------------------------------------- *)
 let insert self key v =
-    let key = bytes_of_key key in
+    let key = serialize<Key> key in
+    let v   = serialize<Value> v in
   
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()
-        | None   -> DB.put db key (bytes_of_value v) in
+        | None   -> DB.put db key v in
 
     let db = DB.opendb self.filename in
 
@@ -98,4 +75,13 @@ let keys self =
         finally
             DB.closedb db
     in
-        List.map key_of_bytes aout
+        List.map deserialize<Key> aout
+     
+(* ------------------------------------------------------------------------------- *)
+let merge self db1 =
+    let db = DB.opendb self.filename in
+    
+    try
+        DB.tx db (fun db -> DB.merge db db1); self
+    finally
+        DB.closedb db

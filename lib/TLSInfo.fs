@@ -324,9 +324,9 @@ type config = {
     sessionDBFileName: string;
     sessionDBExpiry: TimeSpan;
 
-	(* DH groups database *)
-	dhDBFileName: string;
-	dhDefaultGroupFileName: string;
+    (* DH groups database *)
+    dhDBFileName: string;
+    dhDefaultGroupFileName: string;
     dhPQMinLength: nat * nat;
     negotiableDHGroups: list<dhGroup>
     }
@@ -358,9 +358,9 @@ let defaultConfig ={
     sessionDBFileName = "sessionDBFile.bin";
     sessionDBExpiry = newTimeSpan 1 0 0 0; (*@ one day, as suggested by the RFC *)
 
-    dhDBFileName = "dhparams-db.bin";
+    dhDBFileName = DHDB.defaultFileName;
     dhDefaultGroupFileName = "default-dh.pem";
-    dhPQMinLength = (1024, 160);
+    dhPQMinLength = CoreDH.defaultPQMinLength;
     negotiableDHGroups = [] // To enable by default use: [DHE2432; DHE3072; DHE4096; DHE6144; DHE8192]
     }
 

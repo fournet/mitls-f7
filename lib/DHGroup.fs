@@ -3,7 +3,6 @@
 module DHGroup
 
 open Bytes
-open CoreKeys
 open Error
 open TLSError
 
@@ -39,7 +38,7 @@ let genElement dhp: elt =
     e
 
 let checkParams dhdb minSize p g =
-    match CoreDH.check_params dhdb minSize p g with
+    match CoreDH.check_params dhdb DHDBManager.defaultDHPrimeConfidence minSize p g with
     | Error(x) -> Error(AD_insufficient_security,x)
     | Correct(res) ->
         let (dhdb,dhp) = res in
@@ -64,7 +63,7 @@ let checkElement dhp (b:bytes): option<elt> =
         None
 
 let defaultDHparams file dhdb minSize =
-    let (dhdb,dhp) = CoreDH.load_default_params file dhdb minSize in
+    let (dhdb,dhp) = DHDBManager.load_default_params file dhdb minSize in
 #if ideal
     let dhp = pp(dhp) in
 #endif
