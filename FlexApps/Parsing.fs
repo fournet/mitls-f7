@@ -228,7 +228,7 @@ type Parsing =
 
         | "--server-cert"::t ->
             (match t with
-            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = true; listen_cert = cn} tt
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with listen_cert = cn} tt
             | [] -> flexhelp stderr; eprintf "ERROR : server common name not provided\n"; None
             )
 
