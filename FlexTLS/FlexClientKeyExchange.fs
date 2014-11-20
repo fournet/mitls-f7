@@ -40,7 +40,18 @@ let defaultKey osk certl =
         | Some(c,sk) -> sk
 
 
-
+/// <summary>
+/// Computes the session hash and installs it in the given session info
+/// </summary>
+/// <param name="si">The current session info</param>
+/// <param name="log">the current log</param>
+/// <returns> The session info with the updated session_hash field </returns>
+let installSessionHash si log =
+    let pv = si.protocol_version in
+    let cs = si.cipher_suite in
+    let alg = sessionHashAlg pv cs in
+    let sh = HASH.hash alg log in
+    {si with session_hash = sh}
 
 /// <summary>
 /// Module receiving, sending and forwarding TLS Client Key Exchange messages.
@@ -75,8 +86,9 @@ type FlexClientKeyExchange =
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk nsc.si.serverID in
         let st,fcke = FlexClientKeyExchange.receiveRSA(st,nsc.si.serverID,pv,checkPV,sk) in
+        let si = installSessionHash nsc.si st.hs_log in
         let epk = {nsc.keys with kex = fcke.kex} in
-        let nsc = {nsc with keys = epk} in
+        let nsc = {nsc with keys = epk; si = si} in
         let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         st,nsc,fcke
 
@@ -179,6 +191,8 @@ type FlexClientKeyExchange =
                 let fcke : FClientKeyExchange = {kex = kex; payload = payload } in
                 payload,st,fcke
 
+    // FIXME: the following sendRSA methods should re-use the above prepareRSA ones, instead of duplicating code.
+
     /// <summary>
     /// Send RSA ClientKeyExchange to the network stream,
     /// compute the PMS, MS, KEYS and update the nextSecurityContext with the protocol version
@@ -212,8 +226,9 @@ type FlexClientKeyExchange =
                     FlexClientKeyExchange.sendRSA(st,nsc.si.serverID,pv,pms,fp)
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "RSA kex expected")
         in
+        let si = installSessionHash nsc.si st.hs_log in
         let epk = {nsc.keys with kex = fcke.kex} in
-        let nsc = {nsc with keys = epk} in
+        let nsc = {nsc with keys = epk; si = si} in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fcke
 
@@ -284,8 +299,9 @@ type FlexClientKeyExchange =
             | _         -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHE")
         in
         let st,fcke = FlexClientKeyExchange.receiveDHE(st,kexdh) in
+        let si = installSessionHash nsc.si st.hs_log in
         let epk = {nsc.keys with kex = fcke.kex} in
-        let nsc = {nsc with keys = epk} in
+        let nsc = {nsc with keys = epk; si = si} in
         let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         st,nsc,fcke
 
@@ -361,8 +377,9 @@ type FlexClientKeyExchange =
             | _         -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHE")
         in
         let st,fcke = FlexClientKeyExchange.sendDHE(st,kexdh,fp) in
+        let si = installSessionHash nsc.si st.hs_log in
         let epk = { nsc.keys with kex = fcke.kex } in
-        let nsc = { nsc with keys = epk } in
+        let nsc = { nsc with keys = epk; si = si } in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fcke
 
