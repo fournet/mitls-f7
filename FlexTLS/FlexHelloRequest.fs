@@ -28,7 +28,9 @@ type FlexHelloRequest =
     /// <returns> Updated state * FHelloRequest message record </returns>
     static member receive (st:state) : state * FHelloRequest = 
         LogManager.GetLogger("file").Info("# HELLO REQUEST : FlexHelloRequest.receive");
+        let old_log = st.hs_log in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
+        let st = {st with hs_log = old_log} in // don't log HelloRequests.
         match hstype with
         | HT_hello_request  ->         
             if length payload <> 0 then
@@ -59,9 +61,11 @@ type FlexHelloRequest =
     static member send (st:state, ?fp:fragmentationPolicy) : state * FHelloRequest =
         LogManager.GetLogger("file").Info("# HELLO REQUEST : FlexHelloRequest.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let old_log = st.hs_log in
 
         let fhr = FlexHelloRequest.prepare() in
         let st = FlexHandshake.send(st,fhr.payload,fp) in
+        let st = {st with hs_log = old_log} in // don't log HelloRequests. FIXME: Doesn't work as expected if the outgoing buffer is not empty!
         st,fhr
 
     end
