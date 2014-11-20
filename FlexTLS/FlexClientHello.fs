@@ -106,6 +106,7 @@ type FlexClientHello =
     static member receive (st:state, ?checkVD:bool) : state * nextSecurityContext * FClientHello =
         LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.receive");
         let checkVD = defaultArg checkVD true in
+        let st = FlexState.resetHandshakeLog st in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_client_hello  ->    
@@ -234,6 +235,7 @@ type FlexClientHello =
     static member send (st:state, pv:ProtocolVersion, css:list<cipherSuiteName>, comps:list<Compression>, crand:bytes, csid:bytes, cExtL:list<clientExtension>, ?fp:fragmentationPolicy) : state * FClientHello =
         LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        let st = FlexState.resetHandshakeLog st in
 
         let fch = FlexClientHello.prepare(pv,css,comps,crand,csid,cExtL) in
         let st = FlexHandshake.send(st,fch.payload,fp) in
