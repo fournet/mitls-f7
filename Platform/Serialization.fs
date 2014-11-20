@@ -1,9 +1,4 @@
-﻿(*
- * Derivative of FifteenBelow.Json (Copyright (c) 2014 15below Ltd)
- * See licenses/FifteenBelow.Json.txt
- *)
-
-module Serialization
+﻿module Serialization
 
 open Bytes
 
@@ -19,6 +14,10 @@ open Newtonsoft.Json.Serialization
 let flags = BindingFlags.NonPublic ||| BindingFlags.Public
 
 
+(*
+ * This module Copyright (c) 2014 15below Ltd
+ * See licenses/FifteenBelow.Json.txt
+ *)
 [<AutoOpen>]
 module internal Reader =
 
@@ -67,7 +66,10 @@ module internal Reader =
             this.Using (sequence.GetEnumerator (),
                 (fun enum -> this.While(enum.MoveNext, this.Delay(fun () -> body enum.Current))))
 
-
+(*
+ * This module Copyright (c) 2014 15below Ltd
+ * See licenses/FifteenBelow.Json.txt
+ *)
 [<AutoOpen>]
 module internal State =
 
@@ -95,6 +97,10 @@ module internal State =
         json { return! (fun x -> func x.Serializer x.Writer.Value) }
 
 
+(*
+ * This module Copyright (c) 2014 15below Ltd
+ * See licenses/FifteenBelow.Json.txt
+ *)
 [<AutoOpen>]
 module internal Common =
 
@@ -161,7 +167,10 @@ module internal Common =
  
             do! write (fun _ w -> w.WriteEndObject ()) }
 
-
+(*
+ * This module Copyright (c) 2014 15below Ltd
+ * See licenses/FifteenBelow.Json.txt
+ *)
 [<AutoOpen>]
 module internal Unions =
 
