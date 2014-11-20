@@ -15,6 +15,9 @@ exception DBError of string
 
 type db = DB of SQLiteConnection
 
+type key = string
+type value = string
+
 let _db_lock = new Object()
 
 module Internal =
@@ -26,7 +29,7 @@ module Internal =
 
     let opendb (filename : string) =
         ((new FileInfo(filename)).Directory).Create()
-        let request = "CREATE TABLE IF NOT EXISTS map(key BLOB PRIMARY KEY, value BLOB NOT NULL)" in
+        let request = "CREATE TABLE IF NOT EXISTS map(key TEXT PRIMARY KEY, value TEXT NOT NULL)" in
         let urn     = String.Format("Data Source={0};Version=3", filename) in
         let db      = new SQLiteConnection(urn) in
             db.Open();
@@ -48,38 +51,36 @@ module Internal =
             ignore (command.ExecuteNonQuery() : int);
             DB db
 
-    let put (DB db : db) (k : byte[]) (v : byte[]) =
+    let put (DB db : db) (k : key) (v : value) =
         let request = "INSERT OR REPLACE INTO map (key, value) VALUES (:k, :v)" in
         use command = db.CreateCommand() in
             command.CommandText <- request;
-            command.Parameters.Add("k", DbType.Binary).Value <- k;
-            command.Parameters.Add("v", DbType.Binary).Value <- v;
+            command.Parameters.Add("k", DbType.String).Value <- k;
+            command.Parameters.Add("v", DbType.String).Value <- v;
             ignore (command.ExecuteNonQuery())
 
-    let get (DB db : db) (k : byte[]) =
+    let get (DB db : db) (k : key) =
         let request = "SELECT value FROM map WHERE key = :k LIMIT 1" in
         use command = db.CreateCommand() in
 
             command.CommandText <- request;
-            command.Parameters.Add("k", DbType.Binary).Value <- k;
+            command.Parameters.Add("k", DbType.String).Value <- k;
 
             let reader  = command.ExecuteReader() in
                 try
                     if reader.Read() then
-                        let len  = reader.GetBytes(0, 0L, null, 0, 0) in
-                        let data = Array.create ((int) len) 0uy in
-                            ignore (reader.GetBytes(0, 0L, data, 0, (int) len) : int64);
-                            Some data
+                        let data = reader.GetString(0) in
+                        Some data
                     else
                         None
                 finally
                     reader.Close()
 
-    let remove (DB db : db) (k : byte[]) =
+    let remove (DB db : db) (k : key) =
         let request = "DELETE FROM map WHERE key = :k" in
         use command = db.CreateCommand() in
             command.CommandText <- request;
-            command.Parameters.Add("k", DbType.Binary).Value <- k;
+            command.Parameters.Add("k", DbType.String).Value <- k;
             command.ExecuteNonQuery() <> 0
 
     let all (DB db : db) =
@@ -93,13 +94,9 @@ module Internal =
 
                 try
                     while reader.Read() do
-                        let klen  = reader.GetBytes(0, 0L, null, 0, 0) in
-                        let vlen  = reader.GetBytes(1, 0L, null, 0, 0) in
-                        let kdata = Array.create ((int) klen) 0uy in
-                        let vdata = Array.create ((int) vlen) 0uy in
-                            ignore (reader.GetBytes(0, 0L, kdata, 0, (int) klen) : int64);
-                            ignore (reader.GetBytes(0, 0L, vdata, 0, (int) vlen) : int64);
-                            aout := (kdata, vdata) :: !aout
+                        let kdata = reader.GetString(0) in
+                        let vdata = reader.GetString(1) in
+                        aout := (kdata, vdata) :: !aout
                     done;
                     !aout
                 finally
@@ -116,10 +113,8 @@ module Internal =
 
                 try
                     while reader.Read() do
-                        let klen  = reader.GetBytes(0, 0L, null, 0, 0) in
-                        let kdata = Array.create ((int) klen) 0uy in
-                            ignore (reader.GetBytes(0, 0L, kdata, 0, (int) klen) : int64);
-                            aout := kdata :: !aout
+                        let kdata = reader.GetString(0) in
+                        aout := kdata :: !aout
                     done;
                     !aout
                 finally
@@ -148,13 +143,13 @@ let closedb (db : db) =
 let attach (db : db) (filename : string) (alias : string) =
     Internal.wrap (fun () -> Internal.attach db filename alias)
 
-let put (db : db) (k : byte[]) (v : byte[]) =
+let put (db : db) (k : key) (v : value) =
     Internal.wrap (fun () -> Internal.put db k v)
 
-let get (db : db) (k : byte[]) =
+let get (db : db) (k : key) =
     Internal.wrap (fun () -> Internal.get db k)
 
-let remove (db : db) (k : byte[]) =
+let remove (db : db) (k : key) =
     Internal.wrap (fun () -> Internal.remove db k)
 
 let all (db : db) =
