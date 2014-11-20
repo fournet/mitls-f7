@@ -70,7 +70,7 @@ type FlexConstants =
     static member sigAlgs_ALL = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL);(SA_DSA, SHA)]
 
     /// <summary> Signature algorithms suitable for RSA ciphersuites </summary>
-    static member sigAlgs_RSA = [(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, SHA);(SA_RSA, NULL)]
+    static member sigAlgs_RSA = [(SA_RSA, SHA);(SA_RSA, SHA256);(SA_RSA, MD5SHA1);(SA_RSA, NULL)]
 
     /// <summary> Redefine TLSConstants ciphersuite name parsing to handle SCSV ciphersuites </summary>
     static member names_of_cipherSuites css =

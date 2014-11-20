@@ -133,6 +133,8 @@ type FlexCertificateVerify =
         let ams = (PRF.coerce (msi si) ms) in
         let payload,tag = HandshakeMessages.makeCertificateVerifyBytes si ams alg skey log in
         let fcver = { sigAlg = alg; signature = tag; payload = payload } in
+        LogManager.GetLogger("file").Info(sprintf "--- Algorithm: %A" fcver.sigAlg);
+        LogManager.GetLogger("file").Info(sprintf "--- Signature: %s" (Bytes.hexString fcver.signature));
         fcver 
 
     /// <summary>
