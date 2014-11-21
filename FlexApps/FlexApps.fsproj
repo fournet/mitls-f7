@@ -74,7 +74,7 @@
     <Compile Include="Attack_EarlyCCS.fs" />
     <Compile Include="Attack_EarlyResume.fs" />
     <Compile Include="Attack_TripleHandshake.fs" />
-    <Compile Include="Attack_JavaLateCCS.fs" />
+    <Compile Include="Attack_JavaEarlyFinished.fs" />
     <Compile Include="Attack_SmallSubgroup_DHE.fs" />
     <Compile Include="SmackTLS.fs" />
     <Compile Include="Handshake_full_alert_RSA.fs" />

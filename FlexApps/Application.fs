@@ -15,7 +15,7 @@ open Attack_Alert
 open Attack_FragmentClientHello
 open Attack_EarlyCCS
 open Attack_EarlyResume
-open Attack_JavaLateCCS
+open Attack_JavaEarlyFinished
 open Attack_TripleHandshake
 open Attack_SmallSubgroup_DHE
 open Handshake_full_RSA
@@ -116,8 +116,8 @@ let runRelease argv =
     | Some (EarlyCCS) ->
         let _ = Attack_EarlyCCS.runMITM(opts.listen_addr,opts.connect_addr,opts.listen_port,opts.connect_port) in true
 
-    | Some (LateCCS) ->
-        let _ = LateCCS.server(opts.listen_addr,opts.listen_port) in true
+    | Some (EarlyFinished) ->
+        let _ = JavaEarlyFinished.server(opts.listen_addr,opts.listen_port) in true
                 
     | Some (TripleHandshake) ->
         let _ = Attack_TripleHandshake.runMITM(opts.listen_addr,opts.listen_cert,opts.listen_port,opts.connect_addr,opts.connect_port) in true

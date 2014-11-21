@@ -12,7 +12,7 @@ type ScenarioOpt    = // Normal
                       | DHParams
                       // Attacks
                       | FragmentedAlert | MalformedAlert | FragmentedClientHello 
-                      | LateCCS | EarlyCCS | TripleHandshake | SmallSubgroup | EarlyResume
+                      | EarlyFinished | EarlyCCS | TripleHandshake | SmallSubgroup | EarlyResume
 
 
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
@@ -168,7 +168,7 @@ type Parsing =
             | "earlyccs"::tt | "eccs"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(EarlyCCS)} tt
             | "earlyfinished"::tt | "efin"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(LateCCS)} tt
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(EarlyFinished)} tt
             | "triplehandshake"::tt | "ths"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TripleHandshake)} tt
             | "smallsubgroup"::tt | "ssg"::tt ->
