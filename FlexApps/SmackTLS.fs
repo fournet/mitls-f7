@@ -46,7 +46,7 @@ no of server web traces = 145
 *)
 let cfuns = ref [];
 
-let tr1 st chain salg skey = 
+let tr1 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -69,7 +69,7 @@ cfuns := (1,tr1)::!cfuns;
 
 
 
-let tr3 st chain salg skey = 
+let tr3 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -89,7 +89,7 @@ let tr3 st chain salg skey =
 cfuns := (3,tr3)::!cfuns;
 
 
-let tr4 st chain salg skey = 
+let tr4 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -108,7 +108,7 @@ let tr4 st chain salg skey =
 cfuns := (4,tr4)::!cfuns;
 
 
-let tr5 st chain salg skey = 
+let tr5 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -128,7 +128,7 @@ let tr5 st chain salg skey =
 cfuns := (5,tr5)::!cfuns;
 
 
-let tr6 st chain salg skey = 
+let tr6 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -149,7 +149,7 @@ let tr6 st chain salg skey =
 cfuns := (6,tr6)::!cfuns;
 
 
-let tr7 st chain salg skey = 
+let tr7 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -170,7 +170,7 @@ let tr7 st chain salg skey =
 cfuns := (7,tr7)::!cfuns;
 
 
-let tr8 st chain salg skey = 
+let tr8 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -192,7 +192,7 @@ let tr8 st chain salg skey =
 cfuns := (8,tr8)::!cfuns;
 
 
-let tr9 st chain salg skey = 
+let tr9 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -214,7 +214,7 @@ let tr9 st chain salg skey =
 cfuns := (9,tr9)::!cfuns;
 
 
-let tr10 st chain salg skey = 
+let tr10 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -237,7 +237,7 @@ let tr10 st chain salg skey =
 cfuns := (10,tr10)::!cfuns;
 
 
-let tr11 st chain salg skey = 
+let tr11 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -256,7 +256,7 @@ let tr11 st chain salg skey =
 cfuns := (11,tr11)::!cfuns;
 
 
-let tr12 st chain salg skey = 
+let tr12 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -276,7 +276,7 @@ let tr12 st chain salg skey =
 cfuns := (12,tr12)::!cfuns;
 
 
-let tr13 st chain salg skey = 
+let tr13 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -296,7 +296,7 @@ let tr13 st chain salg skey =
 cfuns := (13,tr13)::!cfuns;
 
 
-let tr14 st chain salg skey = 
+let tr14 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -317,7 +317,7 @@ let tr14 st chain salg skey =
 cfuns := (14,tr14)::!cfuns;
 
 
-let tr15 st chain salg skey = 
+let tr15 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -338,7 +338,7 @@ let tr15 st chain salg skey =
 cfuns := (15,tr15)::!cfuns;
 
 
-let tr16 st chain salg skey = 
+let tr16 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -386,7 +386,7 @@ cfuns := (16,tr16)::!cfuns;
 
 
 
-let tr30 st chain salg skey = 
+let tr30 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -404,7 +404,7 @@ let tr30 st chain salg skey =
 cfuns := (30,tr30)::!cfuns;
 
 
-let tr31 st chain salg skey = 
+let tr31 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -423,7 +423,7 @@ let tr31 st chain salg skey =
 cfuns := (31,tr31)::!cfuns;
 
 
-let tr32 st chain salg skey = 
+let tr32 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -443,7 +443,7 @@ let tr32 st chain salg skey =
 cfuns := (32,tr32)::!cfuns;
 
 
-let tr33 st chain salg skey = 
+let tr33 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -463,7 +463,7 @@ let tr33 st chain salg skey =
 cfuns := (33,tr33)::!cfuns;
 
 
-let tr34 st chain salg skey = 
+let tr34 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -484,7 +484,7 @@ let tr34 st chain salg skey =
 cfuns := (34,tr34)::!cfuns;
 
 
-let tr35 st chain salg skey = 
+let tr35 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -505,7 +505,7 @@ let tr35 st chain salg skey =
 cfuns := (35,tr35)::!cfuns;
 
 
-let tr36 st chain salg skey = 
+let tr36 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -527,7 +527,7 @@ let tr36 st chain salg skey =
 cfuns := (36,tr36)::!cfuns;
 
 
-let tr37 st chain salg skey = 
+let tr37 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -545,7 +545,7 @@ let tr37 st chain salg skey =
 cfuns := (37,tr37)::!cfuns;
 
 
-let tr38 st chain salg skey = 
+let tr38 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -564,7 +564,7 @@ let tr38 st chain salg skey =
 cfuns := (38,tr38)::!cfuns;
 
 
-let tr39 st chain salg skey = 
+let tr39 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -583,7 +583,7 @@ let tr39 st chain salg skey =
 cfuns := (39,tr39)::!cfuns;
 
 
-let tr40 st chain salg skey = 
+let tr40 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -603,7 +603,7 @@ let tr40 st chain salg skey =
 cfuns := (40,tr40)::!cfuns;
 
 
-let tr41 st chain salg skey = 
+let tr41 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -623,7 +623,7 @@ let tr41 st chain salg skey =
 cfuns := (41,tr41)::!cfuns;
 
 
-let tr42 st chain salg skey = 
+let tr42 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -644,7 +644,7 @@ let tr42 st chain salg skey =
 cfuns := (42,tr42)::!cfuns;
 
 
-let tr43 st chain salg skey = 
+let tr43 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -664,7 +664,7 @@ let tr43 st chain salg skey =
 cfuns := (43,tr43)::!cfuns;
 
 
-let tr44 st chain salg skey = 
+let tr44 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -684,7 +684,7 @@ let tr44 st chain salg skey =
 cfuns := (44,tr44)::!cfuns;
 
 
-let tr45 st chain salg skey = 
+let tr45 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -705,7 +705,7 @@ let tr45 st chain salg skey =
 cfuns := (45,tr45)::!cfuns;
 
 
-let tr46 st chain salg skey = 
+let tr46 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -726,7 +726,7 @@ let tr46 st chain salg skey =
 cfuns := (46,tr46)::!cfuns;
 
 
-let tr47 st chain salg skey = 
+let tr47 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -747,7 +747,7 @@ let tr47 st chain salg skey =
 cfuns := (47,tr47)::!cfuns;
 
 
-let tr48 st chain salg skey = 
+let tr48 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -769,7 +769,7 @@ let tr48 st chain salg skey =
 cfuns := (48,tr48)::!cfuns;
 
 
-let tr49 st chain salg skey = 
+let tr49 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -791,7 +791,7 @@ let tr49 st chain salg skey =
 cfuns := (49,tr49)::!cfuns;
 
 
-let tr50 st chain salg skey = 
+let tr50 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -813,7 +813,7 @@ let tr50 st chain salg skey =
 cfuns := (50,tr50)::!cfuns;
 
 
-let tr51 st chain salg skey = 
+let tr51 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -835,7 +835,7 @@ let tr51 st chain salg skey =
 cfuns := (51,tr51)::!cfuns;
 
 
-let tr52 st chain salg skey = 
+let tr52 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -859,7 +859,7 @@ let tr52 st chain salg skey =
 cfuns := (52,tr52)::!cfuns;
 
 
-let tr53 st chain salg skey = 
+let tr53 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -883,7 +883,7 @@ let tr53 st chain salg skey =
 cfuns := (53,tr53)::!cfuns;
 
 
-let tr54 st chain salg skey = 
+let tr54 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -907,7 +907,7 @@ let tr54 st chain salg skey =
 cfuns := (54,tr54)::!cfuns;
 
 
-let tr55 st chain salg skey = 
+let tr55 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -931,7 +931,7 @@ let tr55 st chain salg skey =
 cfuns := (55,tr55)::!cfuns;
 
 
-let tr56 st chain salg skey = 
+let tr56 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -956,7 +956,7 @@ let tr56 st chain salg skey =
 cfuns := (56,tr56)::!cfuns;
 
 
-let tr57 st chain salg skey = 
+let tr57 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -975,7 +975,7 @@ let tr57 st chain salg skey =
 cfuns := (57,tr57)::!cfuns;
 
 
-let tr58 st chain salg skey = 
+let tr58 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -995,7 +995,7 @@ let tr58 st chain salg skey =
 cfuns := (58,tr58)::!cfuns;
 
 
-let tr59 st chain salg skey = 
+let tr59 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1015,7 +1015,7 @@ let tr59 st chain salg skey =
 cfuns := (59,tr59)::!cfuns;
 
 
-let tr60 st chain salg skey = 
+let tr60 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1036,7 +1036,7 @@ let tr60 st chain salg skey =
 cfuns := (60,tr60)::!cfuns;
 
 
-let tr61 st chain salg skey = 
+let tr61 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1057,7 +1057,7 @@ let tr61 st chain salg skey =
 cfuns := (61,tr61)::!cfuns;
 
 
-let tr62 st chain salg skey = 
+let tr62 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1078,7 +1078,7 @@ let tr62 st chain salg skey =
 cfuns := (62,tr62)::!cfuns;
 
 
-let tr63 st chain salg skey = 
+let tr63 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1101,7 +1101,7 @@ let tr63 st chain salg skey =
 cfuns := (63,tr63)::!cfuns;
 
 
-let tr64 st chain salg skey = 
+let tr64 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1124,7 +1124,7 @@ let tr64 st chain salg skey =
 cfuns := (64,tr64)::!cfuns;
 
 
-let tr65 st chain salg skey = 
+let tr65 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1147,7 +1147,7 @@ let tr65 st chain salg skey =
 cfuns := (65,tr65)::!cfuns;
 
 
-let tr66 st chain salg skey = 
+let tr66 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1219,7 +1219,7 @@ cfuns := (66,tr66)::!cfuns;
 
 
 
-let tr91 st chain salg skey = 
+let tr91 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1238,7 +1238,7 @@ let tr91 st chain salg skey =
 cfuns := (91,tr91)::!cfuns;
 
 
-let tr92 st chain salg skey = 
+let tr92 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1257,7 +1257,7 @@ let tr92 st chain salg skey =
 cfuns := (92,tr92)::!cfuns;
 
 
-let tr93 st chain salg skey = 
+let tr93 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1277,7 +1277,7 @@ let tr93 st chain salg skey =
 cfuns := (93,tr93)::!cfuns;
 
 
-let tr94 st chain salg skey = 
+let tr94 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1297,7 +1297,7 @@ let tr94 st chain salg skey =
 cfuns := (94,tr94)::!cfuns;
 
 
-let tr95 st chain salg skey = 
+let tr95 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1317,7 +1317,7 @@ let tr95 st chain salg skey =
 cfuns := (95,tr95)::!cfuns;
 
 
-let tr96 st chain salg skey = 
+let tr96 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1338,7 +1338,7 @@ let tr96 st chain salg skey =
 cfuns := (96,tr96)::!cfuns;
 
 
-let tr97 st chain salg skey = 
+let tr97 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1359,7 +1359,7 @@ let tr97 st chain salg skey =
 cfuns := (97,tr97)::!cfuns;
 
 
-let tr98 st chain salg skey = 
+let tr98 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1380,7 +1380,7 @@ let tr98 st chain salg skey =
 cfuns := (98,tr98)::!cfuns;
 
 
-let tr99 st chain salg skey = 
+let tr99 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1401,7 +1401,7 @@ let tr99 st chain salg skey =
 cfuns := (99,tr99)::!cfuns;
 
 
-let tr100 st chain salg skey = 
+let tr100 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1424,7 +1424,7 @@ let tr100 st chain salg skey =
 cfuns := (100,tr100)::!cfuns;
 
 
-let tr101 st chain salg skey = 
+let tr101 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1447,7 +1447,7 @@ let tr101 st chain salg skey =
 cfuns := (101,tr101)::!cfuns;
 
 
-let tr102 st chain salg skey = 
+let tr102 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1470,7 +1470,7 @@ let tr102 st chain salg skey =
 cfuns := (102,tr102)::!cfuns;
 
 
-let tr103 st chain salg skey = 
+let tr103 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1493,7 +1493,7 @@ let tr103 st chain salg skey =
 cfuns := (103,tr103)::!cfuns;
 
 
-let tr104 st chain salg skey = 
+let tr104 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1517,7 +1517,7 @@ let tr104 st chain salg skey =
 cfuns := (104,tr104)::!cfuns;
 
 
-let tr105 st chain salg skey = 
+let tr105 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1535,7 +1535,7 @@ let tr105 st chain salg skey =
 cfuns := (105,tr105)::!cfuns;
 
 
-let tr106 st chain salg skey = 
+let tr106 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1554,7 +1554,7 @@ let tr106 st chain salg skey =
 cfuns := (106,tr106)::!cfuns;
 
 
-let tr107 st chain salg skey = 
+let tr107 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1573,7 +1573,7 @@ let tr107 st chain salg skey =
 cfuns := (107,tr107)::!cfuns;
 
 
-let tr108 st chain salg skey = 
+let tr108 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1593,7 +1593,7 @@ let tr108 st chain salg skey =
 cfuns := (108,tr108)::!cfuns;
 
 
-let tr109 st chain salg skey = 
+let tr109 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1613,7 +1613,7 @@ let tr109 st chain salg skey =
 cfuns := (109,tr109)::!cfuns;
 
 
-let tr110 st chain salg skey = 
+let tr110 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1633,7 +1633,7 @@ let tr110 st chain salg skey =
 cfuns := (110,tr110)::!cfuns;
 
 
-let tr111 st chain salg skey = 
+let tr111 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1655,7 +1655,7 @@ let tr111 st chain salg skey =
 cfuns := (111,tr111)::!cfuns;
 
 
-let tr112 st chain salg skey = 
+let tr112 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1677,7 +1677,7 @@ let tr112 st chain salg skey =
 cfuns := (112,tr112)::!cfuns;
 
 
-let tr113 st chain salg skey = 
+let tr113 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1699,7 +1699,7 @@ let tr113 st chain salg skey =
 cfuns := (113,tr113)::!cfuns;
 
 
-let tr114 st chain salg skey = 
+let tr114 st (Some(chain, salg, skey)) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1733,7 +1733,7 @@ cfuns := [];
 
 
 
-let tr118 st chain salg skey = 
+let tr118 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1752,7 +1752,7 @@ let tr118 st chain salg skey =
 cfuns := (118,tr118)::!cfuns;
 
 
-let tr119 st chain salg skey = 
+let tr119 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1771,7 +1771,7 @@ let tr119 st chain salg skey =
 cfuns := (119,tr119)::!cfuns;
 
 
-let tr120 st chain salg skey = 
+let tr120 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1797,7 +1797,7 @@ cfuns := (120,tr120)::!cfuns;
 
 
 
-let tr124 st chain salg skey = 
+let tr124 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1815,7 +1815,7 @@ let tr124 st chain salg skey =
 cfuns := (124,tr124)::!cfuns;
 
 
-let tr125 st chain salg skey = 
+let tr125 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1833,7 +1833,7 @@ let tr125 st chain salg skey =
 cfuns := (125,tr125)::!cfuns;
 
 
-let tr126 st chain salg skey = 
+let tr126 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1870,7 +1870,7 @@ cfuns := (126,tr126)::!cfuns;
 
 
 
-let tr136 st chain salg skey = 
+let tr136 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1888,7 +1888,7 @@ let tr136 st chain salg skey =
 cfuns := (136,tr136)::!cfuns;
 
 
-let tr137 st chain salg skey = 
+let tr137 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1907,7 +1907,7 @@ let tr137 st chain salg skey =
 cfuns := (137,tr137)::!cfuns;
 
 
-let tr138 st chain salg skey = 
+let tr138 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1926,7 +1926,7 @@ let tr138 st chain salg skey =
 cfuns := (138,tr138)::!cfuns;
 
 
-let tr139 st chain salg skey = 
+let tr139 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1947,7 +1947,7 @@ let tr139 st chain salg skey =
 cfuns := (139,tr139)::!cfuns;
 
 
-let tr140 st chain salg skey = 
+let tr140 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -1968,7 +1968,7 @@ let tr140 st chain salg skey =
 cfuns := (140,tr140)::!cfuns;
 
 
-let tr141 st chain salg skey = 
+let tr141 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -2002,7 +2002,7 @@ cfuns := (141,tr141)::!cfuns;
 
 
 
-let tr148 st chain salg skey = 
+let tr148 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -2019,7 +2019,7 @@ let tr148 st chain salg skey =
 cfuns := (148,tr148)::!cfuns;
 
 
-let tr149 st chain salg skey = 
+let tr149 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -2037,7 +2037,7 @@ let tr149 st chain salg skey =
 cfuns := (149,tr149)::!cfuns;
 
 
-let tr150 st chain salg skey = 
+let tr150 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -2055,7 +2055,7 @@ let tr150 st chain salg skey =
 cfuns := (150,tr150)::!cfuns;
 
 
-let tr151 st chain salg skey = 
+let tr151 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -2075,7 +2075,7 @@ let tr151 st chain salg skey =
 cfuns := (151,tr151)::!cfuns;
 
 
-let tr152 st chain salg skey = 
+let tr152 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -2095,7 +2095,7 @@ let tr152 st chain salg skey =
 cfuns := (152,tr152)::!cfuns;
 
 
-let tr153 st chain salg skey = 
+let tr153 st (None) =
   let fch = {FlexConstants.nullFClientHello with pv = Some(TLS_1p0); ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let st,nsc,fsh   =
@@ -2121,7 +2121,7 @@ let nocert_funs = !cfuns
 
 let sfuns = ref [];
 
-let tr154 st chain salg skey rsakey = 
+let tr154 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2145,7 +2145,7 @@ sfuns := (154,tr154)::!sfuns;
 
 
 
-let tr156 st chain salg skey rsakey = 
+let tr156 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2166,7 +2166,7 @@ let tr156 st chain salg skey rsakey =
 sfuns := (156,tr156)::!sfuns;
 
 
-let tr157 st chain salg skey rsakey = 
+let tr157 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2188,7 +2188,7 @@ let tr157 st chain salg skey rsakey =
 sfuns := (157,tr157)::!sfuns;
 
 
-let tr158 st chain salg skey rsakey = 
+let tr158 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2209,7 +2209,7 @@ let tr158 st chain salg skey rsakey =
 sfuns := (158,tr158)::!sfuns;
 
 
-let tr159 st chain salg skey rsakey = 
+let tr159 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2230,7 +2230,7 @@ let tr159 st chain salg skey rsakey =
 sfuns := (159,tr159)::!sfuns;
 
 
-let tr160 st chain salg skey rsakey = 
+let tr160 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2251,7 +2251,7 @@ let tr160 st chain salg skey rsakey =
 sfuns := (160,tr160)::!sfuns;
 
 
-let tr161 st chain salg skey rsakey = 
+let tr161 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2272,7 +2272,7 @@ let tr161 st chain salg skey rsakey =
 sfuns := (161,tr161)::!sfuns;
 
 
-let tr162 st chain salg skey rsakey = 
+let tr162 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2296,7 +2296,7 @@ let tr162 st chain salg skey rsakey =
 sfuns := (162,tr162)::!sfuns;
 
 
-let tr163 st chain salg skey rsakey = 
+let tr163 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2319,7 +2319,7 @@ let tr163 st chain salg skey rsakey =
 sfuns := (163,tr163)::!sfuns;
 
 
-let tr164 st chain salg skey rsakey = 
+let tr164 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2342,7 +2342,7 @@ let tr164 st chain salg skey rsakey =
 sfuns := (164,tr164)::!sfuns;
 
 
-let tr165 st chain salg skey rsakey = 
+let tr165 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2365,7 +2365,7 @@ let tr165 st chain salg skey rsakey =
 sfuns := (165,tr165)::!sfuns;
 
 
-let tr166 st chain salg skey rsakey = 
+let tr166 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2388,7 +2388,7 @@ let tr166 st chain salg skey rsakey =
 sfuns := (166,tr166)::!sfuns;
 
 
-let tr167 st chain salg skey rsakey = 
+let tr167 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2434,7 +2434,7 @@ sfuns := (167,tr167)::!sfuns;
 
 
 
-let tr179 st chain salg skey rsakey = 
+let tr179 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2455,7 +2455,7 @@ let tr179 st chain salg skey rsakey =
 sfuns := (179,tr179)::!sfuns;
 
 
-let tr180 st chain salg skey rsakey = 
+let tr180 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2475,7 +2475,7 @@ let tr180 st chain salg skey rsakey =
 sfuns := (180,tr180)::!sfuns;
 
 
-let tr181 st chain salg skey rsakey = 
+let tr181 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2495,7 +2495,7 @@ let tr181 st chain salg skey rsakey =
 sfuns := (181,tr181)::!sfuns;
 
 
-let tr182 st chain salg skey rsakey = 
+let tr182 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2515,7 +2515,7 @@ let tr182 st chain salg skey rsakey =
 sfuns := (182,tr182)::!sfuns;
 
 
-let tr183 st chain salg skey rsakey = 
+let tr183 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2538,7 +2538,7 @@ let tr183 st chain salg skey rsakey =
 sfuns := (183,tr183)::!sfuns;
 
 
-let tr184 st chain salg skey rsakey = 
+let tr184 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2560,7 +2560,7 @@ let tr184 st chain salg skey rsakey =
 sfuns := (184,tr184)::!sfuns;
 
 
-let tr185 st chain salg skey rsakey = 
+let tr185 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2582,7 +2582,7 @@ let tr185 st chain salg skey rsakey =
 sfuns := (185,tr185)::!sfuns;
 
 
-let tr186 st chain salg skey rsakey = 
+let tr186 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2604,7 +2604,7 @@ let tr186 st chain salg skey rsakey =
 sfuns := (186,tr186)::!sfuns;
 
 
-let tr187 st chain salg skey rsakey = 
+let tr187 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2638,7 +2638,7 @@ sfuns := [];
 
 
 
-let tr191 st chain salg skey rsakey = 
+let tr191 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2652,7 +2652,7 @@ sfuns := (191,tr191)::!sfuns;
 
 
 
-let tr193 st chain salg skey rsakey = 
+let tr193 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2664,7 +2664,7 @@ let tr193 st chain salg skey rsakey =
 sfuns := (193,tr193)::!sfuns;
 
 
-let tr194 st chain salg skey rsakey = 
+let tr194 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2682,7 +2682,7 @@ sfuns := (194,tr194)::!sfuns;
 
 
 
-let tr198 st chain salg skey rsakey = 
+let tr198 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2701,7 +2701,7 @@ let tr198 st chain salg skey rsakey =
 sfuns := (198,tr198)::!sfuns;
 
 
-let tr199 st chain salg skey rsakey = 
+let tr199 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2713,7 +2713,7 @@ let tr199 st chain salg skey rsakey =
 sfuns := (199,tr199)::!sfuns;
 
 
-let tr200 st chain salg skey rsakey = 
+let tr200 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2725,7 +2725,7 @@ let tr200 st chain salg skey rsakey =
 sfuns := (200,tr200)::!sfuns;
 
 
-let tr201 st chain salg skey rsakey = 
+let tr201 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2754,7 +2754,7 @@ sfuns := (201,tr201)::!sfuns;
 
 
 
-let tr206 st chain salg skey rsakey = 
+let tr206 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2772,7 +2772,7 @@ let tr206 st chain salg skey rsakey =
 sfuns := (206,tr206)::!sfuns;
 
 
-let tr207 st chain salg skey rsakey = 
+let tr207 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2810,7 +2810,7 @@ sfuns := (207,tr207)::!sfuns;
 
 
 
-let tr217 st chain salg skey rsakey = 
+let tr217 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2829,7 +2829,7 @@ let tr217 st chain salg skey rsakey =
 sfuns := (217,tr217)::!sfuns;
 
 
-let tr218 st chain salg skey rsakey = 
+let tr218 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2847,7 +2847,7 @@ let tr218 st chain salg skey rsakey =
 sfuns := (218,tr218)::!sfuns;
 
 
-let tr219 st chain salg skey rsakey = 
+let tr219 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2865,7 +2865,7 @@ let tr219 st chain salg skey rsakey =
 sfuns := (219,tr219)::!sfuns;
 
 
-let tr220 st chain salg skey rsakey = 
+let tr220 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2883,7 +2883,7 @@ let tr220 st chain salg skey rsakey =
 sfuns := (220,tr220)::!sfuns;
 
 
-let tr221 st chain salg skey rsakey = 
+let tr221 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2904,7 +2904,7 @@ let tr221 st chain salg skey rsakey =
 sfuns := (221,tr221)::!sfuns;
 
 
-let tr222 st chain salg skey rsakey = 
+let tr222 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2924,7 +2924,7 @@ let tr222 st chain salg skey rsakey =
 sfuns := (222,tr222)::!sfuns;
 
 
-let tr223 st chain salg skey rsakey = 
+let tr223 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2944,7 +2944,7 @@ let tr223 st chain salg skey rsakey =
 sfuns := (223,tr223)::!sfuns;
 
 
-let tr224 st chain salg skey rsakey = 
+let tr224 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2964,7 +2964,7 @@ let tr224 st chain salg skey rsakey =
 sfuns := (224,tr224)::!sfuns;
 
 
-let tr225 st chain salg skey rsakey = 
+let tr225 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2985,7 +2985,7 @@ let tr225 st chain salg skey rsakey =
 sfuns := (225,tr225)::!sfuns;
 
 
-let tr226 st chain salg skey rsakey = 
+let tr226 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -2997,7 +2997,7 @@ let tr226 st chain salg skey rsakey =
 sfuns := (226,tr226)::!sfuns;
 
 
-let tr227 st chain salg skey rsakey = 
+let tr227 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3010,7 +3010,7 @@ let tr227 st chain salg skey rsakey =
 sfuns := (227,tr227)::!sfuns;
 
 
-let tr228 st chain salg skey rsakey = 
+let tr228 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3022,7 +3022,7 @@ let tr228 st chain salg skey rsakey =
 sfuns := (228,tr228)::!sfuns;
 
 
-let tr229 st chain salg skey rsakey = 
+let tr229 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3036,7 +3036,7 @@ let tr229 st chain salg skey rsakey =
 sfuns := (229,tr229)::!sfuns;
 
 
-let tr230 st chain salg skey rsakey = 
+let tr230 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3049,7 +3049,7 @@ let tr230 st chain salg skey rsakey =
 sfuns := (230,tr230)::!sfuns;
 
 
-let tr231 st chain salg skey rsakey = 
+let tr231 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3062,7 +3062,7 @@ let tr231 st chain salg skey rsakey =
 sfuns := (231,tr231)::!sfuns;
 
 
-let tr232 st chain salg skey rsakey = 
+let tr232 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3077,7 +3077,7 @@ let tr232 st chain salg skey rsakey =
 sfuns := (232,tr232)::!sfuns;
 
 
-let tr233 st chain salg skey rsakey = 
+let tr233 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3091,7 +3091,7 @@ let tr233 st chain salg skey rsakey =
 sfuns := (233,tr233)::!sfuns;
 
 
-let tr234 st chain salg skey rsakey = 
+let tr234 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3105,7 +3105,7 @@ let tr234 st chain salg skey rsakey =
 sfuns := (234,tr234)::!sfuns;
 
 
-let tr235 st chain salg skey rsakey = 
+let tr235 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3119,7 +3119,7 @@ let tr235 st chain salg skey rsakey =
 sfuns := (235,tr235)::!sfuns;
 
 
-let tr236 st chain salg skey rsakey = 
+let tr236 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3140,7 +3140,7 @@ let tr236 st chain salg skey rsakey =
 sfuns := (236,tr236)::!sfuns;
 
 
-let tr237 st chain salg skey rsakey = 
+let tr237 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3160,7 +3160,7 @@ let tr237 st chain salg skey rsakey =
 sfuns := (237,tr237)::!sfuns;
 
 
-let tr238 st chain salg skey rsakey = 
+let tr238 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3180,7 +3180,7 @@ let tr238 st chain salg skey rsakey =
 sfuns := (238,tr238)::!sfuns;
 
 
-let tr239 st chain salg skey rsakey = 
+let tr239 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3200,7 +3200,7 @@ let tr239 st chain salg skey rsakey =
 sfuns := (239,tr239)::!sfuns;
 
 
-let tr240 st chain salg skey rsakey = 
+let tr240 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3220,7 +3220,7 @@ let tr240 st chain salg skey rsakey =
 sfuns := (240,tr240)::!sfuns;
 
 
-let tr241 st chain salg skey rsakey = 
+let tr241 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3243,7 +3243,7 @@ let tr241 st chain salg skey rsakey =
 sfuns := (241,tr241)::!sfuns;
 
 
-let tr242 st chain salg skey rsakey = 
+let tr242 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3265,7 +3265,7 @@ let tr242 st chain salg skey rsakey =
 sfuns := (242,tr242)::!sfuns;
 
 
-let tr243 st chain salg skey rsakey = 
+let tr243 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3287,7 +3287,7 @@ let tr243 st chain salg skey rsakey =
 sfuns := (243,tr243)::!sfuns;
 
 
-let tr244 st chain salg skey rsakey = 
+let tr244 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3309,7 +3309,7 @@ let tr244 st chain salg skey rsakey =
 sfuns := (244,tr244)::!sfuns;
 
 
-let tr245 st chain salg skey rsakey = 
+let tr245 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3331,7 +3331,7 @@ let tr245 st chain salg skey rsakey =
 sfuns := (245,tr245)::!sfuns;
 
 
-let tr246 st chain salg skey rsakey = 
+let tr246 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3414,7 +3414,7 @@ sfuns := (246,tr246)::!sfuns;
 
 
 
-let tr277 st chain salg skey rsakey = 
+let tr277 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3432,7 +3432,7 @@ let tr277 st chain salg skey rsakey =
 sfuns := (277,tr277)::!sfuns;
 
 
-let tr278 st chain salg skey rsakey = 
+let tr278 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3449,7 +3449,7 @@ let tr278 st chain salg skey rsakey =
 sfuns := (278,tr278)::!sfuns;
 
 
-let tr279 st chain salg skey rsakey = 
+let tr279 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3466,7 +3466,7 @@ let tr279 st chain salg skey rsakey =
 sfuns := (279,tr279)::!sfuns;
 
 
-let tr280 st chain salg skey rsakey = 
+let tr280 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3486,7 +3486,7 @@ let tr280 st chain salg skey rsakey =
 sfuns := (280,tr280)::!sfuns;
 
 
-let tr281 st chain salg skey rsakey = 
+let tr281 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3505,7 +3505,7 @@ let tr281 st chain salg skey rsakey =
 sfuns := (281,tr281)::!sfuns;
 
 
-let tr282 st chain salg skey rsakey = 
+let tr282 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3524,7 +3524,7 @@ let tr282 st chain salg skey rsakey =
 sfuns := (282,tr282)::!sfuns;
 
 
-let tr283 st chain salg skey rsakey = 
+let tr283 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3544,7 +3544,7 @@ let tr283 st chain salg skey rsakey =
 sfuns := (283,tr283)::!sfuns;
 
 
-let tr284 st chain salg skey rsakey = 
+let tr284 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3556,7 +3556,7 @@ let tr284 st chain salg skey rsakey =
 sfuns := (284,tr284)::!sfuns;
 
 
-let tr285 st chain salg skey rsakey = 
+let tr285 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3569,7 +3569,7 @@ let tr285 st chain salg skey rsakey =
 sfuns := (285,tr285)::!sfuns;
 
 
-let tr286 st chain salg skey rsakey = 
+let tr286 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3581,7 +3581,7 @@ let tr286 st chain salg skey rsakey =
 sfuns := (286,tr286)::!sfuns;
 
 
-let tr287 st chain salg skey rsakey = 
+let tr287 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3595,7 +3595,7 @@ let tr287 st chain salg skey rsakey =
 sfuns := (287,tr287)::!sfuns;
 
 
-let tr288 st chain salg skey rsakey = 
+let tr288 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3608,7 +3608,7 @@ let tr288 st chain salg skey rsakey =
 sfuns := (288,tr288)::!sfuns;
 
 
-let tr289 st chain salg skey rsakey = 
+let tr289 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3621,7 +3621,7 @@ let tr289 st chain salg skey rsakey =
 sfuns := (289,tr289)::!sfuns;
 
 
-let tr290 st chain salg skey rsakey = 
+let tr290 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3641,7 +3641,7 @@ let tr290 st chain salg skey rsakey =
 sfuns := (290,tr290)::!sfuns;
 
 
-let tr291 st chain salg skey rsakey = 
+let tr291 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3660,7 +3660,7 @@ let tr291 st chain salg skey rsakey =
 sfuns := (291,tr291)::!sfuns;
 
 
-let tr292 st chain salg skey rsakey = 
+let tr292 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3679,7 +3679,7 @@ let tr292 st chain salg skey rsakey =
 sfuns := (292,tr292)::!sfuns;
 
 
-let tr293 st chain salg skey rsakey = 
+let tr293 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3698,7 +3698,7 @@ let tr293 st chain salg skey rsakey =
 sfuns := (293,tr293)::!sfuns;
 
 
-let tr294 st chain salg skey rsakey = 
+let tr294 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3720,7 +3720,7 @@ let tr294 st chain salg skey rsakey =
 sfuns := (294,tr294)::!sfuns;
 
 
-let tr295 st chain salg skey rsakey = 
+let tr295 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3741,7 +3741,7 @@ let tr295 st chain salg skey rsakey =
 sfuns := (295,tr295)::!sfuns;
 
 
-let tr296 st chain salg skey rsakey = 
+let tr296 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3762,7 +3762,7 @@ let tr296 st chain salg skey rsakey =
 sfuns := (296,tr296)::!sfuns;
 
 
-let tr297 st chain salg skey rsakey = 
+let tr297 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3783,7 +3783,7 @@ let tr297 st chain salg skey rsakey =
 sfuns := (297,tr297)::!sfuns;
 
 
-let tr298 st chain salg skey rsakey = 
+let tr298 st chain salg skey rsakey =
   let st,nsc,fch = FlexClientHello.receive(st,checkVD=false) in
   let fsh = {FlexConstants.nullFServerHello with pv = Some(TLS_1p0); ciphersuite = Some(TLS_RSA_WITH_AES_128_CBC_SHA)} in
   let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc=nsc,fsh=fsh) in
@@ -3808,18 +3808,20 @@ sfuns := (298,tr298)::!sfuns;
 
 let server_nocert_funs = !sfuns
 
-let runClients server_name port hint certs =
-  let funs = if certs then cert_funs else nocert_funs in
-  let chain,salg,skey =
-    match Cert.for_signing FlexConstants.sigAlgs_ALL hint [(SA_RSA,MD5SHA1)] with
-    | None -> failwith "Failed to retreive certificate data"
-    | Some(c,a,s) -> c,a,s
+let runClients server_name port certs =
+  let funs,args =
+    match certs with
+    | None -> nocert_funs,None
+    | Some(hint) ->
+      match Cert.for_signing FlexConstants.sigAlgs_ALL hint [(SA_RSA,MD5SHA1)] with
+      | None -> failwith "Failed to retreive certificate data"
+      | Some(c,a,s) -> cert_funs,Some(c,a,s)
   in
   List.iter (fun (n,f) ->
        log.Info(sprintf "BEGIN deviant trace %d" n);
        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=2000) in
        try
-         f st chain salg skey; 
+         f st args; 
          log.Info(sprintf "END SUCCESS deviant trace %d" n);
          Tcp.close st.ns 
        with
