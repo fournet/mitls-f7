@@ -26,11 +26,10 @@ type CommandLineOpts = {
     kex           : option<KeyExchangeOpt>;
     connect_addr  : string;
     connect_port  : int;
-    connect_cert  : string;
+    connect_cert  : option<string>;
     listen_addr   : string;
     listen_port   : int;
     listen_cert   : string;
-    cert_req      : bool;
     min_pv        : ProtocolVersion;
     resume        : bool;
     renego        : bool;
@@ -45,11 +44,10 @@ let defaultOpts = {
     kex = None;
     connect_addr = "localhost";
     connect_port = 443;
-    connect_cert = "rsa.cert-02.mitls.org";
+    connect_cert = None;
     listen_addr = "localhost";
     listen_port = 4433;
     listen_cert = "rsa.cert-01.mitls.org";
-    cert_req = false;
     min_pv = TLS_1p2;
     resume = false;
     renego = false;
@@ -116,10 +114,9 @@ let flexhelp w =
 //    printf "                - TLS 1.3 : {13,tls13,TLS13}\n";
 //    printf "  -cipher : [] Specify a ciphersuite\n";
     fprintf w "  --connect     : [] Connect to address (or domain) and port    (default : %s:%d)\n" defaultOpts.connect_addr defaultOpts.connect_port;
-    fprintf w "  --client-cert : [] Certificate CN to use if Client            (default : %s)\n" defaultOpts.connect_cert;
-    fprintf w "  --accept      : [] accept address (or domain) and port        (default : %s:%d)\n" defaultOpts.listen_addr defaultOpts.listen_port;
+    fprintf w "  --client-cert : [] Use client authentication with the given CN\n";
+    fprintf w "  --accept      : [] Accept address (or domain) and port        (default : %s:%d)\n" defaultOpts.listen_addr defaultOpts.listen_port;
     fprintf w "  --server-cert : [] Certificate CN to use if Server            (default : %s)\n" defaultOpts.listen_cert;
-    fprintf w "  --client-auth :    Request client authentication\n";
     fprintf w "  --resume      :    Resume after full handshake\n";
     fprintf w "  --renego      :    Renegotiate after full handshake\n";
 //    fprintf w "  -t --timeout : [] Timeout for TCP connections           (default : 7500ms)\n";
@@ -207,7 +204,7 @@ type Parsing =
 
         | "--client-cert"::t ->
             (match t with
-            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = true; connect_cert = cn} tt
+            | cn::tt -> Parsing.innerParseCommandLineOpts {parsedArgs with connect_cert = Some(cn)} tt
             | _ -> flexhelp stderr; eprintf "ERROR : no client common name provided\n"; None
             )
 
@@ -232,8 +229,6 @@ type Parsing =
             | [] -> flexhelp stderr; eprintf "ERROR : server common name not provided\n"; None
             )
 
-        | "--client-auth"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with cert_req = true} t
-        
         | "--resume"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with resume = true} t
         
         | "--renego"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with renego = true} t

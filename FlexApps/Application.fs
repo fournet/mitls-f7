@@ -56,31 +56,35 @@ let runRelease argv =
         | None, Some(KeyExchangeRSA)
         | Some(RoleClient),None
         | Some(RoleClient),Some(KeyExchangeRSA) ->
-            if opts.cert_req then
-                let st = Handshake_full_RSA.client_with_auth(opts.connect_addr,opts.connect_cert,opts.connect_port) in true
-            else
-                let st = Handshake_full_RSA.client(opts.connect_addr,opts.connect_port) in true
+            (match opts.connect_cert with
+            | Some(client_cn) ->
+                let st = Handshake_full_RSA.client_with_auth(opts.connect_addr,client_cn,opts.connect_port) in true
+            | None ->
+                let st = Handshake_full_RSA.client(opts.connect_addr,opts.connect_port) in true)
          
         | None,Some(KeyExchangeDHE)
         | Some(RoleClient),Some(KeyExchangeDHE) ->
-            if opts.cert_req then
-                let st = Handshake_full_DHE.client_with_auth(opts.connect_addr,opts.connect_cert,opts.connect_port) in true
-            else
-                let st = Handshake_full_DHE.client(opts.connect_addr,opts.connect_port) in true
+            (match opts.connect_cert with
+            | Some(client_cn) ->
+                let st = Handshake_full_DHE.client_with_auth(opts.connect_addr,client_cn,opts.connect_port) in true
+            | None ->
+                let st = Handshake_full_DHE.client(opts.connect_addr,opts.connect_port) in true)
 
         | Some(RoleServer),None
         | Some(RoleServer),Some(KeyExchangeRSA) ->
-            if opts.cert_req then
+            (match opts.connect_cert with
+            | Some(client_cn) ->
                 let st = Handshake_full_RSA.server_with_client_auth(opts.listen_addr,opts.listen_cert,opts.listen_port) in true
-            else
-                let st = Handshake_full_RSA.server(opts.listen_addr,opts.listen_cert,opts.listen_port) in true
+            | None ->
+                let st = Handshake_full_RSA.server(opts.listen_addr,opts.listen_cert,opts.listen_port) in true)
 
         | None,Some(KeyExchangeDHE)
         | Some(RoleServer),Some(KeyExchangeDHE) ->
-            if opts.cert_req then
+            (match opts.connect_cert with
+            | Some(client_cn) ->
                 let st = Handshake_full_DHE.server_with_client_auth(opts.listen_addr,opts.listen_cert,opts.listen_port) in true
-            else
-                let st = Handshake_full_DHE.server(opts.listen_addr,opts.listen_cert,opts.listen_port) in true
+            | None ->
+                let st = Handshake_full_DHE.server(opts.listen_addr,opts.listen_cert,opts.listen_port) in true)
 
         | _,Some(KeyExchangeECDHE) -> eprintf "\nERROR: ECDHE not supported yet\n"; false
         | Some(RoleMITM),_ -> eprintf "\nERROR: No Full Handshake scenario as MITM\n"; false
@@ -99,8 +103,8 @@ let runRelease argv =
     // Trace Interpreter
     | Some(SmackTLS) ->
         (match opts.role with
-        | Some(RoleClient) | None -> let _ = SmackTLS.runClients opts.connect_addr opts.connect_port opts.connect_cert opts.cert_req in true
-        | Some(RoleServer) -> let _ = SmackTLS.runServers opts.listen_port opts.listen_cert opts.cert_req in true
+        | Some(RoleClient) | None -> let _ = SmackTLS.runClients opts.connect_addr opts.connect_port opts.connect_cert in true
+        | Some(RoleServer) -> let _ = SmackTLS.runServers opts.listen_port opts.listen_cert (match opts.connect_cert with |None->false |Some(_)->true) in true
         | Some(RoleMITM) -> eprintf "\nERROR: MITM role not implemented for SmackTLS\n"; false )
 
     // Attacks
