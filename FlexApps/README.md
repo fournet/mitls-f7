@@ -63,17 +63,18 @@ implementation, while "INFO --- END FAILURE" means that the SmackTLS flagged
 the deviant trace, since the peer seems to have accepted it, or generally
 misbehaved.
 
-Additionally, two state machine attacks implemented as FlexTLS scenarios are provided with this preview
-release.
-The first is a full man-in-the-middle attack reproducing the known EarlyCCS attack on OpenSSL <= 1.0.1g.
-The second is the newly presented EarlyFinished attack on Java implementations. The attack code runs
-as a server, impersonating arbitrary servers to a victim Java client.
+Additionally, two state machine attacks implemented as FlexTLS scenarios are
+provided with this preview release. The first is a full man-in-the-middle
+attack reproducing the known EarlyCCS attack on OpenSSL <= 1.0.1g. The second
+is the newly presented EarlyFinished attack on Java implementations. The
+attack code runs as a server, impersonating arbitrary servers to a victim Java
+client.
 
 * COMPILING THE SOURCE CODE
-The source code of the command line interface and of all the scenarios is included in this preview release.
-To compile the source code, run:
+The source code of the command line interface and of all the scenarios is
+included in this preview release. To compile the source code, run:
 
 fsc Parsing.fs Attack_*.fs Handshake_full_*.fs SmackTLS.fs Application.fs -r BouncyCastle.Crypto.dll -r CoreCrypto.dll -r DB.dll -r FlexTLS.dll -r NLog.dll -r OpenSSL.dll -r Platform.dll --mlcompatibility -o MyFlexApps.exe
 
-The F# compiler is usually called fsc on Windows, and fsharpc on Mono-served systems.
-	
+The F# compiler is usually called fsc on Windows, and fsharpc on Mono-served
+systems.
