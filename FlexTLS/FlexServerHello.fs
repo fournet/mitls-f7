@@ -92,8 +92,8 @@ type FlexServerHello =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="fch"> FClientHello containing the client extensions </param>
-    /// <param name="nsc"> Optional Next security context being negociated </param>
-    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
+    /// <param name="nsc"> Optional Next security context being negotiated </param>
+    /// <returns> Updated state * Updated next security context * FServerHello message record </returns>
     static member receive (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?checkVD:bool, ?isResuming:bool) : state * nextSecurityContext * FServerHello =
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let checkVD = defaultArg checkVD true in
@@ -135,7 +135,7 @@ type FlexServerHello =
     /// Receive a ServerHello message from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <returns> Updated state * Updated next securtity context * FServerHello message record * Negociated extensions </returns>
+    /// <returns> Updated state * Updated next security context * FServerHello message record * Negotiated extensions </returns>
     static member receive (st:state, cextL:list<clientExtension>, ?checkVD:bool, ?isResuming:bool) : state * FServerHello * negotiatedExtensions =
         LogManager.GetLogger("file").Info("# SERVER HELLO : FlexServerHello.receive");
         let checkVD = defaultArg checkVD true in
@@ -189,11 +189,11 @@ type FlexServerHello =
     /// Prepare a ServerHello message that will not be sent to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="si"> Session Info of the currently negociated next security context </param>
+    /// <param name="si"> Session Info of the currently negotiated next security context </param>
     /// <param name="cextL"> Client extensions list </param>
     /// <param name="cfg"> Optional Configuration of the server </param>
-    /// <param name="verify_datas"> Optional verify data for client and server in case of renegociation </param>
-    /// <returns> Updated state * Updated negociated session informations * FServerHello message record </returns>
+    /// <param name="verify_datas"> Optional verify data for client and server in case of renegotiation </param>
+    /// <returns> Updated state * Updated negotiated session informations * FServerHello message record </returns>
     static member prepare (si:SessionInfo, sExtL:list<serverExtension>) : FServerHello =
         let ext = serverExtensionsBytes sExtL in
         let csname = match TLSConstants.name_of_cipherSuite si.cipher_suite with
@@ -217,11 +217,11 @@ type FlexServerHello =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="fch"> FClientHello message record containing client extensions </param>
-    /// <param name="nsc"> Optional Next security context being negociated </param>
+    /// <param name="nsc"> Optional Next security context being negotiated </param>
     /// <param name="fsh"> Optional FServerHello message record </param>
     /// <param name="cfg"> Optional Server configuration if differs from default </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
-    /// <returns> Updated state * Updated next securtity context * FServerHello message record </returns>
+    /// <returns> Updated state * Updated next security context * FServerHello message record </returns>
     static member send (st:state, fch:FClientHello, ?nsc:nextSecurityContext, ?fsh:FServerHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
@@ -323,7 +323,7 @@ type FlexServerHello =
     /// Send a ServerHello message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="si"> Session Info of the currently negociated next security context </param>
+    /// <param name="si"> Session Info of the currently negotiated next security context </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerHello message record </returns>
     static member send (st:state, si:SessionInfo, sExtL:list<serverExtension>, ?fp:fragmentationPolicy) : state * FServerHello =

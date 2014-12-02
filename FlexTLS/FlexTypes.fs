@@ -144,7 +144,7 @@ type channel = {
 type state = {
     /// <summary> Reading channel (Incoming) </summary>
     read: channel;
-    /// <summary> Writing channel (Outcoming) </summary>
+    /// <summary> Writing channel (Outgoing) </summary>
     write: channel;
     /// <summary> Network stream where the data is exchanged with the peer </summary>
     ns: Tcp.NetworkStream;

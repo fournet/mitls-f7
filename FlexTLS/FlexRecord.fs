@@ -33,7 +33,7 @@ let fs_of_fp fp =
 /// </summary>
 /// <param name="bytes"> Data bytes to be split </param>
 /// <param name="fp"> Fragmentation policy </param>
-/// <returns> Fragment of the choosen size * remaining unsplit data bytes </returns>
+/// <returns> Fragment of the chosen size * remaining unsplit data bytes </returns>
 let splitPayloadFP (b:bytes) (fp:fragmentationPolicy) : bytes * bytes =
     let len = System.Math.Min((length b),(fs_of_fp fp)) in
     Bytes.split b len
@@ -43,7 +43,7 @@ let splitPayloadFP (b:bytes) (fp:fragmentationPolicy) : bytes * bytes =
 /// </summary>
 /// <param name="channel"> Channel to extract buffer from </param>
 /// <param name="ct"> Content type </param>
-/// <returns> Buffer associated to the choosen content type </returns>
+/// <returns> Buffer associated to the chosen content type </returns>
 let pickCTBuffer (ch:channel) (ct:ContentType) : bytes = 
     match ct with
     | Handshake -> ch.hs_buffer
@@ -138,7 +138,7 @@ type FlexRecord =
         stin,stout,payload
 
     /// <summary>
-    /// Send data picked from a choosen CT buffer over the network after encrypting a record depending on the fragmentation policy
+    /// Send data picked from a chosen CT buffer over the network after encrypting a record depending on the fragmentation policy
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="ct"> Content type of the fragment </param>
@@ -164,7 +164,7 @@ type FlexRecord =
     /// <param name="payload"> Data to encrypt </param>
     /// <param name="epoch_init_pv"> Optional Protocol version set for the Initial epoch </param>
     /// <param name="fp"> Optional fragmentation policy applied to the message </param>
-    /// <returns> Updated outgoing record state * remainder of the plaindata </returns>
+    /// <returns> Updated outgoing record state * remainder of the plain data </returns>
     static member send (ns:NetworkStream, e:epoch, k:Record.ConnectionState, ct:ContentType, payload:bytes, ?epoch_init_pv:ProtocolVersion, ?fp:fragmentationPolicy) : Record.ConnectionState * bytes * bytes =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let pv = 

@@ -57,7 +57,7 @@ type FlexClientKeyShare =
     /// EXPERIMENTAL TLS 1.3 Send DHE FClientKeyShare to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Updated next security context * FClientKeyShare message record </returns>
     static member send (st:state, ?nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyShare =

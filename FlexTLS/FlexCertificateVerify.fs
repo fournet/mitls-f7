@@ -49,7 +49,7 @@ type FlexCertificateVerify =
     /// Receive a CertificateVerify message from the network stream and check the log on demand
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="si"> Session info being negociated in the next security context </param>
+    /// <param name="si"> Session info being negotiated in the next security context </param>
     /// <param name="algs"> Signature and hash algorithms allowed and usually provided by a Certificate Request </param>
     /// <param name="ms"> Optional master secret that has to be provided to check the log if protocol version is SSL3 </param>
     /// <returns> Updated state * Certificate Verify message </returns>
@@ -142,7 +142,7 @@ type FlexCertificateVerify =
     /// Overload : Send a CertificateVerify (signature over the current log) message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="si"> Session info being negociated in the next security context </param>
+    /// <param name="si"> Session info being negotiated in the next security context </param>
     /// <param name="alg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
     /// <param name="skey"> Signature secret key associated to the algorithm </param>
     /// <param name="ms"> Optional master secret that has to be provided to compute the log if protocol version is SSL3 </param>

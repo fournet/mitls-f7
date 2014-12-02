@@ -83,7 +83,7 @@ type FlexSecrets =
     /// </summary>
     /// <param name="er"> Next reading epoch </param>
     /// <param name="ew"> Next writing epoch </param>
-    /// <param name="role"> Behaviour as client or Server </param>
+    /// <param name="role"> Behavior as client or Server </param>
     /// <returns>  Reading keys bytes * Writing keys bytes </returns>
     static member ms_to_keys (er:epoch) (ew:epoch) (role:Role) (ms:bytes) : bytes * bytes =
         let ams = PRF.coerce (msi (epochSI er)) ms in
@@ -95,9 +95,9 @@ type FlexSecrets =
     /// <summary>
     /// Compute verify_data from log and necessary informations
     /// </summary>
-    /// <param name="si"> Next session info being negociated </param>
+    /// <param name="si"> Next session info being negotiated </param>
     /// <param name="ms"> MasterSecret bytes </param>
-    /// <param name="role"> Behaviour as client or Server </param>
+    /// <param name="role"> Behavior as client or Server </param>
     /// <param name="log"> Log of the current Handshake messages </param>
     /// <returns> Verify_data bytes </returns>
     static member makeVerifyData (si:SessionInfo) (ms:bytes) (role:Role) (log:bytes) : bytes =
@@ -110,8 +110,8 @@ type FlexSecrets =
     /// Any user-provided value will not be overwritten; instead it will be used for secrets generation.
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="role"> Behaviour as client or Server </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="role"> Behavior as client or Server </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <returns> Updated next security context </returns>
     static member fillSecrets (st:state, role:Role, nsc:nextSecurityContext) : nextSecurityContext =
         LogManager.GetLogger("file").Debug("@ Fill Secrets");

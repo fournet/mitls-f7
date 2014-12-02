@@ -63,11 +63,11 @@ type FlexClientKeyExchange =
     /// Receive RSA ClientKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="fch"> Client hello containing the desired protocol version when beginning the handshake </param>
     /// <param name="checkPV"> Optional check of the protocol version at decryption time </param>
     /// <param name="sk"> Optional secret key to be used for decrypting in place of the current one </param>
-    /// <returns> Updated state * Updated next securtity context * FClientKeyExchange message record </returns>
+    /// <returns> Updated state * Updated next security context * FClientKeyExchange message record </returns>
     static member receiveRSA (st:state, nsc:nextSecurityContext, fch:FClientHello, ?checkPV:bool, ?sk:RSAKey.sk) : state * nextSecurityContext * FClientKeyExchange =
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk nsc.si.serverID in
@@ -77,11 +77,11 @@ type FlexClientKeyExchange =
     /// Receive RSA ClientKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="pv"> Protocol version required in the Client Hello of the current Handshake </param>
     /// <param name="checkPV"> Optional check of the protocol version at decryption time </param>
     /// <param name="sk"> Optional secret key to be used for decrypting in place of the current one </param>
-    /// <returns> Updated state * Updated next securtity context * FClientKeyExchange message record </returns>
+    /// <returns> Updated state * Updated next security context * FClientKeyExchange message record </returns>
     static member receiveRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion, ?checkPV:bool, ?sk:RSAKey.sk) : state * nextSecurityContext * FClientKeyExchange =
         let checkPV = defaultArg checkPV true in
         let sk = defaultKey sk nsc.si.serverID in
@@ -132,7 +132,7 @@ type FlexClientKeyExchange =
     /// Prepare RSA ClientKeyExchange but will not send it to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="fch"> Client hello containing the desired protocol version </param>
     /// <returns> FClientKeyExchange bytes * Updated state * FClientKeyExchange message record </returns>
     static member prepareRSA (st:state, nsc:nextSecurityContext, fch:FClientHello): bytes * state * nextSecurityContext * FClientKeyExchange =
@@ -142,7 +142,7 @@ type FlexClientKeyExchange =
     /// Prepare RSA ClientKeyExchange but will not send it to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="pv"> Protocol version required in the Client Hello of the current Handshake </param>
     /// <returns> FClientKeyExchange bytes * Updated state * FClientKeyExchange message record </returns>
     static member prepareRSA (st:state, nsc:nextSecurityContext, pv:ProtocolVersion): bytes * state * nextSecurityContext * FClientKeyExchange =
@@ -198,7 +198,7 @@ type FlexClientKeyExchange =
     /// compute the PMS, MS, KEYS and update the nextSecurityContext with the protocol version
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="fch"> Client hello containing the desired protocol version </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FClientKeyExchange message record </returns>
@@ -211,7 +211,7 @@ type FlexClientKeyExchange =
     /// compute the PMS, MS, KEYS and update the nextSecurityContext with the protocol version
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="pv"> Protocol version required in the Client Hello of the current Handshake </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FClientKeyExchange message record </returns>
@@ -273,11 +273,11 @@ type FlexClientKeyExchange =
     //BB : should RSA and DHE methods be fixed to all use the kex record instead of pms and kexDH ?
 
     /// <summary>
-    /// Receive DHE ClientKeyExchange fromthe network stream
+    /// Receive DHE ClientKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="fske"> Previously sent Server Key exchange containing kex record and DH parameters </param>
-    /// <param name="nsc"> Next security context being negociated and containing the key exchange mechanism retreived from a previous server key exchange</param>
+    /// <param name="nsc"> Next security context being negotiated and containing the key exchange mechanism retreived from a previous server key exchange</param>
     /// <returns> Updated state * Next security context * FClientKeyExchange message record </returns>
     //BB FIXME : Not sure about this ! Should we override the next security context with a FServerKeyExchangeDH
     static member receiveDHE (st:state, fske:FServerKeyExchange, ?nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
@@ -287,10 +287,10 @@ type FlexClientKeyExchange =
         FlexClientKeyExchange.receiveDHE(st,nsc)
 
     /// <summary>
-    /// Receive DHE ClientKeyExchange fromthe network stream
+    /// Receive DHE ClientKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated and containing the key exchange mechanism retreived from a previous server key exchange</param>
+    /// <param name="nsc"> Next security context being negotiated and containing the key exchange mechanism retreived from a previous server key exchange</param>
     /// <returns> Updated state * Next security context * FClientKeyExchange message record </returns>
     static member receiveDHE (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FClientKeyExchange =
         let kexdh =
@@ -366,7 +366,7 @@ type FlexClientKeyExchange =
     /// Overload : Send DHE ClientKeyExchange to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated and containing the key exchange mechanism retreived from a previous server key exchange</param>
+    /// <param name="nsc"> Next security context being negotiated and containing the key exchange mechanism retreived from a previous server key exchange</param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * Next security context * FClientKeyExchange message record </returns>
     static member sendDHE (st:state, nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientKeyExchange =

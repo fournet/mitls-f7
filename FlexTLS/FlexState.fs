@@ -77,7 +77,7 @@ type FlexState =
         // Add here reset for other logs if we ever add them
         FlexState.resetLog st TLSConstants.Handshake
 
-    /// <summary> Update the state with a new readin (incoming) record </summary>
+    /// <summary> Update the state with a new reading (incoming) record </summary>
     static member updateIncomingRecord (st:state) (incoming:Record.recvState) : state =
         let read_s = {st.read with record = incoming} in
         {st with read = read_s}
@@ -133,7 +133,7 @@ type FlexState =
     /// Install Reading Keys into the current state
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <returns> Updated state </returns>
     static member installReadKeys (st:state) (nsc:nextSecurityContext): state =
         LogManager.GetLogger("file").Debug("@ Install Read Keys");
@@ -199,7 +199,7 @@ type FlexState =
     /// Install Writing Keys into the current state
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <returns> Updated state </returns>
     static member installWriteKeys (st:state) (nsc:nextSecurityContext) : state =
         LogManager.GetLogger("file").Debug("@ Install Write Keys");

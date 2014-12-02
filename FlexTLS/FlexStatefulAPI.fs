@@ -100,7 +100,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
             this.log <- this.log @| fcert.payload
 
     /// <summary>
-    /// Receive Certificate for Stateful API
+    /// Receive Certificate for stateful API
     /// </summary>
     /// <param name="role"> Role we use for the certificate (Default to Client) </param>
     member this.ReceiveCertificate(?role:Role) : unit =
@@ -111,7 +111,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
         this.log <- this.log @| fcert.payload
     
     /// <summary>
-    /// Send Server Hello Done for Stateful API
+    /// Send Server Hello Done for stateful API
     /// </summary>
     member this.SendServerHelloDone() : unit =
         let st,fshd = FlexServerHelloDone.send(this.st) in
@@ -119,7 +119,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
         this.log <- this.log @| fshd.payload
 
     /// <summary>
-    /// Receive Server Hello Done for Stateful API
+    /// Receive Server Hello Done for stateful API
     /// </summary>
     member this.ReceiveServerHelloDone() : unit = 
         let st,fshd      = FlexServerHelloDone.receive(this.st) in
@@ -127,7 +127,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
         this.log <- this.log @| fshd.payload
 
     /// <summary>
-    /// Send Client Key Exchange RSA for Stateful API
+    /// Send Client Key Exchange RSA for stateful API
     /// </summary>
     /// <param name="fp"> Fragmentation policy </param>
     member this.SendClientKeyExchangeRSA(?fp:fragmentationPolicy) : unit = 
@@ -138,7 +138,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
         this.log <- this.log @| fcke.payload
 
     /// <summary>
-    /// Receive Client Key Exchange RSA for Stateful API
+    /// Receive Client Key Exchange RSA for stateful API
     /// </summary>
     /// <param name="cn"> Common name to search for private key </param>
     member this.ReceiveClientKeyExchangeRSA(?cn:string) : unit =
@@ -152,7 +152,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
             this.log <- this.log @| fcke.payload
 
     /// <summary>
-    /// Send a CCS message for Stateful API
+    /// Send a CCS message for stateful API
     /// </summary>
     member this.SendCCS() : unit =
         let st,_ = FlexCCS.send(this.st) in
@@ -160,7 +160,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
         this.st <- st
     
     /// <summary>
-    /// Receive a CCS message for Stateful API
+    /// Receive a CCS message for stateful API
     /// </summary>
     member this.ReceiveCCS() : unit =
         let st,_,_ = FlexCCS.receive(this.st) in
@@ -168,7 +168,7 @@ type FlexStatefulAPI(st:FlexTypes.state,r:Role,?cfg:config) =
         this.st <- st
     
     /// <summary>
-    /// Send Finished message for StatefulAPI
+    /// Send Finished message for stateful API
     /// </summary>
     /// <param name="fp"> Fragmentation policy </param>
     member this.SendFinished(?fp:fragmentationPolicy) : unit =

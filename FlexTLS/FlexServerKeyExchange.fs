@@ -49,7 +49,7 @@ type FlexServerKeyExchange =
     /// Receive DHE ServerKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="check_sig"> Optional check on the Server certificate chain </param>
     /// <param name="minDHsize"> Optional Minimal sizes for DH parameters.
     ///    If provided, received DH parameters will be checked for validity and their size;
@@ -88,8 +88,8 @@ type FlexServerKeyExchange =
     /// Receive DHE ServerKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="pv"> Protocol version negociated </param>
-    /// <param name="cs"> Ciphersuite negociated </param>
+    /// <param name="pv"> Protocol version negotiated </param>
+    /// <param name="cs"> Ciphersuite negotiated </param>
     /// <param name="minDHsize"> Optional Minimal sizes for DH parameters.
     ///    If provided, received DH parameters will be checked for validity and their size;
     ///    if not provided, no check at all will be performed on the received parameters </param>
@@ -135,7 +135,7 @@ type FlexServerKeyExchange =
     /// <param name="kexdh"> Key Exchange record containing Diffie-Hellman parameters </param>
     /// <param name="crand"> Client public randomness </param>
     /// <param name="srand"> Server public randomness </param>
-    /// <param name="pv"> Protocol version negociated </param>
+    /// <param name="pv"> Protocol version negotiated </param>
     /// <param name="sigAlg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
     /// <param name="sigKey"> Signature secret key associated to the algorithm </param>
     /// <returns> FServerKeyExchange message bytes * Updated state * FServerKeyExchange message record </returns>
@@ -157,7 +157,7 @@ type FlexServerKeyExchange =
     /// Send a DHE ServerKeyExchange message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context being negociated </param>
+    /// <param name="nsc"> Next security context being negotiated </param>
     /// <param name="sigAlgAndKey"> Optional pair of Signature Algorithm and Signing key to use by force </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
@@ -191,7 +191,7 @@ type FlexServerKeyExchange =
     /// <param name="kexdh"> Key Exchange record containing Diffie-Hellman parameters </param>
     /// <param name="crand"> Client public randomness </param>
     /// <param name="srand"> Server public randomness </param>
-    /// <param name="pv"> Protocol version negociated </param>
+    /// <param name="pv"> Protocol version negotiated </param>
     /// <param name="sigAlg"> Signature algorithm allowed and usually provided by a Certificate Request </param>
     /// <param name="sigKey"> Signature secret key associated to the algorithm </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>

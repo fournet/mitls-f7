@@ -102,7 +102,7 @@ type FlexClientHello =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="checkVD"> Flag to enable or ignore the check on the verify data if the renegotiation indication is in the client extension list </param>
-    /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
+    /// <returns> Updated state * Next security context in negotiation * FClientHello message record </returns>
     static member receive (st:state, ?checkVD:bool) : state * nextSecurityContext * FClientHello =
         LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.receive");
         let checkVD = defaultArg checkVD true in
@@ -181,7 +181,7 @@ type FlexClientHello =
     /// <param name="fch"> Desired client hello </param>
     /// <param name="cfg"> Desired config </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
-    /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
+    /// <returns> Updated state * Next security context in negotiation * FClientHello message record </returns>
     static member send (st:state, ?fch:FClientHello, ?cfg:config, ?fp:fragmentationPolicy) : state * nextSecurityContext * FClientHello =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let fch = defaultArg fch FlexConstants.nullFClientHello in
@@ -231,7 +231,7 @@ type FlexClientHello =
     /// <param name="fch"> Desired client hello </param>
     /// <param name="cfg"> Desired config </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
-    /// <returns> Updated state * Next security context in negociation * FClientHello message record </returns>
+    /// <returns> Updated state * Next security context in negotiation * FClientHello message record </returns>
     static member send (st:state, pv:ProtocolVersion, css:list<cipherSuiteName>, comps:list<Compression>, crand:bytes, csid:bytes, cExtL:list<clientExtension>, ?fp:fragmentationPolicy) : state * FClientHello =
         LogManager.GetLogger("file").Info("# CLIENT HELLO : FlexClientHello.send");
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in

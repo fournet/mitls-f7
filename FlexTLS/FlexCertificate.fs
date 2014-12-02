@@ -29,7 +29,7 @@ type FlexCertificate =
     /// <param name="nsc"> Optional Next security context object updated with new data </param>
     /// <returns> Updated state * next security context * FCertificate message </returns>
     static member receive (st:state, role:Role, ?nsc:nextSecurityContext) : state * nextSecurityContext * FCertificate =
-        LogManager.GetLogger("file").Info("# CERTIFICATE : FlexCertificate.reveive");
+        LogManager.GetLogger("file").Info("# CERTIFICATE : FlexCertificate.receive");
         let nsc = defaultArg nsc FlexConstants.nullNextSecurityContext in
         let si = nsc.si in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
@@ -105,7 +105,7 @@ type FlexCertificate =
     /// Send a Certificate message to the network stream using User provided chain of certificates
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="role"> Behaviour is either Client or Server </param>
+    /// <param name="role"> Behavior is either Client or Server </param>
     /// <param name="chain"> Certificate chain that will be send over the network </param>
     /// <param name="nsc"> Optional Next security context object updated with new data </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
@@ -120,7 +120,7 @@ type FlexCertificate =
     /// Send a Certificate message to the network stream using User provided chain of certificates
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="role"> Behaviour is either Client or Server </param>
+    /// <param name="role"> Behavior is either Client or Server </param>
     /// <param name="nsc"> Next security context object updated with new data </param>
     /// <param name="fcrt"> Optional Certificate message </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>

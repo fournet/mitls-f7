@@ -24,7 +24,7 @@ type FlexConnection =
     /// <summary>
     /// Initiate a connection either from Client or Server and create a global state
     /// </summary>
-    /// <param name="role"> Behaviour set as Client or Server </param>
+    /// <param name="role"> Behavior set as Client or Server </param>
     /// <param name="ns"> Network stream </param>
     /// <param name="pv"> Optional protocol version required to generate randomness </param>
     /// <returns> Global state of the handshake </returns>

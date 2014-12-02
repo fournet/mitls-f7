@@ -30,7 +30,7 @@ type FlexServerKeyShare =
     /// EXPERIMENTAL TLS 1.3 Receive DHE ServerKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context that embbed the kex to be sent </param>
+    /// <param name="nsc"> Next security context that embed the kex to be sent </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
     //BB : No need to have minimal DH params as for TLS < 1.3 because we only used named groups
     static member receive (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyShare =
@@ -54,7 +54,7 @@ type FlexServerKeyShare =
     /// EXPERIMENTAL TLS 1.3 Receive DHE ServerKeyExchange from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="group"> DH group negociated and received in ServerHello </param>
+    /// <param name="group"> DH group negotiated and received in ServerHello </param>
     /// <returns> Updated state * FServerKeyExchange message record </returns>
     //BB : The spec is not sure that we should resend the group with the public exponent so we ignore it for now
     static member receive (st:state, group:dhGroup) : state * FServerKeyShare =
@@ -82,7 +82,7 @@ type FlexServerKeyShare =
     /// EXPERIMENTAL TLS 1.3 Overload : Send a DHE ServerKeyExchange message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="nsc"> Next security context that embbed the kex to be sent </param>
+    /// <param name="nsc"> Next security context that embed the kex to be sent </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
     static member send (st:state, nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyShare =
@@ -94,7 +94,7 @@ type FlexServerKeyShare =
                 nsc.keys.kex
             | _ ->
                 // User didn't provide any useful default:
-                // We sample DH paramters, and get client share from its offers
+                // We sample DH parameters, and get client share from its offers
                 let group =
                     match getNegotiatedDHGroup nsc.si.extensions with
                     | None -> failwith (perror __SOURCE_FILE__ __LINE__ "TLS 1.3 requires a negotiated DH group")
@@ -130,7 +130,7 @@ type FlexServerKeyShare =
     /// EXPERIMENTAL TLS 1.3 Send a DHE ServerKeyExchange message to the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
-    /// <param name="dhgroup"> Diffie-Hellman negociated group </param>
+    /// <param name="dhgroup"> Diffie-Hellman negotiated group </param>
     /// <param name="fp"> Optional fragmentation policy at the record level </param>
     /// <returns> Updated state * FServerKeyExchangeTLS13 message record </returns>
     static member send (st:state, kex:tls13kex, ?fp:fragmentationPolicy) : state * FServerKeyShare =
