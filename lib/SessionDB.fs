@@ -9,6 +9,7 @@ open Date
 (* ------------------------------------------------------------------------------- *)
 type StorableSession = SessionInfo * PRF.masterSecret * epoch
 type SessionIndex = sessionID * Role * Cert.hint
+
 #if ideal
 type entry = sessionID * Role * Cert.hint * StorableSession
 type t = list<entry>  
@@ -33,9 +34,9 @@ let rec getAllStoredIDs (db:t) =
   match db with 
   | (sid,r,h,sims)::db -> (sid,r,h)::getAllStoredIDs db
   | []                 -> []
-#else 
-open System.IO
-open System.Runtime.Serialization.Formatters.Binary
+#else
+
+open Serialization
 
 type t = {
     filename: string;
@@ -53,29 +54,6 @@ module Option =
     end
 
 (* ------------------------------------------------------------------------------- *)
-let bytes_of_key (k : byte[] * Role * string) =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream () in
-        bf.Serialize(m, k); m.ToArray ()
-
-let key_of_bytes (k : byte[]) =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream(k) in
-    
-        bf.Deserialize(m) :?> SessionIndex
-
-let bytes_of_value (k : StorableSession * DateTime) =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream () in
-        bf.Serialize(m, k); m.ToArray ()
-
-let value_of_bytes (k : byte[]) =
-    let bf = new BinaryFormatter () in
-    let m  = new MemoryStream(k) in
-    
-        bf.Deserialize(m) :?> (StorableSession * DateTime)
-
-(* ------------------------------------------------------------------------------- *)
 let create poptions =
     let self = {
         filename = poptions.sessionDBFileName;
@@ -87,7 +65,7 @@ let create poptions =
 
 (* ------------------------------------------------------------------------------- *)
 let remove self sid role hint =
-    let key = bytes_of_key (Bytes.cbytes sid,role,hint) in
+    let key = serialize<SessionIndex> (sid,role,hint) in
     let db  = DB.opendb self.filename in
 
     try
@@ -98,10 +76,10 @@ let remove self sid role hint =
 
 (* ------------------------------------------------------------------------------- *)
 let select self sid role hint =
-    let key = bytes_of_key (Bytes.cbytes sid,role,hint) in
+    let key = serialize<SessionIndex> (sid,role,hint) in
 
     let select (db : DB.db) =
-        let filter_record ((sinfo, ts) : StorableSession * _) =
+        let filter_record ((sinfo, ts) : StorableSession * DateTime) =
             let expires = addTimeSpan ts self.expiry in
 
             if greaterDateTime expires (now()) then
@@ -112,7 +90,7 @@ let select self sid role hint =
         in
 
         DB.get db key
-            |> Option.map value_of_bytes
+            |> Option.map deserialize<StorableSession*DateTime> 
             |> Option.bind filter_record
     in
 
@@ -125,11 +103,11 @@ let select self sid role hint =
 
 (* ------------------------------------------------------------------------------- *)
 let insert self sid role hint value =
-    let key = bytes_of_key (Bytes.cbytes sid,role,hint) in
+    let key = serialize<SessionIndex> (sid,role,hint) in
     let insert (db : DB.db) =
         match DB.get db key with
         | Some _ -> ()
-        | None   -> DB.put db key (bytes_of_value (value, now ())) in
+        | None   -> DB.put db key (serialize<StorableSession*DateTime> (value, now ())) in
     let db = DB.opendb self.filename in
     try
         DB.tx db insert; self
@@ -146,6 +124,6 @@ let getAllStoredIDs self =
         finally
             DB.closedb db
     in
-        List.map key_of_bytes aout
+        List.map deserialize<SessionIndex> aout
 
 #endif

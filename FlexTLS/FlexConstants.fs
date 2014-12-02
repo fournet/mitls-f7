@@ -97,7 +97,7 @@ type FlexConstants =
 
     /// <summary> Default DH group </summary>
     static member nullDHParams =
-        let _,dhp = CoreDH.load_default_params "default-dh.pem" FlexConstants.dhdb FlexConstants.minDHSize in
+        let _,dhp = CoreDH.load_default_params "default-dh.pem" FlexConstants.dhdb DHDBManager.defaultDHPrimeConfidence FlexConstants.minDHSize in
         dhp
 
     /// <summary> Default DH key exchange parameters, with default DH group and empty DH shares </summary>
