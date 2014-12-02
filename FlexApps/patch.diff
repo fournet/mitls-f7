@@ -1,0 +1,100 @@
+diff --git a/FlexApps/Handshake_full_DHE.fs b/FlexApps/Handshake_full_DHE.fs
+index b2ae637..d44ea8d 100755
+--- a/FlexApps/Handshake_full_DHE.fs
++++ b/FlexApps/Handshake_full_DHE.fs
+@@ -75,10 +75,11 @@ type Handshake_full_DHE =
+ 
+         // Ensure we use DHE
+         let fch = {FlexConstants.nullFClientHello with
++            pv = Some(TLS_1p0);
+             ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
+ 
+         let st,nsc,fch   = FlexClientHello.send(st,fch) in
+-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
++        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
+         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
+         let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
+         let st,fshd      = FlexServerHelloDone.receive(st) in
+@@ -102,7 +103,7 @@ type Handshake_full_DHE =
+     static member client_with_auth (server_name:string, hint:string, ?port:int) : state =
+         let port = defaultArg port FlexConstants.defaultTCPPort in
+         let chain,salg,skey =
+-            match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
++            match Cert.for_signing FlexConstants.sigAlgs_ALL hint [(SA_RSA, MD5SHA1)] with
+             | None -> failwith "Failed to retreive certificate data"
+             | Some(c,a,s) -> c,a,s
+         in
+@@ -118,12 +119,13 @@ type Handshake_full_DHE =
+ 
+         // Ensure we use DHE
+         let fch = {FlexConstants.nullFClientHello with
++            pv = Some(TLS_1p0);
+             ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
+ 
+         let st,nsc,fch   = FlexClientHello.send(st,fch) in
+-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
++        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
+         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
+-        let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc,minDHsize=(512,160)) in
++        let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
+         let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
+         let st,fshd      = FlexServerHelloDone.receive(st) in
+             
+diff --git a/FlexApps/Handshake_full_RSA.fs b/FlexApps/Handshake_full_RSA.fs
+index d4ecda7..8ac0773 100755
+--- a/FlexApps/Handshake_full_RSA.fs
++++ b/FlexApps/Handshake_full_RSA.fs
+@@ -119,10 +119,11 @@ type Handshake_full_RSA =
+ 
+         // Ensure we use RSA
+         let fch = {FlexConstants.nullFClientHello with
++            pv = Some(TLS_1p0);
+             ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
+ 
+         let st,nsc,fch   = FlexClientHello.send(st,fch) in
+-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
++        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
+         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
+         let st,fshd      = FlexServerHelloDone.receive(st) in
+         let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
+@@ -215,10 +216,11 @@ type Handshake_full_RSA =
+ 
+         // Ensure we use RSA
+         let fch = {FlexConstants.nullFClientHello with
++            pv = Some(TLS_1p0);
+             ciphersuites = Some([TLS_RSA_WITH_AES_128_CBC_SHA]) } in
+ 
+         let st,nsc,fch   = FlexClientHello.send(st,fch) in
+-        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc) in
++        let st,nsc,fsh   = FlexServerHello.receive(st,fch,nsc,checkVD=false) in
+         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
+         let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
+         let st,fshd      = FlexServerHelloDone.receive(st) in
+diff --git a/FlexApps/SmackTLS.fs b/FlexApps/SmackTLS.fs
+index fef86c4..1c18d5e 100644
+--- a/FlexApps/SmackTLS.fs
++++ b/FlexApps/SmackTLS.fs
+@@ -1,4 +1,7 @@
+ module SmackTLS
++
++open System.Threading
++
+ open FlexTLS
+ open FlexTypes
+ open FlexConstants
+@@ -3818,6 +3821,7 @@ let runClients server_name port certs =
+       | Some(c,a,s) -> cert_funs,Some(c,a,s)
+   in
+   List.iter (fun (n,f) ->
++       Thread.Sleep(2500);
+        log.Info(sprintf "BEGIN deviant trace %d" n);
+        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=2000) in
+        try
+@@ -3852,6 +3856,7 @@ let runServers port hint certs =
+       failwith "Internal error"
+   List.iter (fun (n,f) ->
+     log.Info(sprintf "BEGIN deviant trace %d" n);
++    Thread.Sleep(2500);
+     let st,_ = FlexConnection.serverOpenTcpConnection(l,hint,timeout=2000) in
+     try
+       f st chain salg skey rsakey;
