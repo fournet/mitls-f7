@@ -31,43 +31,15 @@ open FlexStatefulAPI
 type Handshake_full_DHE =
     class
 
-    (* Run a full Handshake DHE with server side authentication only *)
-    static member stateful_client (server_name:string, ?port:int, ?st:state) : state =
+    (* CLIENT - Run a full Handshake DHE with server side authentication only *)
+    static member client (server_name:string, ?port:int, ?st:state, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
+        let timeout = defaultArg timeout 0 in
 
         // Start TCP connection with the server if no state is provided by the user
         let st,_ = 
             match st with
-            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port)
-            | Some(st) -> st,TLSInfo.defaultConfig
-        in
-
-        let machine = new FlexStatefulAPI(st,Client) in
-
-        // Ensure we use DHE
-        let fch = {FlexConstants.nullFClientHello with
-            ciphersuites = Some([TLS_DHE_RSA_WITH_AES_128_CBC_SHA]) } in
-
-        machine.SendClientHello(fch);
-        machine.ReceiveServerHello();
-        machine.ReceiveCertificate();
-        // machine.ReceiveServerKeyExchangeDHE();
-        machine.ReceiveServerHelloDone();
-        // machine.SendClientKeyExchangeDHE();
-        machine.SendCCS();
-        machine.SendFinished();
-        machine.ReceiveCCS();
-        machine.ReceiveFinished();
-        st
-
-    (* Run a full Handshake DHE with server side authentication only *)
-    static member client (server_name:string, ?port:int, ?st:state) : state =
-        let port = defaultArg port FlexConstants.defaultTCPPort in
-
-        // Start TCP connection with the server if no state is provided by the user
-        let st,_ = 
-            match st with
-            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port)
+            | None -> FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=timeout)
             | Some(st) -> st,TLSInfo.defaultConfig
         in
 
@@ -98,21 +70,23 @@ type Handshake_full_DHE =
         st
     
 
-    (* Run a full Handshake DHE with both server side and client side authentication only *)
-    static member client_with_auth (server_name:string, hint:string, ?port:int) : state =
+    (* CLIENT - Run a full Handshake DHE with both server side and client side authentication only *)
+    static member client_with_auth (server_name:string, cn_hint:string, ?port:int, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
+        let timeout = defaultArg timeout 0 in
         let chain,salg,skey =
-            match Cert.for_signing FlexConstants.sigAlgs_ALL hint FlexConstants.sigAlgs_RSA with
+            match Cert.for_signing FlexConstants.sigAlgs_ALL cn_hint FlexConstants.sigAlgs_RSA with
             | None -> failwith "Failed to retreive certificate data"
             | Some(c,a,s) -> c,a,s
         in
-        Handshake_full_DHE.client_with_auth (server_name,chain,salg,skey,port)
+        Handshake_full_DHE.client_with_auth (server_name,chain,salg,skey,port,timeout)
 
-    static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int) : state =
+    static member client_with_auth (server_name:string, chain:Cert.chain, salg:Sig.alg, skey:Sig.skey, ?port:int, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
+        let timeout = defaultArg timeout 0 in
 
         // Start TCP connection with the server
-        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port) in
+        let st,_ = FlexConnection.clientOpenTcpConnection(server_name,server_name,port,timeout=timeout) in
 
         // Typical DHE key exchange messages
 
@@ -147,24 +121,26 @@ type Handshake_full_DHE =
         let st,ffS       = FlexFinished.receive(st,nsc,Server) in
         st
 
-
-    static member server (listening_address:string, ?cn:string, ?port:int) : state =
-        let cn = defaultArg cn listening_address in
+    (* SERVER - Run a full Handshake DHE with server side authentication only *)
+    static member server (listening_address:string, ?cn_hint:string, ?port:int, ?timeout:int) : state =
+        let cn_hint = defaultArg cn_hint listening_address in
+        let timeout = defaultArg timeout 0 in
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        match Cert.for_signing FlexConstants.sigAlgs_ALL cn FlexConstants.sigAlgs_RSA with
-        | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
-        | Some(chain,_,_) -> Handshake_full_DHE.server(listening_address,chain,port)
+        match Cert.for_signing FlexConstants.sigAlgs_ALL cn_hint FlexConstants.sigAlgs_RSA with
+        | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn_hint))
+        | Some(chain,_,_) -> Handshake_full_DHE.server(listening_address,chain,port,timeout)
 
-    static member server (listening_address:string, chain:Cert.chain, ?port:int) : state =
+    static member server (listening_address:string, chain:Cert.chain, ?port:int, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        let cn =
+        let timeout = defaultArg timeout 0 in
+        let cn_hint =
             match Cert.get_hint chain with
             | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Could not parse given certficate")
-            | Some(cn) -> cn
+            | Some(cn_hint) -> cn_hint
         in
 
         // Accept TCP connection from the client
-        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn,port) in
+        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn_hint,port,timeout=timeout) in
 
         // Start typical DHE key exchange
         let st,nsc,fch   = FlexClientHello.receive(st) in
@@ -199,24 +175,26 @@ type Handshake_full_DHE =
         st
 
 
-
-    static member server_with_client_auth (listening_address:string, ?cn:string, ?port:int) : state =
-        let cn = defaultArg cn listening_address in
+    (* SERVER - Run a full Handshake DHE with both server side and client side authentication only *)
+    static member server_with_client_auth (listening_address:string, ?cn_hint:string, ?port:int, ?timeout:int) : state =
+        let cn_hint = defaultArg cn_hint listening_address in
+        let timeout = defaultArg timeout 0 in
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn with
-        | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn))
-        | Some(chain,sk) -> Handshake_full_DHE.server_with_client_auth(listening_address,chain,port)
+        match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn_hint with
+        | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn_hint))
+        | Some(chain,sk) -> Handshake_full_DHE.server_with_client_auth(listening_address,chain,port,timeout)
 
-    static member server_with_client_auth (listening_address:string, chain:Cert.chain, ?port:int) : state =
+    static member server_with_client_auth (listening_address:string, chain:Cert.chain, ?port:int, ?timeout:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        let cn =
+        let timeout = defaultArg timeout 0 in
+        let cn_hint =
             match Cert.get_hint chain with
             | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Could not parse given certficate")
-            | Some(cn) -> cn
+            | Some(cn_hint) -> cn_hint
         in
 
         // Accept TCP connection from the client
-        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn,port) in
+        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn_hint,port,timeout=timeout) in
 
         // Start typical DHE key exchange
         let st,nsc,fch   = FlexClientHello.receive(st) in
@@ -228,7 +206,6 @@ type Handshake_full_DHE =
 
         // Ensure we send our preferred ciphersuite
         let sh = { FlexConstants.nullFServerHello with
-            pv = Some(TLS_1p2);
             ciphersuite = Some(TLS_DHE_RSA_WITH_AES_128_CBC_SHA) } in
 
         let st,nsc,fsh   = FlexServerHello.send(st,fch,nsc,sh) in
@@ -256,6 +233,5 @@ type Handshake_full_DHE =
 
         let st,ffS       = FlexFinished.send(st,nsc,Server) in
         st
-
 
     end
