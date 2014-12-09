@@ -2,12 +2,13 @@
 
 open Bytes
 
+// Most of these functions are not used parametrically by other modules, but required types are not defined here.
 val fold: (bytes -> bytes -> bytes) -> bytes -> bytes list -> bytes
-val filter: ('a -> bool) -> 'a list -> 'a list // AP: In HS, only used with 'a = HT_type, but it's not defined here.
+val filter: ('a -> bool) -> 'a list -> 'a list
 val foldBack: (bytes -> bytes -> bytes) -> bytes list -> bytes -> bytes
 val exists: ('a -> bool) -> 'a list -> bool
 val memr: 'a list -> 'a -> bool when 'a : equality
-val choose: ('a -> 'b option) -> 'a list -> 'b list // AP: Not used parametrically in HS, but types are not defined here.
+val choose: ('a -> 'b option) -> 'a list -> 'b list
 val tryFind: ('a -> bool) -> 'a list -> 'a option
 val listLength: ('a list) -> int
 val listHead: ('a list) -> 'a

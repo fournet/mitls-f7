@@ -26,7 +26,6 @@ type WsgiEngine () =
                 failwith "PythonEngine already initialized";
             PythonEngine.Initialize ();
             try
-                // AP: fprintfn stderr "WSGI: using python engine: %A" (PythonEngine.BuildInfo);
                 tid <- PythonEngine.BeginAllowThreads ()
             with e ->
                 PythonEngine.Shutdown ();

@@ -3,8 +3,6 @@
 (* Binary representations, using variable-length byte arrays *)
 (* This module implementation is trusted, not verified *) 
 
-(* TODO partial verification; restructuring e.g. for list operations *) 
-
 type nat = n:int {0 <= n} // a convenient abbreviation 
 type cbytes = byte array
 type bytes
@@ -18,7 +16,7 @@ val cbytes: a:bytes -> b:byte array{B(a) = b}
 val cbyte: a:bytes -> b:byte{B(a) = [| b |]}
 val cbyte2: a:bytes -> (b1:byte*b2:byte){B(a) = [| b1;b2 |]}
 
-(*KB Lifting concrete bitstring equality to logical equality over abstract bytes *)
+(* Lifting concrete bitstring equality to logical equality over abstract bytes *)
 assume !b,b'. B(b) = B(b') => b = b'
 
 (* Lengths for arrays and lists *)
@@ -85,12 +83,6 @@ val int_of_bytes: b:bytes {Length(b)<=8} -> i:nat
 assume !l:int, i:int. Length(IntBytes(l,i)) = l
 // the representation is injective
 assume !l:int, i0:int, i1:int. IntBytes(l,i0) = IntBytes(l,i1) => i0=i1
-
-// TODO remove? 
-// TODO (* We want a notion of equivalent representation that does not include length. 
-// TODO   Where do we use this? *)
-// TODO //function val EquivRepr: bytes -> bytes -> true
-// TODO assume !l1:int, l2:int, i:int. EquivRepr(IntBytes(l1,i),IntBytes(l2,i))
 
 (* string representation, used in sample apps *)
 
