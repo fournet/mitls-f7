@@ -85,7 +85,7 @@ type Handshake_full_RSA =
         let timeout = defaultArg timeout 0 in
 
         // Start TCP connection with the server
-        let st,_ = FlexConnection.clientOpenTcpConnection(address,address,port) in
+        let st,_ = FlexConnection.clientOpenTcpConnection(address,address,port,timeout=timeout) in
 
         // Typical RSA key exchange messages
 
@@ -121,23 +121,25 @@ type Handshake_full_RSA =
 
 
     (* SERVER - Run a full Handshake RSA with server side authentication only *)
-    static member server (listening_address:string, ?cn_hint:string, ?port:int) : state =
+    static member server (listening_address:string, ?cn_hint:string, ?port:int, ?timeout:int) : state =
+        let timeout = defaultArg timeout 0 in
         let cn_hint = defaultArg cn_hint listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn_hint with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn_hint))
-        | Some(chain,sk) -> Handshake_full_RSA.server(listening_address,chain,sk,port)
+        | Some(chain,sk) -> Handshake_full_RSA.server(listening_address,chain,sk,port,timeout)
 
-    static member server (listening_address:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int) : state =
+    static member server (listening_address:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int, ?timeout:int) : state =
+        let timeout = defaultArg timeout 0 in
         let port = defaultArg port FlexConstants.defaultTCPPort in
-        let cn =
+        let cn_hint =
             match Cert.get_hint chain with
             | None -> failwith (perror __SOURCE_FILE__ __LINE__ "Could not parse given certficate")
-            | Some(cn) -> cn
+            | Some(cn_hint) -> cn_hint
         in
 
         // Accept TCP connection from the client
-        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn,port) in
+        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn_hint,port,timeout=timeout) in
 
         // Start typical RSA key exchange
         let st,nsc,fch   = FlexClientHello.receive(st) in
@@ -173,14 +175,16 @@ type Handshake_full_RSA =
 
 
     (* SERVER - Run a full Handshake RSA with both server and client authentication *)
-    static member server_with_client_auth (listening_address:string, ?cn_hint:string, ?port:int) : state =
+    static member server_with_client_auth (listening_address:string, ?cn_hint:string, ?port:int, ?timeout:int) : state =
+        let timeout = defaultArg timeout 0 in
         let cn_hint = defaultArg cn_hint listening_address in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         match Cert.for_key_encryption FlexConstants.sigAlgs_RSA cn_hint with
         | None -> failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Private key not found for the given CN: %s" cn_hint))
         | Some(chain,sk) -> Handshake_full_RSA.server_with_client_auth(listening_address,chain,sk,port)
 
-    static member server_with_client_auth (listening_address:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int) : state =
+    static member server_with_client_auth (listening_address:string, chain:Cert.chain, sk:RSAKey.sk, ?port:int, ?timeout:int) : state =
+        let timeout = defaultArg timeout 0 in
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let cn_hint =
             match Cert.get_hint chain with
@@ -189,7 +193,7 @@ type Handshake_full_RSA =
         in
 
         // Accept TCP connection from the client
-        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn_hint,port) in
+        let st,cfg = FlexConnection.serverOpenTcpConnection(listening_address,cn_hint,port,timeout=timeout) in
 
         // Start typical RSA key exchange
         let st,nsc,fch   = FlexClientHello.receive(st) in
