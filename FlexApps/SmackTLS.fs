@@ -60,7 +60,7 @@ let tr1 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,[],nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -82,7 +82,7 @@ let tr3 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,[],nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -101,7 +101,7 @@ let tr4 st (Some(chain, salg, skey)) =
   let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -121,7 +121,7 @@ let tr5 st (Some(chain, salg, skey)) =
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -162,7 +162,7 @@ let tr7 st (Some(chain, salg, skey)) =
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -206,7 +206,7 @@ let tr9 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -228,8 +228,8 @@ let tr10 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -288,7 +288,7 @@ let tr13 st (Some(chain, salg, skey)) =
   let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -330,7 +330,7 @@ let tr15 st (Some(chain, salg, skey)) =
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,[],nsc) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -352,7 +352,7 @@ let tr16 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,[],nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -397,7 +397,7 @@ let tr30 st (Some(chain, salg, skey)) =
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -416,7 +416,7 @@ let tr31 st (Some(chain, salg, skey)) =
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -455,7 +455,7 @@ let tr33 st (Some(chain, salg, skey)) =
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -497,7 +497,7 @@ let tr35 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -518,8 +518,8 @@ let tr36 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -575,7 +575,7 @@ let tr39 st (Some(chain, salg, skey)) =
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -615,7 +615,7 @@ let tr41 st (Some(chain, salg, skey)) =
   let st,nsc,fcreq = FlexCertificateRequest.receive(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,[],nsc) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -636,7 +636,7 @@ let tr42 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,[],nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -761,7 +761,7 @@ let tr48 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -783,7 +783,7 @@ let tr49 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -805,7 +805,7 @@ let tr50 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -827,8 +827,8 @@ let tr51 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -849,7 +849,7 @@ let tr52 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
@@ -873,7 +873,7 @@ let tr53 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
@@ -897,7 +897,7 @@ let tr54 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
@@ -921,10 +921,10 @@ let tr55 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -945,7 +945,7 @@ let tr56 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,_  = FlexCCS.send(st) in
@@ -1330,7 +1330,7 @@ let tr96 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1351,7 +1351,7 @@ let tr97 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1372,7 +1372,7 @@ let tr98 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1393,8 +1393,8 @@ let tr99 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -1414,7 +1414,7 @@ let tr100 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,nsc,fch   = FlexClientHello.send(st,fch) in
@@ -1437,7 +1437,7 @@ let tr101 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
@@ -1460,7 +1460,7 @@ let tr102 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
@@ -1483,10 +1483,10 @@ let tr103 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let _ = FlexAlert.receive(st) in
   ()
 
@@ -1506,7 +1506,7 @@ let tr104 st (Some(chain, salg, skey)) =
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcertC   = FlexCertificate.send(st,Client,chain,nsc) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.keys.ms) in
+  let st,fcver   = FlexCertificateVerify.send(st,nsc.si,salg,skey,ms=nsc.secrets.ms) in
   let st,_  = FlexCCS.send(st) in
   let st = FlexState.installWriteKeys st nsc in
   let st,_  = FlexCCS.send(st) in
@@ -1763,7 +1763,7 @@ let tr119 st (None) =
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1783,7 +1783,7 @@ let tr120 st (None) =
   let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendDHE(st,nsc) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1825,7 +1825,7 @@ let tr125 st (None) =
     | e -> raise (UnsupportedScenario(e))) in
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -1844,7 +1844,7 @@ let tr126 st (None) =
   let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
   let st,fshd      = FlexServerHelloDone.receive(st) in
   let st,nsc,fcke   = FlexClientKeyExchange.sendRSA(st,nsc,fch) in
-  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Client st.hs_log in
+  let verify_data  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Client st.hs_log in
   let st,ffC = FlexFinished.send(st,verify_data) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -2135,7 +2135,7 @@ let tr154 st chain salg skey rsakey =
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,Client) in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server st.hs_log in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Server st.hs_log in
   let st,ffS  = FlexFinished.send(st,verify_data2) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -2158,7 +2158,7 @@ let tr156 st chain salg skey rsakey =
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,Client) in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server st.hs_log in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Server st.hs_log in
   let st,ffS  = FlexFinished.send(st,verify_data2) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -2693,7 +2693,7 @@ let tr198 st chain salg skey rsakey =
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,Client) in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server st.hs_log in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Server st.hs_log in
   let st,ffS  = FlexFinished.send(st,verify_data2) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -2738,7 +2738,7 @@ let tr201 st chain salg skey rsakey =
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,Client) in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server st.hs_log in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Server st.hs_log in
   let st,ffS  = FlexFinished.send(st,verify_data2) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -2764,7 +2764,7 @@ let tr206 st chain salg skey rsakey =
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,Client) in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server st.hs_log in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Server st.hs_log in
   let st,ffS  = FlexFinished.send(st,verify_data2) in
   let _ = FlexAlert.receive(st) in
   ()
@@ -2784,7 +2784,7 @@ let tr207 st chain salg skey rsakey =
   let st,_,_ = FlexCCS.receive(st) in
   let st = FlexState.installReadKeys st nsc in
   let st,ffC = FlexFinished.receive(st,nsc,Client) in
-  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.keys.ms Server st.hs_log in
+  let verify_data2  = FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms Server st.hs_log in
   let st,ffS  = FlexFinished.send(st,verify_data2) in
   let _ = FlexAlert.receive(st) in
   ()

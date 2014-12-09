@@ -29,10 +29,10 @@ type Handshake_resumption =
     static member client (st:state, server_name:string, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let e = st.read.epoch in
-        let k = st.read.keys in
+        let k = st.read.secrets in
         Handshake_resumption.client(server_name,e,k,port)
 
-    static member client (server_name:string, e:epoch, k:keys, ?port:int) : state =
+    static member client (server_name:string, e:epoch, k:secrets, ?port:int) : state =
         let port = defaultArg port FlexConstants.defaultTCPPort in
         let ms = k.ms in
         let si = TLSInfo.epochSI e in
@@ -59,9 +59,9 @@ type Handshake_resumption =
         if not (ciphersuite = getCiphersuite fsh) then failwith "Server resumption data doesn't match previous session" else
         if not (si.protocol_version = getPV fsh) then failwith "Server resumption data doesn't match previous session" else
 
-        // Install the new keys according to the previous master secret
-        let keys         = { nsc.keys with ms = ms } in
-        let nsc          = { nsc with keys = keys; si = si } in
+        // Install the new secrets according to the previous master secret
+        let secrets         = { nsc.secrets with ms = ms } in
+        let nsc          = { nsc with secrets = secrets; si = si } in
         let nsc          = FlexSecrets.fillSecrets(st,Client,nsc) in
 
         let st,_,_       = FlexCCS.receive(st) in
@@ -102,9 +102,9 @@ type Handshake_resumption =
         // Server Hello should be reconstructed from the retreived session info
         let st,fsh   = FlexServerHello.send(st,si,[]) in
 
-        // Install the new keys according to the previous master secret
-        let keys         = { nsc.keys with ms = ms } in
-        let nsc          = { nsc with keys = keys; si = si } in
+        // Install the new secrets according to the previous master secret
+        let secrets      = { nsc.secrets with ms = ms } in
+        let nsc          = { nsc with secrets = secrets; si = si } in
         let nsc          = FlexSecrets.fillSecrets(st,Server,nsc) in
 
         let st,_         = FlexCCS.send(st) in

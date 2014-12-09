@@ -35,7 +35,7 @@ type FlexFinished =
     static member receive (st:state, nsc:nextSecurityContext, ?role:Role) : state * FFinished = 
         match role with
         | Some(role) -> 
-            FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite,verify_data=(FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role st.hs_log))
+            FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite,verify_data=(FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms role st.hs_log))
         | None -> 
             FlexFinished.receive (st,nsc.si.protocol_version,nsc.si.cipher_suite)
         
@@ -113,7 +113,7 @@ type FlexFinished =
     /// <returns> Updated state * FFinished message record </returns>
     static member send (st:state, nsc:nextSecurityContext, role:Role, ?fp:fragmentationPolicy) : state * FFinished =     
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
-        let verify_data =FlexSecrets.makeVerifyData nsc.si nsc.keys.ms role st.hs_log in
+        let verify_data =FlexSecrets.makeVerifyData nsc.si nsc.secrets.ms role st.hs_log in
         FlexFinished.send (st,verify_data,fp)
 
 

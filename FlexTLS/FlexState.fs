@@ -87,11 +87,11 @@ type FlexState =
         let read_s = {st.read with epoch = e} in
         {st with read = read_s}
 
-    /// <summary> Update the state with new reading (incoming) keys </summary>
-    /// <remarks> This field is informational only; the new keys will not be used to encrypt future messages.
-    /// To change encryption keys, update the incoming record instead. </remarks>
-    static member updateIncomingKeys (st:state) (keys:keys) : state =
-        let read_s = {st.read with keys = keys} in
+    /// <summary> Update the state with new reading (incoming) secrets </summary>
+    /// <remarks> This field is informational only; the new secrets will not be used to encrypt future messages.
+    /// To change encryption secrets, update the incoming record instead. </remarks>
+    static member updateIncomingSecrets (st:state) (secrets:secrets) : state =
+        let read_s = {st.read with secrets = secrets} in
         {st with read = read_s}
 
     /// <summary> Update the state with verify data on the reading channel </summary>
@@ -138,12 +138,12 @@ type FlexState =
     static member installReadKeys (st:state) (nsc:nextSecurityContext): state =
         LogManager.GetLogger("file").Debug("@ Install Read Keys");
         let nextEpoch = FlexState.guessNextEpoch st.read.epoch nsc in
-        let rk,_ = nsc.keys.epoch_keys in
+        let rk,_ = nsc.secrets.epoch_keys in
         let ark = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Reader rk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Reader ark in
         let st = FlexState.updateIncomingRecord st nextRecord in
         let st = FlexState.updateIncomingEpoch st nextEpoch in
-        let st = FlexState.updateIncomingKeys st nsc.keys in
+        let st = FlexState.updateIncomingSecrets st nsc.secrets in
         st
 
     /// <summary> Update the state with a new outgoing record </summary>
@@ -156,10 +156,10 @@ type FlexState =
         let write_s = {st.write with epoch = e} in
         {st with write = write_s}
 
-    /// <summary> Update the state with new keys </summary>
-    /// <remarks> This field is informational only; the new keys will not be used to encrypt future messages.
-    static member updateOutgoingKeys (st:state) (keys:keys) : state =
-        let write_s = {st.write with keys = keys} in
+    /// <summary> Update the state with new secrets </summary>
+    /// <remarks> This field is informational only; the new secrets will not be used to encrypt future messages.
+    static member updateOutgoingSecrets (st:state) (secrets:secrets) : state =
+        let write_s = {st.write with secrets = secrets} in
         {st with write = write_s}
 
     /// <summary> Update the state with verify data on the writing channel </summary>
@@ -204,12 +204,12 @@ type FlexState =
     static member installWriteKeys (st:state) (nsc:nextSecurityContext) : state =
         LogManager.GetLogger("file").Debug("@ Install Write Keys");
         let nextEpoch = FlexState.guessNextEpoch st.write.epoch nsc in
-        let _,wk = nsc.keys.epoch_keys in
+        let _,wk = nsc.secrets.epoch_keys in
         let awk = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Writer wk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Writer awk in
         let st = FlexState.updateOutgoingRecord st nextRecord in
         let st = FlexState.updateOutgoingEpoch st nextEpoch in
-        let st = FlexState.updateOutgoingKeys st nsc.keys in
+        let st = FlexState.updateOutgoingSecrets st nsc.secrets in
         st
       
     end

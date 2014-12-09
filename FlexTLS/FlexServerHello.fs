@@ -108,9 +108,9 @@ type FlexServerHello =
                     extensions = negExts;
                   } 
         in
-        let keys = 
+        let secrets = 
             match getNegotiatedDHGroup negExts with
-            | None -> nsc.keys
+            | None -> nsc.secrets
             | Some(group) ->
                 let kex = 
                     match List.tryFind
@@ -120,12 +120,12 @@ type FlexServerHello =
                     | None -> DH13 ({group = group; x = empty_bytes; gx = empty_bytes; gy = empty_bytes})
                     | Some(kex) -> kex
                 in
-                {nsc.keys with kex = kex}
+                {nsc.secrets with kex = kex}
         in
         let nsc = { nsc with
                     si = si;
                     srand = fsh.rand;
-                    keys = keys;
+                    secrets = secrets;
                   }
         in
         st,nsc,fsh

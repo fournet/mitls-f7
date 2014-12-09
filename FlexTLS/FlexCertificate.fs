@@ -96,8 +96,8 @@ type FlexCertificate =
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "All possible cases are expected to be covered")
         in
         let st,nsc,fcrt = FlexCertificate.send(st,role,chain,nsc=nsc,fp=fp) in
-        let keys = {nsc.keys with pri_key = prikey} in
-        let nsc = {nsc with keys = keys} in
+        let keys = {nsc.secrets with pri_key = prikey} in
+        let nsc = {nsc with secrets = keys} in
         st,nsc,fcrt
                     
 

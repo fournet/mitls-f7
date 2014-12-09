@@ -48,7 +48,7 @@ type Metrics_DHE =
         Tcp.close st.ns;
 
         let kexdh = 
-            match nsc.keys.kex with
+            match nsc.secrets.kex with
             | DH(kexdh) -> kexdh
             | _ -> failwith "This metric has only been implemented for DHE"
         in

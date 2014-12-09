@@ -35,7 +35,7 @@ type FlexServerKeyShare =
     //BB : No need to have minimal DH params as for TLS < 1.3 because we only used named groups
     static member receive (st:state, nsc:nextSecurityContext) : state * nextSecurityContext * FServerKeyShare =
         let nsckex13 = 
-            match nsc.keys.kex with
+            match nsc.secrets.kex with
             | DH13(dh13) -> dh13
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange parameters has to be DH13")
         in
@@ -45,8 +45,8 @@ type FlexServerKeyShare =
             | DHE(_,gy) -> gy
         in
         let kex13 = { nsckex13 with gy = gy } in
-        let epk = {nsc.keys with kex = DH13(kex13) } in
-        let nsc = {nsc with keys = epk} in
+        let epk = {nsc.secrets with kex = DH13(kex13) } in
+        let nsc = {nsc with secrets = epk} in
         let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
         st,nsc,fsks
 
@@ -88,10 +88,10 @@ type FlexServerKeyShare =
     static member send (st:state, nsc:nextSecurityContext, ?fp:fragmentationPolicy) : state * nextSecurityContext * FServerKeyShare =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let kex = 
-            match nsc.keys.kex with
+            match nsc.secrets.kex with
             | DH13(kex) when not (kex.gx = empty_bytes) ->
                 // User-provided kex; don't alter it
-                nsc.keys.kex
+                nsc.secrets.kex
             | _ ->
                 // User didn't provide any useful default:
                 // We sample DH parameters, and get client share from its offers
@@ -121,8 +121,8 @@ type FlexServerKeyShare =
             | _ -> failwith (perror __SOURCE_FILE__ __LINE__ "Unimplemented or unsupported key exchange")
         in
         let st,fsks = FlexServerKeyShare.send(st,kex13,fp) in
-        let epk = {nsc.keys with kex = kex } in
-        let nsc = {nsc with keys = epk} in
+        let epk = {nsc.secrets with kex = kex } in
+        let nsc = {nsc with secrets = epk} in
         let nsc = FlexSecrets.fillSecrets (st,Server,nsc) in
         st,nsc,fsks
 

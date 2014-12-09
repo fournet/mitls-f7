@@ -235,9 +235,9 @@ type FlexConstants =
         pmsId = noPmsId;
     }
 
-    /// <summary> Null epoch keys </summary>
+    /// <summary> Null secrets </summary>
     //BB TODO : Here the key exchange should probably be agnostic instead of using a RSA constructor
-    static member nullKeys = {
+    static member nullSecrets = {
         pri_key = PK_None;
         kex = RSA(empty_bytes);
         pms = empty_bytes;
@@ -250,7 +250,7 @@ type FlexConstants =
         si = FlexConstants.nullSessionInfo;
         crand = empty_bytes;
         srand = empty_bytes;
-        keys = FlexConstants.nullKeys;
+        secrets = FlexConstants.nullSecrets;
         offers = [];
     }
 

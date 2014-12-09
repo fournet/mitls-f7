@@ -119,20 +119,20 @@ type FlexSecrets =
         let ew = FlexState.guessNextEpoch st.write.epoch nsc in
         
         let pms =
-            if nsc.keys.pms = empty_bytes then
-                FlexSecrets.kex_to_pms nsc.keys.kex
+            if nsc.secrets.pms = empty_bytes then
+                FlexSecrets.kex_to_pms nsc.secrets.kex
             else
-                nsc.keys.pms
+                nsc.secrets.pms
         in
 
-        let ms = if nsc.keys.ms = empty_bytes then FlexSecrets.pms_to_ms nsc.si pms else nsc.keys.ms in
-        let keys = if nsc.keys.epoch_keys = (empty_bytes,empty_bytes) then FlexSecrets.ms_to_keys er ew role ms else nsc.keys.epoch_keys in
-        let rkeys,wkeys = keys in
-        let epk = {nsc.keys with pms = pms; ms = ms; epoch_keys = keys} in
+        let ms = if nsc.secrets.ms = empty_bytes then FlexSecrets.pms_to_ms nsc.si pms else nsc.secrets.ms in
+        let secrets = if nsc.secrets.epoch_keys = (empty_bytes,empty_bytes) then FlexSecrets.ms_to_keys er ew role ms else nsc.secrets.epoch_keys in
+        let rkeys,wkeys = secrets in
+        let epk = {nsc.secrets with pms = pms; ms = ms; epoch_keys = secrets} in
         LogManager.GetLogger("file").Debug(sprintf "--- Pre Master Secret : %A" (Bytes.hexString(pms)));
         LogManager.GetLogger("file").Debug(sprintf "--- Master Secret : %A" (Bytes.hexString(ms)));
         LogManager.GetLogger("file").Debug(sprintf "--- Reading Keys : %A" (Bytes.hexString(rkeys)));
         LogManager.GetLogger("file").Debug(sprintf "--- Writing Keys : %A" (Bytes.hexString(wkeys)));
-        { nsc with keys = epk }
+        { nsc with secrets = epk }
 
     end

@@ -81,9 +81,9 @@ type Attack_EarlyResume =
         let st,_         = FlexCCS.send(st) in
 
         // We fill the master secret with zeros because it has no data from the KEX yet
-        // Then we compute and install the writing keys
-        let epk = { nsc.keys with ms = (Bytes.createBytes 48 0)} in
-        let nsc = { nsc with keys = epk} in
+        // Then we compute and install the writing secrets
+        let epk = { nsc.secrets with ms = (Bytes.createBytes 48 0)} in
+        let nsc = { nsc with secrets = epk} in
         let nsc = FlexSecrets.fillSecrets(st,Server,nsc) in
         let st  = FlexState.installWriteKeys st nsc in
 

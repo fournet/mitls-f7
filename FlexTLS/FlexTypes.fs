@@ -90,17 +90,17 @@ type FClientKeyShare = {
 /// Handshake Message record type for Server Key Share
 /// </summary>
 type FServerKeyShare = {
-    /// <summary> Key Exchange offer </summary>
+    /// <summary> Key Exchange chosen </summary>
     kex:HandshakeMessages.tls13kex;
     /// <summary> Message bytes </summary>
     payload:bytes;
 }
 
 /// <summary>
-/// Session Keys record,
+/// Session Secrets record,
 /// This structure contains all secret information of a Handshake
 /// </summary>
-type keys = {
+type secrets = {
     /// <summary> Private key associated to the current certificate (in sessionInfo) </summary>
     pri_key: priKey;
     /// <summary> Key Exchange bytes </summary>
@@ -124,8 +124,8 @@ type channel = {
     record: Record.ConnectionState;
     /// <summary> Public immutable data of the current epoch </summary>
     epoch:  TLSInfo.epoch;
-    /// <summary> Raw bytes of the keys currently in use. This is meant to be a read-only (informational) field: changes to this field will have no effect </summary>
-    keys: keys;
+    /// <summary> Raw bytes of the secrets currently in use. This is meant to be a read-only (informational) field: changes to this field will have no effect </summary>
+    secrets: secrets;
     /// <summary> Initially chosen protocol version before negotiation </summary>
     epoch_init_pv: ProtocolVersion;
     /// <summary> Verify data of the channel </summary>
@@ -162,8 +162,8 @@ type nextSecurityContext = {
     crand: bytes;
     /// <summary> Most recent server random; used to generate new keys </summary>
     srand: bytes;
-    /// <summary> Keys to be used by the next epoch </summary>
-    keys: keys;
+    /// <summary> Secrets to be used by the next epoch </summary>
+    secrets: secrets;
     /// <summary> Offers of DH groups and public keys from the client (useful for negotiated DH groups, and hence for TLS 1.3) </summary>
     offers: list<kex>;
 }

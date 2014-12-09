@@ -43,7 +43,7 @@ type FlexCertificateVerify =
     /// <returns> Updated state * Certificate Verify message </returns>
     static member receive (st:state, nsc:nextSecurityContext, algs:list<Sig.alg>, ?check_log:bool) : state * FCertificateVerify =
         let checkLog = defaultArg check_log true in
-        FlexCertificateVerify.receive(st,nsc.si,algs,check_log=checkLog,ms=nsc.keys.ms)
+        FlexCertificateVerify.receive(st,nsc.si,algs,check_log=checkLog,ms=nsc.secrets.ms)
 
     /// <summary>
     /// Receive a CertificateVerify message from the network stream and check the log on demand

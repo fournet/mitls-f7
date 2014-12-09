@@ -36,7 +36,7 @@ type FlexConnection =
         let record_s_out = Record.nullConnState ci.id_out Writer in
         { read  = { record = record_s_in;
                     epoch = ci.id_in;
-                    keys = FlexConstants.nullKeys;
+                    secrets = FlexConstants.nullSecrets;
                     epoch_init_pv = defaultConfig.maxVer;
                     verify_data = empty_bytes;
                     hs_buffer = empty_bytes;
@@ -44,7 +44,7 @@ type FlexConnection =
                     appdata_buffer = empty_bytes};
           write = { record = record_s_out;
                     epoch = ci.id_out;
-                    keys = FlexConstants.nullKeys;
+                    secrets = FlexConstants.nullSecrets;
                     epoch_init_pv = defaultConfig.maxVer;
                     verify_data = empty_bytes;
                     hs_buffer = empty_bytes;
