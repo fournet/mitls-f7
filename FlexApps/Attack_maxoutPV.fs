@@ -57,21 +57,22 @@ type Attack_maxoutPV =
         let st,nsc,fcert = FlexCertificate.receive(st,Client,nsc) in
         let st,nsc,fske  = FlexServerKeyExchange.receiveDHE(st,nsc) in
         let st,fshd      = FlexServerHelloDone.receive(st) in
+        let st,ad,ab     = FlexAlert.FlexAlert.receive st in
 
 //        let res = Tcp.read st.ns 15 in
 //        st
-        let st,nsc,fcke  = FlexClientKeyExchange.sendDHE(st,nsc) in
-        let st,_         = FlexCCS.send(st) in
-            
-        // Start encrypting
-        let st           = FlexState.installWriteKeys st nsc in
-            
-        let st,ffC       = FlexFinished.send(st,nsc,Client) in
-        let st,_,_       = FlexCCS.receive(st) in
-
-        // Start decrypting
-        let st           = FlexState.installReadKeys st nsc in
-
-        let st,ffS       = FlexFinished.receive(st,nsc,Server) in
+//        let st,nsc,fcke  = FlexClientKeyExchange.sendDHE(st,nsc) in
+//        let st,_         = FlexCCS.send(st) in
+//            
+//        // Start encrypting
+//        let st           = FlexState.installWriteKeys st nsc in
+//            
+//        let st,ffC       = FlexFinished.send(st,nsc,Client) in
+//        let st,_,_       = FlexCCS.receive(st) in
+//
+//        // Start decrypting
+//        let st           = FlexState.installReadKeys st nsc in
+//
+//        let st,ffS       = FlexFinished.receive(st,nsc,Server) in
         st
     end

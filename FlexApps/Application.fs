@@ -24,7 +24,7 @@ open Handshake_tls13
 
 // This script will run in Debug mode
 let runScript () =
-    let _ = Attack_maxoutPV.Attack_maxoutPV.client("www.inria.fr") in true
+    let _ = Attack_maxoutPV.Attack_maxoutPV.client("128.93.189.207",4433) in true
 
 
 // This will run the CLI in Release mode
