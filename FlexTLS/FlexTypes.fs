@@ -21,6 +21,7 @@ type fragmentationPolicy =
     /// <summary> Will send One fragment of length LEN bytes </summary>
     | One of int
 
+
 /// <summary>
 /// DH key exchange parameters record,
 /// Contains both public and secret values associated to Diffie Hellman parameters
@@ -36,6 +37,7 @@ type kexDH = {
     gy: bytes
 }
 
+
 /// <summary>
 /// DH key exchange parameters record, for negotiated DH parameters
 /// Contains both public and secret values associated of Diffie Hellman parameters
@@ -50,6 +52,7 @@ type kexDHTLS13 = {
     /// <summary> Peer's public value (g^y mod p) of the DH exchange </summary>
     gy: bytes;
 }
+
 
 /// <summary>
 /// Key exchange union type,
@@ -76,6 +79,7 @@ type priKey =
     /// <summary> Private (RSA) decryption key </summary>
     | PK_Enc of CoreACiphers.sk
 
+
 /// <summary>
 /// Handshake Message record type for Client Key Share
 /// </summary>
@@ -86,6 +90,7 @@ type FClientKeyShare = {
     payload:bytes;
 }
 
+
 /// <summary>
 /// Handshake Message record type for Server Key Share
 /// </summary>
@@ -95,6 +100,7 @@ type FServerKeyShare = {
     /// <summary> Message bytes </summary>
     payload:bytes;
 }
+
 
 /// <summary>
 /// Session Secrets record,
@@ -113,6 +119,7 @@ type secrets = {
     epoch_keys: bytes * bytes;
              (* read  , write *)
 }
+
 
 /// <summary>
 /// Channel record,
@@ -138,6 +145,7 @@ type channel = {
     appdata_buffer: bytes
 }
 
+
 /// <summary>
 /// Global state of the application
 /// </summary>
@@ -151,6 +159,7 @@ type state = {
     /// <summary> Handshake log </summary>
     hs_log: bytes;
 }
+
 
 /// <summary>
 /// Next security context record used to generate a new epoch
@@ -168,6 +177,7 @@ type nextSecurityContext = {
     offers: list<kex>;
 }
 
+
 /// <summary>
 /// Handshake Message record type for Hello Request
 /// </summary>
@@ -175,6 +185,7 @@ type FHelloRequest = {
     /// <summary> Message Bytes </summary>
     payload: bytes;
 }
+
 
 /// <summary>
 /// Handshake Message record type for Client Hello
@@ -196,6 +207,7 @@ type FClientHello = {
     payload: bytes;
 }
 
+
 /// <summary>
 /// Handshake Message record type for Server Hello
 /// </summary>
@@ -216,6 +228,7 @@ type FServerHello = {
     payload: bytes;
 }
 
+
 /// <summary>
 /// Handshake Message record type for Certificate
 /// </summary>
@@ -225,6 +238,7 @@ type FCertificate = {
     /// <summary> Message bytes</summary>
     payload: bytes;
 }
+
 
 /// <summary>
 /// Handshake Message record type for Server Key Exchange
@@ -240,6 +254,7 @@ type FServerKeyExchange = {
     payload: bytes;
 }
 
+
 /// <summary>
 /// Handshake Message record type for Certificate Request
 /// </summary>
@@ -254,6 +269,7 @@ type FCertificateRequest = {
     payload: bytes;
 }
 
+
 /// <summary>
 /// Handshake Message record type for Server Hello Done
 /// </summary>
@@ -261,6 +277,7 @@ type FServerHelloDone = {
     /// <summary> Message Bytes</summary>
     payload: bytes;
 }
+
 
 /// <summary>
 /// Handshake Message record type for Certificate Verify
@@ -273,6 +290,7 @@ type FCertificateVerify = {
     /// <summary> Message bytes </summary>
     payload: bytes;
 }
+
 
 /// <summary>
 /// Handshake Message record type for Client Key Exchange
@@ -292,6 +310,7 @@ type FChangeCipherSpecs = {
     /// <summary> Message bytes </summary>
     payload: bytes;
 }
+
 
 /// <summary>
 /// Handshake Message record type for Finished
