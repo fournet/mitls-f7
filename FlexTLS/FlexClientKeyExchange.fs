@@ -314,7 +314,7 @@ type FlexClientKeyExchange =
     static member receiveDHE (st:state, kexdh:kexDH) : state * FClientKeyExchange =
         LogManager.GetLogger("file").Info("# CLIENT KEY EXCHANGE : FlexClientKeyExchange.receiveDHE");
         let (p,g),gx = kexdh.pg,kexdh.gx in
-        let dhp = {FlexConstants.nullDHParams with dhp = p; dhg = g} in
+        let dhp = {FlexConstants.defaultDHParams with dhp = p; dhg = g} in
         let st,hstype,payload,to_log = FlexHandshake.receive(st) in
         match hstype with
         | HT_client_key_exchange  ->

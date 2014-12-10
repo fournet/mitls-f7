@@ -23,7 +23,7 @@ open FlexState
 /// <param name="x"> Bytes of the DH parameter </param>
 /// <returns> Abstract DH parameter </returns>
 let dh_coerce (x:bytes) : DH.secret =
-    DH.coerce FlexConstants.nullDHParams empty_bytes x
+    DH.coerce FlexConstants.defaultDHParams empty_bytes x
 
 
 /// <summary>
@@ -32,7 +32,7 @@ let dh_coerce (x:bytes) : DH.secret =
 /// <param name="x"> Abstract DH parameter </param>
 /// <returns>  DH parameter bytes </returns>
 let dh_leak (x:DH.secret) : bytes =
-    DH.leak FlexConstants.nullDHParams empty_bytes x
+    DH.leak FlexConstants.defaultDHParams empty_bytes x
     
 
 
@@ -66,7 +66,7 @@ type FlexSecrets =
     static member pms_to_ms (si:SessionInfo) (pms:bytes) : bytes =
         (* It doesn't really matter if we coerce to DH or RSA, as internally
            they're both just bytes. *)
-        let apms = PMS.coerceDH FlexConstants.nullDHParams empty_bytes empty_bytes pms in
+        let apms = PMS.coerceDH FlexConstants.defaultDHParams empty_bytes empty_bytes pms in
         let pms =
             let eb = empty_bytes in
             PMS.DHPMS(eb,eb,eb,eb,apms) in
