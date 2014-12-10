@@ -6,13 +6,11 @@ open TLSConstants
 
 type ScenarioOpt    = // Normal
                       | FullHandshake 
-                      // SmackTLS
-                      | SmackTLS
-                      // Metrics
-                      | DHParams
+                      // Experimental TLS 1.3 DHE
+                      | TLS13
                       // Attacks
                       | FragmentedAlert | MalformedAlert | FragmentedClientHello 
-                      | EarlyFinished | EarlyCCS | TripleHandshake | SmallSubgroup | EarlyResume
+                      | EarlyCCS | TripleHandshake 
 
 
 type RoleOpt        = RoleClient | RoleServer | RoleMITM
@@ -66,8 +64,8 @@ let flexbanner w =
 let flexinfo w = 
     flexbanner w;
     fprintf w "\n";
-    fprintf w "  - Version     : FlexTLS 0.0.1\n";
-    fprintf w "                  November 20, 2014\n";
+    fprintf w "  - Version     : FlexTLS Ekr's special 0.0.1\n";
+    fprintf w "                  December 10, 2014\n";
     fprintf w "\n";            
     fprintf w "  - Authors     : Benjamin Beurdouche & Alfredo Pironti\n";
     fprintf w "                  INRIA Paris-Rocquencourt\n";
@@ -91,12 +89,8 @@ let flexhelp w =
     fprintf w "                         Fragmented alert            {fal,fragmentedalert}\n";
     fprintf w "                         Fragmented Client Hello     {fch,fragmentedch}\n";
     fprintf w "                         Early CCS                   {eccs,earlyccs}\n";
-    fprintf w "                         Early Finished              {efin,earlyfinished}\n";
     fprintf w "                         Triple Handshake            {ths,triplehandshake}\n";
-    fprintf w "                         Small Subgroup              {sgp,smallsubgroup}\n";
-    fprintf w "                         Early Resume                {eres,earlyresume}\n";
-//    printf "                      - Unit Testing\n";               
-//    printf "                          All                         {uall,unitall}\n";
+    fprintf w "                     - Experimental TLS 1.3 DHE      {13}\n";
     fprintf w "\n";                                             
     fprintf w "  -r --role     : []  Role\n";                  
     fprintf w "                     - Client                        {c,C,Client}  (default)\n";
@@ -106,13 +100,6 @@ let flexhelp w =
     fprintf w "                     - RSA                           {r,rsa,RSA}   (default)\n";
     fprintf w "                     - DHE                           {dh,dhe,DHE}\n";
     fprintf w "                     - ECDHE                         {ec,ecdhe,ECDHE}\n";
-//    printf "  -pv     : [] Protocol version minimum\n";
-//    printf "                - SSL 3.0 : {30,ssl3,SSL3}\n";
-//    printf "                - TLS 1.0 : {10,tls10,TLS10}\n";
-//    printf "                - TLS 1.1 : {11,tls11,TLS11}\n";
-//    printf "                - TLS 1.2 : {12,tls12,TLS12}         (default)\n";
-//    printf "                - TLS 1.3 : {13,tls13,TLS13}\n";
-//    printf "  -cipher : [] Specify a ciphersuite\n";
     fprintf w "  --connect     : [] Connect to address (or domain) and port    (default : %s:%d)\n" defaultOpts.connect_addr defaultOpts.connect_port;
     fprintf w "  --client-cert : [] Use client authentication with the given CN\n";
     fprintf w "  --accept      : [] Accept address (or domain) and port        (default : %s:%d)\n" defaultOpts.listen_addr defaultOpts.listen_port;
@@ -152,10 +139,6 @@ type Parsing =
             (match t with
             | "fullhandshake"::tt | "fh"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FullHandshake)} tt
-            | "smacktls"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(SmackTLS)} tt
-            | "dhparams"::tt | "dhp"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(DHParams)} tt
             | "malformedalert"::tt | "mal"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(MalformedAlert)} tt
             | "fragmentedch"::tt | "fch"::tt ->
@@ -164,14 +147,11 @@ type Parsing =
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(FragmentedAlert)} tt
             | "earlyccs"::tt | "eccs"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(EarlyCCS)} tt
-            | "earlyfinished"::tt | "efin"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(EarlyFinished)} tt
             | "triplehandshake"::tt | "ths"::tt ->
                 Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TripleHandshake)} tt
-            | "smallsubgroup"::tt | "ssg"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(SmallSubgroup)} tt
-            | "earlyresume"::tt | "eres"::tt ->
-                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(EarlyResume)} tt
+            | "13"::tt ->
+                Parsing.innerParseCommandLineOpts {parsedArgs with scenario = Some(TLS13)} tt
+
 
             | s::_ -> flexhelp stderr; eprintf "ERROR : invalid scenario provided: %s\n" s; None
             | [] -> flexhelp stderr; eprintf "ERROR : scenario not provided\n"; None
@@ -238,21 +218,10 @@ type Parsing =
             (match t with
             | "RSA"::t | "rsa"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeRSA)} t
             | "DHE"::t | "dhe"::t -> Parsing.innerParseCommandLineOpts {parsedArgs with kex = Some(KeyExchangeDHE)} t
-            | "ECDHE"::t | "ecdhe"::t -> eprintf "ERROR : ECDHE support not implemented yet. Sorry.\n"; None
+            | "ECDHE"::t | "ecdhe"::t -> eprintf "ERROR : ECDHE support is in progress. Sorry.\n"; None
             | k::_ -> flexhelp stderr; eprintf "ERROR : invalid key exchange provided: %s\n" k; None
             | [] -> flexhelp stderr; eprintf "ERROR : key exchange not provided\n"; None
             )
-
- //       | "-t"::t
- //       | "--timeout"::t ->
- //           (match t with
- //           | tout::tt ->
- //               (match System.Int32.TryParse tout with
- //               | true,tout when tout > 0 -> Parsing.innerParseCommandLineOpts {parsedArgs with timeout = Some(tout)} tt
- //               | true,tout -> flexhelp stderr; eprintf "ERROR : invalid timeout provided: %d\n" tout; None
- //               | false,_ -> flexhelp stderr; eprintf "ERROR : invalid timeout provided: %s\n" tout; None)
- //           | [] -> flexhelp stderr; eprintf "ERROR : timeout not provided\n"; None
- //           )
 
         // Info on the program
         | "--version"::t -> flexinfo stdout; None
