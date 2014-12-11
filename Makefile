@@ -1,7 +1,7 @@
 # -*- Makefile -*-
 
 # --------------------------------------------------------------------
-version    ?= 0.0.2
+version    ?= 0.0.3
 name        = FlexTLS-Ekr
 distname    = $(name)-$(version)
 f7distname  = $(name)-f7-$(version)
