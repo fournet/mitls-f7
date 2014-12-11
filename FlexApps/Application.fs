@@ -13,6 +13,7 @@ open Parsing
 open Attack_Alert
 open Attack_FragmentClientHello
 open Attack_EarlyCCS
+open Attack_maxoutPV
 open Attack_TripleHandshake
 open Handshake_full_RSA
 open Handshake_full_DHE
@@ -24,7 +25,7 @@ open Handshake_tls13
 
 // This script will run in Debug mode
 let runScript () =
-    let _ = Attack_maxoutPV.Attack_maxoutPV.client("128.93.189.207",4433) in true
+    let _ = Handshake_full_DHE.client_with_auth("www.inria.fr") in true
 
 
 // This will run the CLI in Release mode
