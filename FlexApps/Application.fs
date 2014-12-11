@@ -25,7 +25,7 @@ open Handshake_tls13
 
 // This script will run in Debug mode
 let runScript () =
-    let _ = Handshake_full_DHE.client_with_auth("www.inria.fr") in true
+    let _ = Handshake_full_DHE.client("www.inria.fr") in true
 
 
 // This will run the CLI in Release mode
