@@ -19,13 +19,14 @@ open Handshake_full_RSA
 open Handshake_full_DHE
 open Handshake_resumption
 open Handshake_tls13
+open Script
 
 
 
 
 // This script will run in Debug mode
 let runScript () =
-    let _ = Handshake_full_DHE.client("www.inria.fr") in true
+    let _ = Script.run() in true
 
 
 // This will run the CLI in Release mode
