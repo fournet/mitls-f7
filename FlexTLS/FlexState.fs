@@ -218,12 +218,13 @@ type FlexState =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     static member printBuffersStates (st:state) : unit =
-        if not (st.read.hs_buffer = empty_bytes)   then printf "Handshake input buffer is not empty (%s)" (Bytes.hexString(st.read.hs_buffer)) else
-        if not (st.read.alert_buffer = empty_bytes) then printf "Alert input buffer is not empty (%s)" (Bytes.hexString(st.read.alert_buffer)) else
-        if not (st.read.appdata_buffer = empty_bytes) then printf "App Data input buffer is not empty (%s)" (Bytes.hexString(st.read.appdata_buffer)) else
-        if not (st.write.hs_buffer = empty_bytes)   then printf "Handshake output buffer is not empty (%s)" (Bytes.hexString(st.write.hs_buffer)) else
-        if not (st.write.alert_buffer = empty_bytes) then printf "Alert output buffer is not empty (%s)" (Bytes.hexString(st.write.alert_buffer)) else
-        if not (st.write.appdata_buffer = empty_bytes) then printf "App Data output buffer is not empty (%s)" (Bytes.hexString(st.write.appdata_buffer)) else
+        LogManager.GetLogger("file").Debug("@ Buffers status");
+        if not (st.read.hs_buffer = empty_bytes)   then LogManager.GetLogger("file").Debug(sprintf "--- Handshake input buffer is not empty : %s" (Bytes.hexString(st.read.hs_buffer))) else
+        if not (st.read.alert_buffer = empty_bytes) then LogManager.GetLogger("file").Debug(sprintf "--- Alert input buffer is not empty : %s" (Bytes.hexString(st.read.alert_buffer))) else
+        if not (st.read.appdata_buffer = empty_bytes) then LogManager.GetLogger("file").Debug(sprintf "--- App Data input buffer is not empty : %s" (Bytes.hexString(st.read.appdata_buffer))) else
+        if not (st.write.hs_buffer = empty_bytes)   then LogManager.GetLogger("file").Debug(sprintf "--- Handshake output buffer is not empty : %s" (Bytes.hexString(st.write.hs_buffer))) else
+        if not (st.write.alert_buffer = empty_bytes) then LogManager.GetLogger("file").Debug(sprintf "--- Alert output buffer is not empty : %s" (Bytes.hexString(st.write.alert_buffer))) else
+        if not (st.write.appdata_buffer = empty_bytes) then LogManager.GetLogger("file").Debug(sprintf "--- App Data output buffer is not empty : %s" (Bytes.hexString(st.write.appdata_buffer))) else
         ()
       
     end
