@@ -1,4 +1,5 @@
 ﻿#light "off"
+
 /// <summary>
 /// Module receiving, sending and forwarding and eventually encrypts TLS records.
 /// </summary>
@@ -24,9 +25,10 @@ open FlexState
 /// </summary>
 /// <param name="fp"> Fragmentation policy </param>
 /// <returns> size of the fragment to be applied </returns>
-let fs_of_fp fp =
+let fs_of_fp (fp:fragmentationPolicy) : int =
     match fp with
     | All(n) | One(n) -> n
+
 
 /// <summary>
 /// Split any payload depending on the fragmentation size
@@ -38,23 +40,26 @@ let splitPayloadFP (b:bytes) (fp:fragmentationPolicy) : bytes * bytes =
     let len = System.Math.Min((length b),(fs_of_fp fp)) in
     Bytes.split b len
 
+
 /// <summary>
 /// Select a buffer to use depending on the content type
 /// </summary>
 /// <param name="channel"> Channel to extract buffer from </param>
 /// <param name="ct"> Content type </param>
 /// <returns> Buffer associated to the chosen content type </returns>
+// BB : What happens for Change_cipher_spec ?
 let pickCTBuffer (ch:channel) (ct:ContentType) : bytes = 
     match ct with
-    | Handshake -> ch.hs_buffer
-    | Alert -> ch.alert_buffer
-    | Application_data -> ch.appdata_buffer
+    | Handshake         -> ch.hs_buffer
+    | Alert             -> ch.alert_buffer
+    | Application_data  -> ch.appdata_buffer
     | _ -> failwith "Unsupported content type"
 
 
 
+
 /// <summary>
-/// Module receiving, sending and forwarding and eventually encrypts TLS records.
+/// Module receiving, sending and forwarding and eventually encrypting TLS records.
 /// </summary>
 type FlexRecord = 
     class
@@ -66,11 +71,12 @@ type FlexRecord =
     /// <returns> ContentType * ProtocolVersion * Length * Header bytes </returns>
     static member parseFragmentHeader (st:state) : ContentType * ProtocolVersion * nat * bytes =
         match Tcp.read st.ns 5 with
-        | Error x        -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+        | Error x -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct header ->
             match Record.parseHeader header with
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct(ct,pv,len) -> ct,pv,len,header
+
 
     /// <summary>
     /// Get N bytes from the network stream and decrypts it as a fragment
@@ -78,13 +84,13 @@ type FlexRecord =
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="ct"> Content type of the fragment </param>
     /// <param name="len"> Length of the fragment </param>
-    /// <returns> Updated (decryption) state * decrypted plaintext </returns>
+    /// <returns> Updated state (reading side) * decrypted plaintext </returns>
     static member getFragmentContent (st:state, ct:ContentType, len:int) : state * bytes = 
         match Tcp.read st.ns len with
-        | Error x         -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+        | Error x -> failwith (perror __SOURCE_FILE__ __LINE__ x)
         | Correct payload ->
             match Record.recordPacketIn st.read.epoch st.read.record ct payload with
-            | Error (ad,x)  -> failwith (perror __SOURCE_FILE__ __LINE__ x)
+            | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (rec_in,rg,frag)  ->
                 let st = FlexState.updateIncomingRecord st rec_in in
                 let id = TLSInfo.id st.read.epoch in
@@ -93,18 +99,21 @@ type FlexRecord =
                 LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
                 (st,fragb)
 
+
     /// <summary>
     /// Receive a fragment by reading a header and a payload from the network stream
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> State * ContentType * ProtocolVersion * Lenght of the record payload * Fragment header bytes * Fragment payload bytes </returns>
+    // BB : Move towards this form of receiving records when possible 
     static member receive (st:state) : state * ContentType * ProtocolVersion * int * bytes * bytes =
         let ct,pv,len,header = FlexRecord.parseFragmentHeader st in
         let st,payload = FlexRecord.getFragmentContent (st,ct,len) in
         st,ct,pv,len,header,payload
 
+
     /// <summary>
-    /// Encrypt data 
+    /// Encrypt data depending on the record connection state
     /// </summary>
     /// <param name="e"> Epoch to use for encryption </param>
     /// <param name="pv"> Protocol version to use </param>
@@ -122,6 +131,7 @@ type FlexRecord =
         let k,b = Record.recordPacketOut e k pv rg ct frag in
         (k,b)
 
+
     /// <summary>
     /// Forward a record
     /// </summary>
@@ -131,14 +141,16 @@ type FlexRecord =
     /// <returns> Updated incoming state * Updated outgoing state * forwarded record bytes </returns>
     static member forward (stin:state, stout:state, ?fp:fragmentationPolicy) : state * state * bytes =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
+        // BB TODO : FlexRecord.receive might be used here
         let ct,pv,len,header = FlexRecord.parseFragmentHeader(stin) in
         let stin,payload = FlexRecord.getFragmentContent(stin,ct,len) in
         let stout = FlexState.updateOutgoingBuffer stout ct payload in
         let stout = FlexRecord.send(stout,ct,fp) in
         stin,stout,payload
 
+
     /// <summary>
-    /// Send data picked from a chosen CT buffer over the network after encrypting a record depending on the fragmentation policy
+    /// Send data picked from a chosen CT buffer over the network after encrypting it and according to the fragmentation policy
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="ct"> Content type of the fragment </param>
@@ -153,6 +165,7 @@ type FlexRecord =
         let st = FlexState.updateOutgoingBuffer st ct rem in
         let st = FlexState.updateOutgoingRecord st k in
         st
+
 
     /// <summary>
     /// Send data over the network after encrypting a record depending on the fragmentation policy
@@ -216,4 +229,5 @@ type FlexRecord =
                 else
                     FlexRecord.send_raw(ns,ct,pv,rem,fp)
             | One(fs) -> rem
+
     end
