@@ -25,11 +25,14 @@ open Handshake_resumption
 open Handshake_tls13
 open Metrics_DHE
 open SmackTLS
+open Script
+
+
 
 
 // This script will run in Debug mode
 let runScript () =
-    let _ = Handshake_full_RSA.client("www.inria.fr") in true
+    let _ = Script.run() in true
 
 
 
