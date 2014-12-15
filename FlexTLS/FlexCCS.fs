@@ -23,7 +23,7 @@ type FlexCCS =
     class
     
     /// <summary>
-    /// Receive ChangeCipherSpecs message from network stream 
+    /// Receive CCS message from network stream 
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * CCS record * CCS byte </returns>
@@ -42,6 +42,7 @@ type FlexCCS =
             let _,b = FlexRecord.getFragmentContent (st, ct, len) in
             failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b))))
 
+
     /// <summary>
     /// Forward CCS to the network stream 
     /// </summary>
@@ -54,6 +55,7 @@ type FlexCCS =
         let stout,_ = FlexCCS.send(stout) in
         LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(msgb)));
         stin,stout,msgb
+
 
     /// <summary>
     /// Send CCS to the network stream 
