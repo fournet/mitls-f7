@@ -25,6 +25,7 @@ type FlexAppData =
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <returns> Updated state * Application data bytes received </returns>
+    // BB TODO : Unexpected re-handshake should be handled here in some way in the future
     static member receive (st:state) : state * bytes =
         let ct,pv,len,_ = FlexRecord.parseFragmentHeader st in
         match ct with
@@ -33,6 +34,7 @@ type FlexAppData =
         | _ -> 
             let _,b = FlexRecord.getFragmentContent (st, ct, len) in
             failwith (perror __SOURCE_FILE__ __LINE__ (sprintf "Unexpected content type : %A\n Payload (%d Bytes) : %s" ct len (Bytes.hexString(b))))
+
 
     /// <summary>
     /// Forward application data to the network stream 
@@ -46,19 +48,21 @@ type FlexAppData =
         let stin,appb = FlexAppData.receive(stin) in
         let stout = FlexAppData.send(stout,appb,fp) in
         stin,stout,appb
-    
+
+
     /// <summary>
-    /// Send application data as encoded string to network stream 
+    /// Send application data as an encoded string to network stream 
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="data"> Application data as encoded string </param>
     /// <param name="fp"> Optional fragmentation policy applied to the message </param>
     /// <returns> Updated state </returns>
-    static member send(st:state, data:string, ?encoding:System.Text.Encoding, ?fp:fragmentationPolicy): state =
+    static member send(st:state, data:string, ?encoding:System.Text.Encoding, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         let encoding = defaultArg encoding System.Text.Encoding.ASCII in
         let payload = abytes(encoding.GetBytes(data)) in
         FlexAppData.send(st,payload,fp)
+
 
     /// <summary>
     /// Send application data as raw bytes to network stream 
