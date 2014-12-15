@@ -64,7 +64,7 @@ type Attack_FragmentClientHello =
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         // Start being a Man-In-The-Middle
-        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listener_port=6666,server_cn=server_name,server_port=port) in
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections("0.0.0.0",server_name,listen_port=6666,server_cn=server_name,server_port=port) in
 
         // Receive the Client Hello and check that the protocol version is high enough
         let sst,nsc,sch = FlexClientHello.receive(sst) in

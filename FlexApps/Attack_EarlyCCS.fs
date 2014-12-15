@@ -73,7 +73,7 @@ type Attack_EarlyCCS =
         let listen_port = defaultArg listen_port FlexConstants.defaultTCPPort in
 
         // Start being a Man-In-The-Middle
-        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections(listen_addr,connect_addr,listener_port=listen_port,server_cn=connect_addr,server_port=connect_port) in
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections(listen_addr,connect_addr,listen_port=listen_port,server_cn=connect_addr,server_port=connect_port) in
 
         // Forward client Hello
         let sst,nsc,sch = FlexClientHello.receive(sst) in

