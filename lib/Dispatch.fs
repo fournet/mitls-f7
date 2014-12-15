@@ -244,7 +244,7 @@ let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment
                     match c_write.disp with
                     | FirstHandshake(_) | Open ->
                         (let history = Record.history id.id_out Writer c_write.conn in
-                        let ki = TLSInfo.id id.id_out in
+                        let ki = TLSInfo.mk_id id.id_out in
                         let es = HSFragment.init ki in
                         let hs = TLSFragment.ccsHistory id.id_out history in
                         let ccs = HSFragment.reStream ki es rg ccs hs in 
@@ -274,7 +274,7 @@ let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment
                       (match c_write.disp with
                       | Init | FirstHandshake(_) | Finishing | Open ->
                           (let history = Record.history id.id_out Writer c_write.conn in
-                          let ki = TLSInfo.id id.id_out in
+                          let ki = TLSInfo.mk_id id.id_out in
                           let es = HSFragment.init ki in
                           let hs = TLSFragment.handshakeHistory id.id_out history in
                           let f = HSFragment.reStream ki es rg f hs in
@@ -296,7 +296,7 @@ let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment
                 | Finishing ->
                     (* Send the last fragment *)
                     (let history = Record.history id.id_out Writer c_write.conn in
-                    let ki = TLSInfo.id id.id_out in
+                    let ki = TLSInfo.mk_id id.id_out in
                     let es = HSFragment.init ki in
                     let hs = TLSFragment.handshakeHistory id.id_out history in
                     let lastFrag = HSFragment.reStream ki es rg lastFrag hs in
@@ -320,7 +320,7 @@ let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment
                 | (Finishing, Finished) ->
                     (* Send the last fragment *)
                     (let history = Record.history id.id_out Writer c_write.conn in
-                    let ki = TLSInfo.id id.id_out in
+                    let ki = TLSInfo.mk_id id.id_out in
                     let es = HSFragment.init ki in
                     let hs = TLSFragment.handshakeHistory id.id_out history in
                     let lastFrag = HSFragment.reStream ki es rg lastFrag hs in
@@ -351,7 +351,7 @@ let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment
         (match c_write.disp with
         | Init | FirstHandshake(_) | Open | Closing(_,_) ->
             (let history = Record.history id.id_out Writer c_write.conn in
-            let ki = TLSInfo.id id.id_out in
+            let ki = TLSInfo.mk_id id.id_out in
             let es = HSFragment.init ki in
             let hs = TLSFragment.alertHistory id.id_out history in
             let f = HSFragment.reStream ki es tlen f hs in
@@ -374,7 +374,7 @@ let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment
         | Init | FirstHandshake(_) | Open | Closing(_,_) ->
             (* We're sending a fatal alert. Send it, then close both sending and receiving sides *)
             (let history = Record.history id.id_out Writer c_write.conn in
-            let ki = TLSInfo.id id.id_out in
+            let ki = TLSInfo.mk_id id.id_out in
             let es = HSFragment.init ki in
             let hs = TLSFragment.alertHistory id.id_out history in
             let f = HSFragment.reStream ki es tlen f hs in
@@ -401,7 +401,7 @@ let writeOne (Conn(id,c)) (ghost: option<(range * DataStream.delta * AppFragment
                If we already received the other close notify, then reading is already closed,
                otherwise we wait to read it, then close. But do not close here. *)
             (let history = Record.history id.id_out Writer c_write.conn in
-            let ki = TLSInfo.id id.id_out in
+            let ki = TLSInfo.mk_id id.id_out in
             let es = HSFragment.init ki in
             let hs = TLSFragment.alertHistory id.id_out history in
             let f = HSFragment.reStream ki es tlen f hs in

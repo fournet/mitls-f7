@@ -33,7 +33,7 @@ type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
 
 
 type pmsId
-val pmsId: PMS.pms -> pmsId
+val mk_pmsId: PMS.pms -> pmsId
 val noPmsId: pmsId
 
 
@@ -58,11 +58,11 @@ type msId =
    | StandardMS of pmsId * csrands * kefAlg 
    | ExtendedMS of pmsId * sessionHash * kefAlg
 
-val csrands: SessionInfo -> bytes
-val kefAlg: SessionInfo -> kefAlg
-val kefAlg_extended: SessionInfo -> kefAlg  
-val vdAlg: SessionInfo -> vdAlg  
-val msi: SessionInfo -> msId
+val mk_csrands: SessionInfo -> bytes
+val mk_kefAlg: SessionInfo -> kefAlg
+val mk_kefAlg_extended: SessionInfo -> kefAlg  
+val mk_vdAlg: SessionInfo -> vdAlg  
+val mk_msid: SessionInfo -> msId
 
 type id = { 
   // indexes and algorithms of the session used in the key derivation
@@ -95,7 +95,7 @@ type event =
   | SentCCS of Role * SessionInfo
   | SentCCSAbbr of Role * abbrInfo 
 
-val id: epoch -> id 
+val mk_id: epoch -> id 
 val unAuthIdInv: id -> epoch
 
 val isInitEpoch: epoch -> bool

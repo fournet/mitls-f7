@@ -9,8 +9,8 @@ type key = bytes
 type data = bytes
 type mac = bytes
 
-val MAC:       macAlg -> key -> data -> mac
-val MACVERIFY: macAlg -> key -> data -> mac -> bool
+val tls_mac:       macAlg -> key -> data -> mac
+val tls_macVerify: macAlg -> key -> data -> mac -> bool
 
 (* SSL/TLS Constants *)
 

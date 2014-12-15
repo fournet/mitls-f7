@@ -45,7 +45,7 @@ let Mac (ki:id) key data =
       match key with 
         | Key_SHA256(k) -> MAC_SHA256.Mac ki k data 
         | Key_SHA1(k)   -> MAC_SHA1.Mac ki k data 
-        | KeyNoAuth(k)  -> HMAC.MAC a k data 
+        | KeyNoAuth(k)  -> HMAC.tls_mac a k data 
 
     // #if ideal
     // // We log every authenticated texts, with their index and resulting tag
@@ -58,7 +58,7 @@ let Verify ki key data tag =
     match key with 
     | Key_SHA256(k) -> MAC_SHA256.Verify ki k data tag
     | Key_SHA1(k)   -> MAC_SHA1.Verify ki k data tag
-    | KeyNoAuth(k)  -> HMAC.MACVERIFY a k data tag
+    | KeyNoAuth(k)  -> HMAC.tls_macVerify a k data tag
     // #if ideal 
     // // At safe indexes, we use the log to detect and correct verification errors
     // && if authId ki

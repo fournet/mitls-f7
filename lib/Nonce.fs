@@ -21,14 +21,15 @@ let log = ref []
 #endif
 
 let rec mkHelloRandom(): bytes =
-    let Cr = timestamp() @| random 28 in
+    let cr = timestamp() @| random 28 in
     //#begin-idealization
     #if ideal
-    if List.memr !log Cr then 
+    if List.memr !log cr then 
         mkHelloRandom () // we formally retry to exclude collisions.
     else 
-        (log := Cr::!log;
-        Cr)
-    #else //#end-idealization
-    Cr
+        (log := cr::!log;
+        cr)
+    #else
+    //#end-idealization
+    cr
     #endif

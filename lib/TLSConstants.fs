@@ -534,7 +534,7 @@ let tlsEncAlg alg pv =
           | AES_256_CBC -> CBC_Fresh(AES_256))
 
 
-let aeAlg cs pv =
+let mk_aeAlg cs pv =
     match cs with
     | OnlyMACCipherSuite (_,alg) ->
         let mac = tlsMacAlg alg pv in
@@ -546,7 +546,7 @@ let aeAlg cs pv =
     | CipherSuite(_, CS_AEAD(e,a)) ->
         let mac = tlsMacAlg a pv in
         AEAD(e,mac)
-    | _ -> unexpected "[aeAlg] invoked on an invalid ciphersuite"
+    | _ -> unexpected "[mk_aeAlg] invoked on an invalid ciphersuite"
 
 
 let encAlg_of_aeAlg ae =
@@ -561,10 +561,10 @@ let macAlg_of_aeAlg ae =
     | _ -> unexpected "[macAlg_of_ciphersuite] invoked on an invalid ciphersuite"
 
 let encAlg_of_ciphersuite cs pv = 
-    let a = aeAlg cs pv in
+    let a = mk_aeAlg cs pv in
     encAlg_of_aeAlg a 
 let macAlg_of_ciphersuite cs pv = 
-    let a = aeAlg cs pv in
+    let a = mk_aeAlg cs pv in
     macAlg_of_aeAlg a
 
 let mkIntTriple x:(int*int*int) = x
@@ -750,7 +750,7 @@ let parseCT b =
     | (23uy) -> correct(Application_data)
     | _        -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "")
 
-let CTtoString = function
+let ctToString = function
     | Change_cipher_spec -> "CCS" 
     | Alert              -> "Alert"
     | Handshake          -> "Handshake"

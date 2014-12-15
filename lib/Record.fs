@@ -19,7 +19,7 @@ type sendState = ConnectionState
 type recvState = ConnectionState
 
 let initConnState (e:epoch) (rw:rw) s = 
-  let i = id e in
+  let i = mk_id e in
   let h = TLSFragment.emptyHistory e in
   someState e rw h s
 
@@ -48,25 +48,17 @@ let parseHeader b =
     else
         correct(ct,pv,len)
 
-(* This replaces send. It's not called send, 
-   since it doesn't send anything on the network *)
 let recordPacketOut e conn pv rg ct fragment =
-    (* No need to deal with compression. It is handled internally by TLSPlain,
-       when returning us the next (already compressed!) fragment *)
-    (*TODO
-    match make_compression conn.rec_ki.sinfo fragment with
-    | Error (x,y) -> Error (x,y)
-    | Correct compressed ->
-    *)
+    (* We do not support compression *)
     let initEpoch = isInitEpoch e in
     match conn with
     | NullState when initEpoch = true ->
-        let i = id e in // doesn't typechecke
+        let i = mk_id e in
         let payload = TLSFragment.reprFragment i ct rg fragment in
         let packet = makePacket ct pv payload in
         (conn,packet)
     | SomeState(history,state) when initEpoch = false ->
-        let i = id e in
+        let i = mk_id e in
         let ad = StatefulPlain.makeAD i ct in
         let sh = StatefulLHAE.history i Writer state in
         let aeadF = StatefulPlain.RecordPlainToStAEPlain e ct ad history sh rg fragment in
@@ -76,31 +68,6 @@ let recordPacketOut e conn pv rg ct fragment =
         (SomeState(history,state),
          packet)
     | _ -> unexpected "[recordPacketOut] Incompatible ciphersuite and key type"
-    
-
-(* CF: an attempt to simplify for typechecking 
-let recordPacketOut2 conn clen ct fragment =
-    let suite = conn.rec_ki.sinfo.cipher_suite 
-    let conn, payload = 
-        if isNullCipherSuite suite then 
-            conn,
-            fragment_to_cipher conn.rec_ki clen fragment
-        else 
-            let ad = makeAD conn ct in
-            if isOnlyMACCipherSuite suite then           
-                let key = getMACKey conn.key in
-                let text = mac_plain_to_bytes (ad_fragment conn.rec_ki ad fragment)
-                let mac = Mac.MAC conn.rec_ki key text 
-                conn, 
-                fragment_mac_to_cipher conn.rec_ki clen fragment (bytes_to_mac mac)
-            else
-                let key = getLHAEKey conn.key in
-                let newIV, payload = LHAE.encrypt conn.rec_ki key conn.iv3 clen ad fragment 
-                {conn with iv3 = newIV},
-                payload
-    incN conn,
-    makePacket ct conn.local_pv payload 
-*)
 
 let recordPacketIn e conn ct payload =
     let initEpoch = isInitEpoch e in
@@ -108,11 +75,11 @@ let recordPacketIn e conn ct payload =
     | NullState when initEpoch ->
         (let plen = length payload in
         let rg = (plen,plen) in
-        let i = id e in
+        let i = mk_id e in
         let msg = TLSFragment.fragment i ct rg payload in
         correct(conn,rg,msg))
     | SomeState(history,state) when initEpoch = false ->
-        (let i = id e in
+        (let i = mk_id e in
         let ad = StatefulPlain.makeAD i ct in
         let decr = StatefulLHAE.decrypt i state ad payload in
         match decr with
@@ -129,7 +96,7 @@ let recordPacketIn e conn ct payload =
 let history (e:epoch) (rw:rw) s =
     match s with
     | NullState -> 
-        let i = id e in
+        let i = mk_id e in
         TLSFragment.emptyHistory e
     | SomeState(h,_) -> h
 

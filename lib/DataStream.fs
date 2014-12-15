@@ -38,7 +38,7 @@ let splitRange ki r =
     let si = epochSI(ki) in
     let cs = si.cipher_suite in
     let FS = TLSInfo.fragmentLength in
-    let id = id ki in
+    let id = mk_id ki in
     let PS = maxPadSize id in
     if PS = 0 || l = h then
         // no LH to do

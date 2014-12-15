@@ -17,7 +17,7 @@ type fragment = preFragment
 type plain = fragment
 
 let fragment e s r d = 
-    let i = id e in
+    let i = mk_id e in
     let f = {frag = e,s,d} in
     #if ideal
     Pi.assume (DeltaFragment(e,s,r,d));

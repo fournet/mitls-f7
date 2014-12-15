@@ -118,7 +118,7 @@ val verifyDataHashAlg_of_ciphersuite: cipherSuite -> hashAlg
 
 val sessionHashAlg: ProtocolVersion -> cipherSuite -> hashAlg
 
-val aeAlg: cipherSuite -> ProtocolVersion -> aeAlg
+val mk_aeAlg: cipherSuite -> ProtocolVersion -> aeAlg
 val macAlg_of_aeAlg: aeAlg -> macAlg
 val encAlg_of_aeAlg: aeAlg -> encAlg
 val macAlg_of_ciphersuite: cipherSuite -> ProtocolVersion -> macAlg
@@ -197,7 +197,7 @@ val seq_of_bytes: bytes -> nat
 
 val ctBytes: ContentType -> bytes
 val parseCT: bytes -> Result<ContentType>
-val CTtoString: ContentType -> string
+val ctToString: ContentType -> string
 
 val vlbytes: nat -> bytes -> bytes
 val vlsplit: nat -> bytes -> Result<(bytes * bytes)>

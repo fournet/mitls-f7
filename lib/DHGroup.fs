@@ -9,17 +9,17 @@ open TLSError
 type elt = bytes
 
 #if ideal
-type preds = Elt of bytes * bytes * elt
-type predPP = PP of bytes * bytes
+type preds = | Elt of bytes * bytes * elt
+type predPP = | PP of bytes * bytes
 
-let goodPP_log = ref([]: list<dhparams>)
+let goodPP_log = ref([]: list<CoreKeys.dhparams>)
 #if verify
-let goodPP (dhp:dhparams) : bool = failwith "only used in ideal implementation, unverified"
+let goodPP (dhp:CoreKeys.dhparams) : bool = failwith "only used in ideal implementation, unverified"
 #else
 let goodPP dhp =  List.memr !goodPP_log dhp
 #endif
 
-let pp (dhp:dhparams) : dhparams =
+let pp (dhp:CoreKeys.dhparams) : CoreKeys.dhparams =
 #if verify
     Pi.assume(PP(dhp.dhp,dhp.dhg));
 #else

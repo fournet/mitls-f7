@@ -489,7 +489,7 @@ ask !cs,pv,mac,enc. CipherSuiteAuthEncAlg(cs,pv) = MtE(enc,mac) => CipherSuiteEN
 private val tlsEncAlg: c:cipherAlg -> pv:ProtocolVersion -> e:encAlg{e = TLSENCAlg(c,pv)}
 private val tlsMacAlg: c:hashAlg -> pv:ProtocolVersion -> e:macAlg{e = TLSMACAlg(c,pv)}
 
-val aeAlg: cs:cipherSuite -> pv:ProtocolVersion -> a:aeAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
+val mk_aeAlg: cs:cipherSuite -> pv:ProtocolVersion -> a:aeAlg{a = CipherSuiteAuthEncAlg(cs,pv)}
 val encAlg_of_aeAlg: a:aeAlg -> e:encAlg{e=AEEncAlg(a)}   
 val macAlg_of_aeAlg: a:aeAlg -> m:macAlg{m=AEMacAlg(a)}   
 val macAlg_of_ciphersuite: cs:cipherSuite -> pv:ProtocolVersion -> h:macAlg{h = CipherSuiteMACAlg(cs,pv)}
@@ -695,7 +695,7 @@ private definition CTBytes(Application_data)   = [|23uy|]
 
 val ctBytes: ct:ContentType -> b:bytes{B(b)=CTBytes(ct)}
 val parseCT: b:bytes {Length(b)=1} -> (ct:ContentType{B(b)=CTBytes(ct)}) Result
-val CTtoString: ContentType -> string
+val ctToString: ContentType -> string
 
 // binary format for length-prefixed bytes;
 // the integer is the length of the prefix (1, 2, 3 or 4 for TLS)

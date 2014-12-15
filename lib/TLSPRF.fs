@@ -59,8 +59,8 @@ let ssl_verifyCertificate hashAlg ms log  =
 (* TLS 1.0 and 1.1 *)
 
 let rec p_hash_int alg secret seed len it aPrev acc =
-  let aCur = MAC alg secret aPrev in
-  let pCur = MAC alg secret (aCur @| seed) in
+  let aCur = tls_mac alg secret aPrev in
+  let pCur = tls_mac alg secret (aCur @| seed) in
   if it = 1 then
     let hs = macSize alg in
     let r = len % hs in

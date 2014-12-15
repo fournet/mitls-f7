@@ -14,7 +14,7 @@ val OID_DSASignatureKey : string
 
 val oid_of_keyalg: sigAlg -> string
 
-type X509Certificate2 = System.Security.Cryptography.X509Certificates.X509Certificate2
+type X509Certificate2
 type hint = string
 type cert = bytes
 type chain = list<cert>

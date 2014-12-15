@@ -21,12 +21,12 @@ let OID_DSASignatureKey         = "1.2.840.10040.4.1"
 let OID_DSASignature            = "1.2.840.10040.4.3"
 
 (* ------------------------------------------------------------------------ *)
-type X509Certificate2 = System.Security.Cryptography.X509Certificates.X509Certificate2
+type X509Certificate2 = | C of System.Security.Cryptography.X509Certificates.X509Certificate2
 type hint = string
 type cert = bytes
 type chain = list<cert>
 
-let x509_to_public_key (x509 : X509Certificate2) =
+let x509_to_public_key (C x509 : X509Certificate2) =
     match x509.GetKeyAlgorithm() with
     | x when x = OID_RSAEncryption ->
         (try
@@ -45,7 +45,7 @@ let x509_to_public_key (x509 : X509Certificate2) =
 
     | _ -> None
 
-let x509_to_secret_key (x509 : X509Certificate2) =
+let x509_to_secret_key (C x509 : X509Certificate2) =
     match x509.GetKeyAlgorithm() with
     | x when x = OID_RSAEncryption ->
         (try
@@ -74,7 +74,7 @@ let oid_of_keyalg = function
 (* ------------------------------------------------------------------------ *)
 
 (* ------------------------------------------------------------------------ *)
-let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
+let x509_has_key_usage_flag strict flag (C x509 : X509Certificate2) =
     try
         let kue =
             x509.Extensions
@@ -88,7 +88,7 @@ let x509_has_key_usage_flag strict flag (x509 : X509Certificate2) =
         not strict
 
 (* ------------------------------------------------------------------------ *)
-let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (x509 : X509Certificate2) =
+let x509_check_key_sig_alg (sigkeyalg : Sig.alg) (C x509 : X509Certificate2) =
     match x509.SignatureAlgorithm with (* AP: WARN: OID_MD5WithRSAEncryption is obsolete - removed *)
     | o when o.Value = OID_SHAWithRSAEncryption ->
          (* We are not strict, to comply with TLS < 1.2 *)
@@ -105,52 +105,52 @@ let x509_check_key_sig_alg_one (sigkeyalgs : list<Sig.alg>) (x509 : X509Certific
     List.exists (fun a -> x509_check_key_sig_alg a x509) sigkeyalgs
 
 (* ------------------------------------------------------------------------ *)
-let x509_verify (x509 : X509Certificate2) =
+let x509_verify (C x509 : X509Certificate2) =
     let chain = new X509Chain() in
         chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
         chain.Build(x509)
 
 (* ------------------------------------------------------------------------ *)
-let x509_chain (x509 : X509Certificate2) = (* FIXME: Is certs. store must be opened ? *)
+let x509_chain (C x509 : X509Certificate2) = (* FIXME: Is certs. store must be opened ? *)
     let chain = new X509Chain() in
         chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
         ignore (chain.Build(x509));
         chain.ChainElements
             |> Seq.cast
-            |> Seq.map (fun (ce : X509ChainElement) -> ce.Certificate)
+            |> Seq.map (fun (ce : X509ChainElement) -> C ce.Certificate)
             |> Seq.toList
 
 (* ------------------------------------------------------------------------ *)
-let x509_export_public (x509 : X509Certificate2) : bytes =
+let x509_export_public (C x509 : X509Certificate2) : bytes =
     abytes (x509.Export(X509ContentType.Cert))
 
 (* ------------------------------------------------------------------------ *)
-let x509_is_for_signing (x509 : X509Certificate2) =
+let x509_is_for_signing (C x509 : X509Certificate2) =
        x509.Version >= 3
-    && x509_has_key_usage_flag false X509KeyUsageFlags.DigitalSignature x509
+    && x509_has_key_usage_flag false X509KeyUsageFlags.DigitalSignature (C x509)
 
-let x509_is_for_key_encryption (x509 : X509Certificate2) =
+let x509_is_for_key_encryption (C x509 : X509Certificate2) =
     x509.Version >= 3
-    && x509_has_key_usage_flag false X509KeyUsageFlags.KeyEncipherment x509
+    && x509_has_key_usage_flag false X509KeyUsageFlags.KeyEncipherment (C x509)
 
 (* ------------------------------------------------------------------------ *)
 let cert_to_x509 (c : cert ) = 
     try
-        Some(new X509Certificate2(cbytes c))
+        Some(C (new System.Security.Cryptography.X509Certificates.X509Certificate2(cbytes c)))
     with :? CryptographicException -> None
 
 let chain_to_x509list (chain : chain) =
     try
-        Some(List.map (fun (c : cert) -> new X509Certificate2(cbytes c)) chain)
+        Some(List.map (fun (c : cert) -> ( C (new System.Security.Cryptography.X509Certificates.X509Certificate2(cbytes c)))) chain)
     with :? CryptographicException -> None
 
 let x509list_to_chain (chain : list<X509Certificate2>): chain  = List.map x509_export_public chain
 
 
-let rec validate_x509list (c : X509Certificate2) (issuers : list<X509Certificate2>) =
+let rec validate_x509list (C c : X509Certificate2) (issuers : list<X509Certificate2>) =
     try
         let chain = new X509Chain () in
-            chain.ChainPolicy.ExtraStore.AddRange(List.toArray issuers);
+            chain.ChainPolicy.ExtraStore.AddRange(List.toArray (List.map (fun (C c) -> c) issuers));
             chain.ChainPolicy.RevocationMode <- X509RevocationMode.NoCheck;
 
             chain.Build(c)
@@ -170,12 +170,12 @@ let validate_x509_chain (sigkeyalgs : list<Sig.alg>) (chain : chain) =
 
 let is_for_signing (c : cert) =
     try
-        x509_is_for_signing (new X509Certificate2(cbytes c))
+        x509_is_for_signing (C (new System.Security.Cryptography.X509Certificates.X509Certificate2(cbytes c)))
     with :? CryptographicException -> false
 
 let is_for_key_encryption (c : cert) =
     try
-        x509_is_for_key_encryption (new X509Certificate2(cbytes c))
+        x509_is_for_key_encryption (C (new System.Security.Cryptography.X509Certificates.X509Certificate2(cbytes c)))
     with :? CryptographicException -> false
 
 let find_sigcert_and_alg (sigkeyalgs : list<Sig.alg>) (h : hint) (algs : list<Sig.alg>) =
@@ -184,20 +184,21 @@ let find_sigcert_and_alg (sigkeyalgs : list<Sig.alg>) (h : hint) (algs : list<Si
     store.Open(OpenFlags.ReadOnly ||| OpenFlags.OpenExistingOnly);
     try
         (try
-            let pick_wrt_req_alg (x509 : X509Certificate2) =
+            let pick_wrt_req_alg (C x509 : X509Certificate2) =
                     let testalg ((asig, _) : Sig.alg) =
                         x509.GetKeyAlgorithm() = oid_of_keyalg asig
                     in
 
-                    if x509.HasPrivateKey && x509_is_for_signing x509 then
+                    if x509.HasPrivateKey && x509_is_for_signing (C x509) then
                         match List.tryFind testalg algs with
                         | None     -> None
-                        | Some alg -> Some (x509, alg)
+                        | Some alg -> Some (C x509, alg)
                     else
                         None
                 in
                     Some(store.Certificates.Find(X509FindType.FindBySubjectName, h, false)
                             |> Seq.cast
+                            |> Seq.map (fun c -> C c)
                             |> Seq.filter (fun (x509 : X509Certificate2) -> x509_verify x509)
                             |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                             |> Seq.pick pick_wrt_req_alg)
@@ -214,10 +215,11 @@ let find_enccert (sigkeyalgs : list<Sig.alg>) (h : hint) =
             let x509 =
                 store.Certificates.Find(X509FindType.FindBySubjectName, h, false)
                     |> Seq.cast
+                    |> Seq.map (fun c -> C c)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509_verify x509)
-                    |> Seq.filter (fun (x509 : X509Certificate2) -> x509.HasPrivateKey)
+                    |> Seq.filter (fun (C x509 : X509Certificate2) -> x509.HasPrivateKey)
                     |> Seq.filter (fun (x509 : X509Certificate2) -> x509_is_for_key_encryption x509)
-                    |> Seq.filter (fun (x509 : X509Certificate2) -> x509.GetKeyAlgorithm() = OID_RSAEncryption)
+                    |> Seq.filter (fun (C x509 : X509Certificate2) -> x509.GetKeyAlgorithm() = OID_RSAEncryption)
                     |> Seq.filter (x509_check_key_sig_alg_one sigkeyalgs)
                     |> Seq.pick   Some
             in Some(x509)
@@ -233,11 +235,11 @@ let get_chain_key_algorithm (chain : chain) =
     | []     -> None
     | c :: _ ->
         match cert_to_x509 c with 
-        | Some(x509) ->
+        | Some(C x509) ->
                 (match x509.GetKeyAlgorithm () with
                 | x when x = OID_RSAEncryption   -> Some SA_RSA
                 | x when x = OID_DSASignatureKey -> Some SA_DSA
                 | _ -> None)
         | None -> None
 
-let get_name_info (x509 : X509Certificate2) = x509.GetNameInfo (System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, false)
+let get_name_info (C x509 : X509Certificate2) = x509.GetNameInfo (System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, false)

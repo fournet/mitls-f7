@@ -24,7 +24,7 @@ type history = {
 }
 
 let emptyHistory e =
-    let i = id e in
+    let i = mk_id e in
     let es = HSFragment.init i in
     let ehApp = DataStream.init e in
     { handshake = es;
@@ -44,7 +44,7 @@ let fragment i ct rg b =
     | Application_data   -> FAppData(AppFragment.plain i rg b)
 
 let plain e (ct:ContentType) (h:history) (rg:range) b = 
-      let i = id e in
+      let i = mk_id e in
         fragment i ct rg b 
 
 let reprFragment i (ct:ContentType) (rg:range) frag =
@@ -55,7 +55,7 @@ let reprFragment i (ct:ContentType) (rg:range) frag =
     | FAppData(f)   -> AppFragment.repr i rg f
 
 let repr e ct (h:history) rg frag = 
-  let i = id e in
+  let i = mk_id e in
   reprFragment i ct rg frag
 
 let HSPlainToRecordPlain    (e:epoch) (h:history) (r:range) (f:HSFragment.plain) = FHandshake(f)
@@ -89,7 +89,7 @@ let RecordPlainToAppPlain    (e:epoch) (h:history) (r:range) ff =
     | FAlert(_)     -> unreachable "[RecordPlainToAppPlain] invoked on an invalid fragment"
 
 let extendHistory (e:epoch) ct ss r frag =
-  let i = id e in
+  let i = mk_id e in
   match ct,frag with
     | Handshake,FHandshake(f)      -> let s' = HSFragment.extend i ss.handshake r f in 
                                       {ss with handshake = s'} 

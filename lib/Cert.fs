@@ -69,7 +69,8 @@ let for_key_encryption (sigkeyalgs : list<Sig.alg>) (h : hint) =
 
                     if forall (x509_check_key_sig_alg_one sigkeyalgs) chain then
                         let pk = RSAKey.create_rsapkey (pmpe) in
-                        #if ideal //MK this should be the same for both ideal and concrete
+                        #if ideal
+                            //MK this should be the same for both ideal and concrete
                         if RSAKey.honest pk then
                             None //loading of honest keys not implemented yet.
                         else

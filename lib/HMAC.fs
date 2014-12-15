@@ -37,7 +37,7 @@ let sslKeyedHashVerify alg key data expected =
 
 (* Parametric keyed hash *)
 
-let HMAC alg key data =
+let hmac alg key data =
     match alg with
     | MD5     -> (CoreHMac.md5    key data)
     | SHA     -> (CoreHMac.sha1   key data)
@@ -46,16 +46,16 @@ let HMAC alg key data =
     | NULL    -> Error.unexpected "[HMAC] Invalid hash (NULL) for HMAC"
     | MD5SHA1 -> Error.unexpected "[HMAC] Invalid hash (MD5SHA1) for HMAC"
 
-let HMACVERIFY alg key data expected =
-    let result = HMAC alg key data in
+let hmacVerify alg key data expected =
+    let result = hmac alg key data in
     equalBytes result expected
 
 (* Top level MAC function *)
 
-let MAC a k d =
+let tls_mac a k d =
     match a with
     | MA_HMAC(alg) -> 
-        let h = HMAC alg k d in 
+        let h = hmac alg k d in 
         let l = length h in
         let exp = macSize a in
           if l = exp then h 
@@ -67,7 +67,7 @@ let MAC a k d =
           if l = exp then h 
           else Error.unexpected "sslKeyedHash returned a MAC of unexpected size"
 
-let MACVERIFY a k d t =
+let tls_macVerify a k d t =
     match a with
-    | MA_HMAC(alg) -> HMACVERIFY alg k d t
+    | MA_HMAC(alg) -> hmacVerify alg k d t
     | MA_SSLKHASH(alg) -> sslKeyedHashVerify alg k d t

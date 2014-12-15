@@ -116,7 +116,7 @@ type pmsId = // we use pmsId as an opaque index to pms
 
 function val PmsId: PMS.pms -> pmsId
 definition !pms. PmsId(pms) = SomePmsId(pms)
-val pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) } 
+val mk_pmsId: pms:PMS.pms -> id:pmsId{ id = PmsId(pms) } 
 
 // ``this pms is honestly generated and used only for extraction''
 predicate HonestPMS of pmsId 
@@ -182,7 +182,7 @@ type SessionInfo = {
 
 function val CSRands: SessionInfo -> csrands
 definition !si,csr. csr=CSRands(si) <=> B(csr)=B(si.init_crand) @| B(si.init_srand) 
-val csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
+val mk_csrands: si:SessionInfo -> csr:csrands {csr=CSRands(si)}
 
 // Getting algorithms from SessionInfo
 
@@ -192,7 +192,7 @@ definition !si.
     (si.protocol_version = TLS_1p0 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
     (si.protocol_version = TLS_1p1 => KefAlg(si) = PRF_TLS_1p01(extract_label)    ) /\
     (si.protocol_version = TLS_1p2 => KefAlg(si) = PRF_TLS_1p2(extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
-val kefAlg: si:SessionInfo -> a:kefAlg {a=KefAlg(si)}
+val mk_kefAlg: si:SessionInfo -> a:kefAlg {a=KefAlg(si)}
 
 function val KefAlgExtended:  SessionInfo -> kefAlg
 definition !si.
@@ -200,7 +200,7 @@ definition !si.
     (si.protocol_version = TLS_1p0 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
     (si.protocol_version = TLS_1p1 => KefAlgExtended(si) = PRF_TLS_1p01(extended_extract_label)    ) /\
     (si.protocol_version = TLS_1p2 => KefAlgExtended(si) = PRF_TLS_1p2(extended_extract_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
-val kefAlg_extended: si:SessionInfo -> a:kefAlg {a=KefAlgExtended(si)}
+val mk_kefAlg_extended: si:SessionInfo -> a:kefAlg {a=KefAlgExtended(si)}
 
 function val KdfAlg:  SessionInfo -> kdfAlg
 definition !si. 
@@ -208,11 +208,11 @@ definition !si.
     (si.protocol_version = TLS_1p0 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
     (si.protocol_version = TLS_1p1 => KdfAlg(si) = PRF_TLS_1p01(kdf_label)    ) /\
     (si.protocol_version = TLS_1p2 => KdfAlg(si) = PRF_TLS_1p2(kdf_label,CiphersuitePrfMacAlg(si.cipher_suite) ) )
-val kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
+val mk_kdfAlg: si:SessionInfo -> a:kdfAlg {a=KdfAlg(si)}
 
 function val VdAlg:  SessionInfo -> vdAlg
 definition !si.  VdAlg(si) = (si.protocol_version,si.cipher_suite)
-val vdAlg: si:SessionInfo -> a:vdAlg {a=VdAlg(si)}
+val mk_vdAlg: si:SessionInfo -> a:vdAlg {a=VdAlg(si)}
 
 function val SIaeAlg: SessionInfo -> aeAlg
 definition !si. SIaeAlg(si) = CipherSuiteAuthEncAlg(si.cipher_suite,si.protocol_version)
@@ -250,7 +250,7 @@ function val MsI: SessionInfo -> msId
 definition !si. (si.extensions.ne_extended_ms = false => MsI(si) = StandardMS (si.pmsId, CSRands(si), KefAlg(si)))
   	          /\ (si.extensions.ne_extended_ms = true => MsI(si) = ExtendedMS(si.pmsId,si.session_hash,KefAlgExtended(si)))
   	 
-val msi: si:SessionInfo -> i:msId { i = MsI(si) }
+val mk_msid: si:SessionInfo -> i:msId { i = MsI(si) }
 
 // Strengths of Handshake algorithms 
 
@@ -547,7 +547,7 @@ val noId: i:id { not AuthId(i) }
 theorem not AuthId(noId)
 
 function val Id: epoch -> id
-val id: s:epoch -> i:id {i=Id(s)}
+val mk_id: s:epoch -> i:id {i=Id(s)}
 definition !e:epoch. IsInitEpoch(e) => Id(e) = noId
 definition !e:epoch. IsSuccEpoch(e) => Id(e) =
   { msId    = MsI(EpochSI(e)); 

@@ -28,7 +28,7 @@ let rec tmem (e:id) (t:text) (xs: list<entry>) =
 #endif
 
 let Mac (ki:id) key t =
-    let m = HMAC.MAC a key.k t in
+    let m = HMAC.tls_mac a key.k t in
     #if ideal 
     // We log every authenticated texts, with their index and resulting tag
     log := (ki, t, m)::!log;
@@ -36,7 +36,7 @@ let Mac (ki:id) key t =
     m
 
 let Verify (ki:id) key t m =
-    HMAC.MACVERIFY a key.k t m
+    HMAC.tls_macVerify a key.k t m
     #if ideal 
     // We use the log to correct any verification errors
     && tmem ki t !log

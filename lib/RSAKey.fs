@@ -9,7 +9,7 @@ open Bytes
 type pk = { pk : CoreACiphers.pk }
 type sk = { sk : CoreACiphers.sk }
 
-type pred = SK_PK of sk * pk
+type pred = | SK_PK of sk * pk
 
 
 #if ideal

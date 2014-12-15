@@ -350,8 +350,8 @@ let next_fragment ci state =
                 let sr' = si.init_srand in
                 Pi.assume (SentCCS(Client,si)); // ``We send client CCS for si''
                 let next_ci = getFullEpochs ci si in
-                let nki_in = id next_ci.id_in in
-                let nki_out = id next_ci.id_out in
+                let nki_in = mk_id next_ci.id_in in
+                let nki_out = mk_id next_ci.id_out in
                 let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
                 //CF now passing si, instead of next_ci.id_out
                 //CF but the precondition should be on F(si)
@@ -582,7 +582,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
            let cv = cfg.maxVer in 
            (*KB: RSA-MS-KEM (client) *)
            let pms = PMS.RSAPMS(pk,cv,rsapms) in
-           let pmsid = pmsId pms in
+           let pmsid = mk_pmsId pms in
            let log = log @| clientKEXBytes in
            (* Enqueue current messages in output buffer *)
            let to_send = clientKEXBytes in
@@ -606,7 +606,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
            let cv = cfg.maxVer in 
            (*KB: RSA-MS-KEM (client) *)
            let pms = PMS.RSAPMS(pk,cv,rsapms) in
-           let pmsid = pmsId pms in
+           let pmsid = mk_pmsId pms in
            let si = {si with pmsId = pmsid} in
            let log = log @| clientKEXBytes in
            (* Enqueue current messages in output buffer *)
@@ -633,7 +633,7 @@ let prepare_client_output_full_RSA (ci:ConnectionInfo) (state:hs_state) (si:Sess
            let cv = cfg.maxVer in 
            (*KB: RSA-MS-KEM (client) *)
            let pms = PMS.RSAPMS(pk,cv,rsapms) in
-           let pmsid = pmsId pms in
+           let pmsid = mk_pmsId pms in
            let si = {si with pmsId = pmsid} in
            let log = log @| clientKEXBytes in
            let (si,ms) = extract si pms log in
@@ -713,7 +713,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
          (*KB DH-MS-KEM *)
          let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,sy,cy,dhpms) in
-         let pmsid = pmsId pms in
+         let pmsid = mk_pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
 
@@ -760,7 +760,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
          (*KB DH-MS-KEM *)
          let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,sy,cy,dhpms) in
-         let pmsid = pmsId pms in
+         let pmsid = mk_pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
 
@@ -795,7 +795,7 @@ let prepare_client_output_full_DHE (ci:ConnectionInfo) (state:hs_state) (si:Sess
 
          (*KB DH-MS-KEM *)
          let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,sy,cy,dhpms) in
-         let pmsid = pmsId pms in
+         let pmsid = mk_pmsId pms in
          let si = {si with pmsId = pmsid} in
          let (si,ms) = extract si pms log in
 
@@ -946,8 +946,8 @@ let rec recv_fragment_client (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                                 if si.compression = sh_compression_method then
                                     let ai = {abbr_crand = crand; abbr_srand = sh_random; abbr_session_hash = si.session_hash; abbr_vd = Some (cvd,svd) } in
                                     let next_ci = getAbbrEpochs ci si pe ai in
-                                    let nki_in = id next_ci.id_in in
-                                    let nki_out = id next_ci.id_out in
+                                    let nki_in = mk_id next_ci.id_in in
+                                    let nki_out = mk_id next_ci.id_out in
                                     let (reader,writer) = PRF.keyGenClient nki_in nki_out ms in
                                     let nout = next_ci.id_out in
                                     let nin = next_ci.id_in in
@@ -1431,8 +1431,8 @@ let prepare_server_output_resumption ci state crand cExtL (sid:sessionID) stored
     let log = log @| sHelloB in
     let ai = {abbr_crand = crand; abbr_srand = srand; abbr_session_hash = si.session_hash; abbr_vd = nExtL.ne_renegotiation_info } in
     let next_ci = getAbbrEpochs ci si pe ai in
-    let nki_in = id next_ci.id_in in
-    let nki_out = id next_ci.id_out in
+    let nki_in = mk_id next_ci.id_in in
+    let nki_out = mk_id next_ci.id_out in
     let (reader,writer) = PRF.keyGenServer nki_in nki_out ms in
 #if verify
     Pi.expect (ServerLogBeforeServerFinishedResume(ai,si,log));
@@ -1610,7 +1610,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
                     let (pk,rsapms) = x in 
                 (*KB: RSA-MS-KEM (server) *)
                     let pms = PMS.RSAPMS(pk,cv,rsapms) in
-                    let pmsid = pmsId pms in
+                    let pmsid = mk_pmsId pms in
                     let si = {si with pmsId = pmsid} in
                     let log = log @| to_log in
                     let (si,ms) = extract si pms log in
@@ -1649,7 +1649,7 @@ let rec recv_fragment_server (ci:ConnectionInfo) (state:hs_state) (agreedVersion
             (*KB DH-MS-KEM *)
                     let pms = PMS.DHPMS(dhp.dhp,dhp.dhg,gx,y,dhpms) in
                     let si_old = si in
-                    let si = {si_old with pmsId = pmsId(pms)} in
+                    let si = {si_old with pmsId = mk_pmsId(pms)} in
 #if verify
                     Pi.expect(UpdatesPmsID(si_old,si)); (*KB: to be removed*)
 
@@ -1754,7 +1754,7 @@ let enqueue_fragment (ci:ConnectionInfo) state fragment =
 
 let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let ki_in = id ci.id_in in
+    let ki_in = mk_id ci.id_in in
     let b = HSFragment.fragmentRepr ki_in r fragment in 
     if length b = 0 then
         // Empty HS fragment are not allowed
@@ -1767,7 +1767,7 @@ let recv_fragment ci (state:hs_state) (r:range) (fragment:HSFragment.fragment) =
 
 let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragment.fragment): incomingCCS =
     // FIXME: cleanup when Hs is ported to streams and deltas
-    let ki_in = id ci.id_in in
+    let ki_in = mk_id ci.id_in in
     let b = HSFragment.fragmentRepr ki_in r fragment in 
     if equalBytes b CCSBytes then  
         match state.pstate with
@@ -1775,8 +1775,8 @@ let recv_ccs (ci:ConnectionInfo) (state: hs_state) (r:range) (fragment:HSFragmen
             (match sState with
             | ClientCCS(si,ms,log) ->
                 let next_ci = getFullEpochs ci si in
-                let nki_in = id next_ci.id_in in
-                let nki_out = id next_ci.id_out in
+                let nki_in = mk_id next_ci.id_in in
+                let nki_out = mk_id next_ci.id_out in
                 let (reader,writer) = PRF.keyGenServer nki_in nki_out ms in
                 let ci = {ci with id_in = next_ci.id_in} in
                 InCCSAck(ci,reader,{state with pstate = PSServer(ClientFinished(si,ms,next_ci.id_out,writer,log))})

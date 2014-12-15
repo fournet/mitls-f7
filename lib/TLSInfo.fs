@@ -55,7 +55,7 @@ values with an abstract type because of an implementation error.
 type pmsId = 
   | NoPmsId 
   | SomePmsId of PMS.pms
-let pmsId (pms:PMS.pms) = SomePmsId(pms)
+let mk_pmsId (pms:PMS.pms) = SomePmsId(pms)
 let noPmsId = NoPmsId
 
 
@@ -83,43 +83,43 @@ type msId =
 let noMsId = StandardMS (noPmsId, noCsr, PRF_SSL3_nested)    
 
 
-let csrands sinfo = 
+let mk_csrands sinfo = 
     sinfo.init_crand @| sinfo.init_srand
 
 
-let kefAlg (si:SessionInfo) =
+let mk_kefAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(extract_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
                          PRF_TLS_1p2(extract_label,ma)
 
-let kdfAlg (si:SessionInfo) =
+let mk_kdfAlg (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(kdf_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
                          PRF_TLS_1p2(kdf_label,ma)
 
-let kefAlg_extended (si:SessionInfo) =
+let mk_kefAlg_extended (si:SessionInfo) =
   match si.protocol_version with
   | SSL_3p0           -> PRF_SSL3_nested 
   | TLS_1p0 | TLS_1p1 -> let x = PRF_TLS_1p01(extended_extract_label) in x
   | TLS_1p2           -> let ma = prfMacAlg_of_ciphersuite si.cipher_suite in
                          PRF_TLS_1p2(extended_extract_label,ma) 
 
-let vdAlg (si:SessionInfo) = 
+let mk_vdAlg (si:SessionInfo) = 
   si.protocol_version, si.cipher_suite
 
 
-let msi (si:SessionInfo) = 
+let mk_msid (si:SessionInfo) = 
   let ext = si.extensions in
   if ext.ne_extended_ms = false then
-    let csr = csrands si in
-    let ca = kefAlg si in
+    let csr = mk_csrands si in
+    let ca = mk_kefAlg si in
     StandardMS (si.pmsId, csr, ca) 
   else 
-    let ca = kefAlg_extended si in
+    let ca = mk_kefAlg_extended si in
     ExtendedMS (si.pmsId,si.session_hash,ca)
 
 type abbrInfo = 
@@ -244,16 +244,16 @@ let noId: id = {
   ext = {ne_extended_padding = false; ne_extended_ms = false; ne_renegotiation_info = None};
   writer=Client }
 
-let id e = 
+let mk_id e = 
   if isInitEpoch e 
   then noId 
   else
     let si     = epochSI e in
     let cs     = si.cipher_suite in
     let pv     = si.protocol_version in
-    let msi    = msi si in
-    let kdfAlg = kdfAlg si in
-    let aeAlg  = aeAlg cs pv in
+    let msi    = mk_msid si in
+    let kdfAlg = mk_kdfAlg si in
+    let aeAlg  = mk_aeAlg cs pv in
     let csr    = epochCSRands e in
     let ext    = si.extensions in
     let wr     = epochWriter e in

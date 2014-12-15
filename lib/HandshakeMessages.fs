@@ -92,7 +92,7 @@ let parseMessage buf =
 type unsafe = Unsafe of epoch
 #endif
 let makeFragment ki b = 
-    let i = id ki in
+    let i = mk_id ki in
     if length b < fragmentLength then
       let r0 = (length b, length b) in
       let f = HSFragment.fragmentPlain i r0 b in

@@ -254,14 +254,14 @@ let rec assoc (r:Role) (vd:tag) (es:list<entry>) =
 #endif
 
 let private verifyData si ms role data = 
-  TLSPRF.verifyData (vdAlg si) ms.bytes role data
+  TLSPRF.verifyData (mk_vdAlg si) ms.bytes role data
 
 let makeVerifyData si (ms:masterSecret) role data =
   let tag = verifyData si ms role data in
   #if ideal
   //MK rename predicate and function
   //if safeVD si then
-  let i = msi si in
+  let i = mk_msid si in
   let msdataoption = assoc role tag !log in
   let msdata = (i,data) in
   if msdataoption<>None && msdataoption<>Some(msdata) then
@@ -279,7 +279,7 @@ let checkVerifyData si ms role data tag =
   #if ideal
   // we return "false" when concrete verification
   // succeeds but shouldn't according to the log 
-  && ( safeVD si  = false || mem (msi si) role data !log ) //MK: rename predicate and function
+  && ( safeVD si  = false || mem (mk_msid si) role data !log ) //MK: rename predicate and function
   //#end-ideal2
   #endif
 

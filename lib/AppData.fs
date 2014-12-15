@@ -26,8 +26,8 @@ let outStream (c:ConnectionInfo) state =
     | SomeOBuf(s,_,_,_) -> s
 
 let init ci =
-  let ki_in = id ci.id_in in
-  let ki_out = id ci.id_out in
+  let ki_in = mk_id ci.id_in in
+  let ki_out = mk_id ci.id_out in
   let in_s = DataStream.init ci.id_in in
   let out_s = DataStream.init ci.id_out in
     {app_outgoing = (NoneOBuf(out_s));
