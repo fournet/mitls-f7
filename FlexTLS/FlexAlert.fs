@@ -19,7 +19,7 @@ open FlexRecord
 
 
 /// <summary>
-/// Module receiving, sending and forwarding TLS alerts.
+/// Module receiving, sending and forwarding Alert messages.
 /// </summary>
 type FlexAlert = 
     class
@@ -53,6 +53,7 @@ type FlexAlert =
                 LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(alb)));
                 (st,ad,alb)
 
+
     /// <summary>
     /// Forward an Alert message received from a network stream 
     /// </summary>
@@ -68,8 +69,9 @@ type FlexAlert =
         LogManager.GetLogger("file").Info(sprintf "--- Payload : %s" (Bytes.hexString(alb)));
         stin,stout,alb
 
+
     /// <summary>
-    /// Send an Alert message to the network stream 
+    /// Send an Alert message to the network stream from an Alert Description
     /// </summary>
     /// <param name="st"> State of the current Handshake </param>
     /// <param name="ad"> Alert description union type already parsed </param>
@@ -78,6 +80,7 @@ type FlexAlert =
     static member send (st:state, ad:alertDescription, ?fp:fragmentationPolicy) : state =
         let fp = defaultArg fp FlexConstants.defaultFragmentationPolicy in
         FlexAlert.send(st, alertBytes ad, fp)
+
 
     /// <summary>
     /// Send an Alert message to the network stream 
