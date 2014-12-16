@@ -29,9 +29,9 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "mihttp", "..\apps\mihttp\mi
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "DHDBManager", "..\libs\DHDBManager\DHDBManager.fsproj", "{2DA9CE8A-C82F-4CF2-8329-79B8A3F19F1F}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FlexTLS", "FlexTLS\FlexTLS.fsproj", "{C4E94BA9-DB5A-46C3-A0C1-C729B9F513C5}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FlexTLS", "..\flex\FlexTLS\FlexTLS.fsproj", "{C4E94BA9-DB5A-46C3-A0C1-C729B9F513C5}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FlexApps", "FlexApps\FlexApps.fsproj", "{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FlexApps", "..\flex\FlexApps\FlexApps.fsproj", "{D9EB67B6-C441-4508-AFC5-FAEEF6E3B2A6}"
 EndProject
 EndProject
 Global
