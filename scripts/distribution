@@ -96,6 +96,7 @@ RE_PROJECT = ur"""
 RE_END_PROJECT = r'EndProject\b'
 
 def _vs(filename, projects):
+    soldir  = os.path.dirname(filename)
     project = set(projects)
     doc     = [x.rstrip() for x in _read_file(filename).splitlines()]
     status  = Object(inproject = False)
@@ -120,7 +121,7 @@ def _vs(filename, projects):
             status.inproject = Object(
                 type  = m.group('type'),
                 name  = m.group('name'),
-                path  = os.path.join(*m.group('path').split('\\')),
+                path  = os.path.join(soldir,os.path.join(*m.group('path').split('\\'))),
                 id    = m.group('id'),
                 accpt = m.group('name') in projects,
             )

@@ -19,4 +19,4 @@ Backup
 UpgradeLog.htm
 tls.sln.ide
 
-lib/*.why
+src/tls/*.why
