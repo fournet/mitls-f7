@@ -88,7 +88,7 @@ type FlexCertificateVerify =
                                 if ms = empty_bytes then 
                                     failwith (perror __SOURCE_FILE__ __LINE__ "Master Secret cannot be empty")
                                 else
-                                    PRF.coerce (msi si) ms
+                                    PRF.coerce (mk_msid si) ms
                             in
                             let (sigAlg,_) = alg in
                             let alg = (sigAlg,NULL) in
@@ -131,7 +131,7 @@ type FlexCertificateVerify =
             cipher_suite = cs;
             protocol_version = pv 
         } in
-        let ams = (PRF.coerce (msi si) ms) in
+        let ams = (PRF.coerce (mk_msid si) ms) in
         let payload,tag = HandshakeMessages.makeCertificateVerifyBytes si ams alg skey log in
         let fcver = { sigAlg = alg; signature = tag; payload = payload } in
         LogManager.GetLogger("file").Info(sprintf "--- Algorithm: %A" fcver.sigAlg);

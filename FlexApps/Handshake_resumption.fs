@@ -96,7 +96,7 @@ type Handshake_resumption =
         let si,ms =
             match SessionDB.select sDB (FlexClientHello.getSID fch) Client server_name with
             | None -> failwith "Unable to resume a requested session"
-            | Some(si,ams,_) -> si,(PRF.leak (msi si) ams)
+            | Some(si,ams,_) -> si,(PRF.leak (mk_msid si) ams)
         in
         //BB FIXME : Here the list of the server extensions is not correct
         // Server Hello should be reconstructed from the retreived session info

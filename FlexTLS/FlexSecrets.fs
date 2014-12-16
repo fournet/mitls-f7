@@ -78,7 +78,7 @@ type FlexSecrets =
             else
                 KEF.extract si pms
         in
-        PRF.leak (msi si) ams
+        PRF.leak (mk_msid si) ams
 
 
     /// <summary>
@@ -90,10 +90,10 @@ type FlexSecrets =
     /// <param name="ms"> MasterSecret bytes </param>
     /// <returns>  Reading keys bytes * Writing keys bytes </returns>
     static member ms_to_keys (er:epoch) (ew:epoch) (role:Role) (ms:bytes) : bytes * bytes =
-        let ams = PRF.coerce (msi (epochSI er)) ms in
-        let ark,awk = PRF.deriveKeys (TLSInfo.id er) (TLSInfo.id ew) ams role in
-        let rk = StatefulLHAE.LEAK (TLSInfo.id er) TLSInfo.Reader ark in
-        let wk = StatefulLHAE.LEAK (TLSInfo.id ew) TLSInfo.Writer awk in
+        let ams = PRF.coerce (mk_msid (epochSI er)) ms in
+        let ark,awk = PRF.deriveKeys (TLSInfo.mk_id er) (TLSInfo.mk_id ew) ams role in
+        let rk = StatefulLHAE.LEAK (TLSInfo.mk_id er) TLSInfo.Reader ark in
+        let wk = StatefulLHAE.LEAK (TLSInfo.mk_id ew) TLSInfo.Writer awk in
         rk,wk
 
 
@@ -106,7 +106,7 @@ type FlexSecrets =
     /// <param name="log"> Log of the current Handshake messages </param>
     /// <returns> Verify_data bytes </returns>
     static member makeVerifyData (si:SessionInfo) (ms:bytes) (role:Role) (log:bytes) : bytes =
-        let ams = PRF.coerce (msi si) ms in
+        let ams = PRF.coerce (mk_msid si) ms in
         PRF.makeVerifyData si ams role log
 
 

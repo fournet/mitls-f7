@@ -93,7 +93,7 @@ type FlexRecord =
             | Error (ad,x) -> failwith (perror __SOURCE_FILE__ __LINE__ x)
             | Correct (rec_in,rg,frag)  ->
                 let st = FlexState.updateIncomingRecord st rec_in in
-                let id = TLSInfo.id st.read.epoch in
+                let id = TLSInfo.mk_id st.read.epoch in
                 let fragb = TLSFragment.reprFragment id ct rg frag in
                 let st = FlexState.updateLog st ct fragb in
                 LogManager.GetLogger("file").Trace(sprintf "+++ Record : %s" (Bytes.hexString(fragb)));
@@ -126,7 +126,7 @@ type FlexRecord =
         // For encrypting epochs, it'd better match the protocol version contained in the epoch, since the latter is used for the additional data
         let len = length payload in
         let rg : Range.range = (len,len) in
-        let id = TLSInfo.id e in
+        let id = TLSInfo.mk_id e in
         let frag = TLSFragment.fragment id ct rg payload in
         let k,b = Record.recordPacketOut e k pv rg ct frag in
         (k,b)

@@ -174,7 +174,7 @@ type FlexState =
         LogManager.GetLogger("file").Debug("@ Install Read Keys");
         let nextEpoch = FlexState.guessNextEpoch st.read.epoch nsc in
         let rk,_ = nsc.secrets.epoch_keys in
-        let ark = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Reader rk in
+        let ark = StatefulLHAE.COERCE (mk_id nextEpoch) TLSInfo.Reader rk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Reader ark in
         let st = FlexState.updateIncomingRecord st nextRecord in
         let st = FlexState.updateIncomingEpoch st nextEpoch in
@@ -250,7 +250,7 @@ type FlexState =
         LogManager.GetLogger("file").Debug("@ Install Write Keys");
         let nextEpoch = FlexState.guessNextEpoch st.write.epoch nsc in
         let _,wk = nsc.secrets.epoch_keys in
-        let awk = StatefulLHAE.COERCE (id nextEpoch) TLSInfo.Writer wk in
+        let awk = StatefulLHAE.COERCE (mk_id nextEpoch) TLSInfo.Writer wk in
         let nextRecord = Record.initConnState nextEpoch TLSInfo.Writer awk in
         let st = FlexState.updateOutgoingRecord st nextRecord in
         let st = FlexState.updateOutgoingEpoch st nextEpoch in

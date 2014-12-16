@@ -32,10 +32,10 @@ type JavaEarlyFinished =
     class
 
     static member server (listening_address:string, ?port:int) : unit =
-        let g1 = new UntrustedCert.X509Certificate2("g1.cer") in
-        let g2 = new UntrustedCert.X509Certificate2("g2.cer") in
-        let g3 = new UntrustedCert.X509Certificate2("g3.cer") in
-        let chain = UntrustedCert.x509list_to_chain [g1; g2; g3] in
+        let g1 = new System.Security.Cryptography.X509Certificates.X509Certificate2("g1.cer") in
+        let g2 = new System.Security.Cryptography.X509Certificates.X509Certificate2("g2.cer") in
+        let g3 = new System.Security.Cryptography.X509Certificates.X509Certificate2("g3.cer") in
+        let chain = (List.map (fun c -> Bytes.abytes c) [g1.RawData; g2.RawData; g3.RawData]) in
         let port = defaultArg port FlexConstants.defaultTCPPort in
 
         while true do
