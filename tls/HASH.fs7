@@ -1,0 +1,12 @@
+﻿module HASH
+
+(* Core cryptographic hash algorithms; trusted only to have the right tag length *)
+
+// CF the crypto assumptions are in MAC and PRF, not here 
+
+open Bytes
+open TLSConstants
+
+private val hash': a:hashAlg -> bytes -> b:bytes
+
+val hash: a:hashAlg -> bytes -> b:bytes{Length(b)=HashSize(a)}

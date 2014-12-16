@@ -1,0 +1,16 @@
+﻿module TLSPRF
+
+(* Concrete (bytes -> bytes) PRF algorithms for TLS; trusted. *)
+(* Used by KEF for extracting MS, by PRF for verifyData and key derivation *) 
+
+open Bytes
+open TLSConstants
+open TLSInfo
+
+val verifyData: vdAlg -> bytes -> Role -> bytes -> bytes 
+val extract:   kefAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
+val kdf:       kdfAlg -> bytes -> bytes -> l:nat -> (;l)lbytes
+
+(* SSL-specific certificate verify *)
+
+val ssl_verifyCertificate: a:hashAlg{ a = MD5 \/ a = SHA }-> bytes -> bytes -> bytes
