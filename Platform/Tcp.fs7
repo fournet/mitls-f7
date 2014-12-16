@@ -24,5 +24,4 @@ val read:  NetworkStream -> l:int{l>0} -> (string,(;l) lbytes) optResult
 val write: NetworkStream -> bytes -> (string,unit) optResult
 val close: NetworkStream -> unit
 
-// TODO cut: val dataAvailable: NetworkStream -> r:bool Result{!y,z. r = Error(y,z) => y = AD_internal_error}
 
