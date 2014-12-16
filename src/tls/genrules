@@ -7,7 +7,6 @@ import sys, os, re, time, json, xml.etree.ElementTree as etree
 MSBUILD = 'http://schemas.microsoft.com/developer/msbuild/2003'
 
 ### do not remove failing entries! comment them out instead. 
-# verify Error.tc7 and other platform files too? 
 FS7DEFAULT = [
   'TLSError',
   'Nonce',
@@ -55,7 +54,7 @@ FS7DEFAULT = [
 ]
 
 MKHEADER = '''\
-include ../Makefile.config
+include ../../Makefile.config
 
 ifndef F7PATH
 $(error F7PATH is not set)
