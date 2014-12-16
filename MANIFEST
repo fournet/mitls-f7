@@ -11,16 +11,16 @@ scripts/distribution
 
 data/dh/*
 
-licenses/*.txt
+3rdparty/licenses/*.txt
 
-miTLS.sln
+VS/miTLS.sln
 
-easycrypt/*.ec
+src/tls/interactive/easycrypt/*.ec
 
-find:packages:*
+find:VS/packages:*
 
 find:3rdparty:*.dll
-find:DB/lib:*.dll
+find:libs/DB/lib:*.dll
 
 # VS Projects
-vs:miTLS.sln:CoreCrypto,DB,DHDBManager,echo,HttpServer,tls,Platform,pwapp,TLSharp,OpenSSL
+vs:VS/miTLS.sln:CoreCrypto,DB,DHDBManager,echo,HttpServer,tls,Platform,pwapp,TLSharp,OpenSSL
