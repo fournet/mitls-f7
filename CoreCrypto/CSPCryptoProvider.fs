@@ -55,7 +55,6 @@ type CSPBlockCipher (name : string, direction : direction, engine : SymmetricAlg
 (* ------------------------------------------------------------------------ *)
 type CSPProvider () =
     interface Provider with
-        (* FIXME: exception ? *)
         member self.MessageDigest (name : string) =
             let name   = name.ToUpperInvariant () in
             let engine = HashAlgorithm.Create (name) in

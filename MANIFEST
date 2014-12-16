@@ -13,7 +13,7 @@ data/dh/*
 
 licenses/*.txt
 
-tls.sln
+miTLS.sln
 
 easycrypt/*.ec
 
@@ -23,4 +23,4 @@ find:3rdparty:*.dll
 find:DB/lib:*.dll
 
 # VS Projects
-vs:tls.sln:CoreCrypto,DB,echo,HttpServer,lib,Platform,pwapp,TLSharp,OpenSSL
+vs:miTLS.sln:CoreCrypto,DB,DHDBManager,echo,HttpServer,tls,Platform,pwapp,TLSharp,OpenSSL

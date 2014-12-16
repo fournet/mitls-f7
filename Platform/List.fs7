@@ -7,15 +7,12 @@ assume ListLength(op_Nil()) = 0
 assume !x,y. ListLength(op_ColonColon(x,y)) = 1 + ListLength(y)
 assume !l. BLength(array_of_list(l)) = ListLength(l)
 
-// FIXME: usage?
-function val Unfold: bytes * bytes list -> bytes
-function val UnfoldBack: bytes list * bytes -> bytes
-val fold:     (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes{b=Unfold(s,bl)}
+val fold:     (bytes -> bytes -> bytes) -> s:bytes -> bl:bytes list -> b:bytes
 val filter: ('a -> bool) -> 'a list -> 'a list
-val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes{b=UnfoldBack(bl,s)}
-val exists: ('a -> bool) -> 'a list -> bool // CF Used parametrically in HS.
+val foldBack: (bytes -> bytes -> bytes) -> bl:bytes list -> s:bytes -> b:bytes
+val exists: ('a -> bool) -> 'a list -> bool
 val memr: 'a list -> 'a -> bool 
-val choose: ('a -> 'b option) -> 'a list -> 'b list // CF Not used parametrically in HS, but types are not defined here.
+val choose: ('a -> 'b option) -> 'a list -> 'b list
 val tryFind: ('a -> bool) -> 'a list -> 'a option
 val listLength: l:('a list) -> len:nat{ListLength(l)=len}
 val listHead: l:('a list){ListLength(l) > 0} -> 'a
