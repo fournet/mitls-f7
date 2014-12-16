@@ -103,7 +103,7 @@ def _check_for_config(mode, config):
                 cipher = OPENSSL_CIPHERS[cipher]
 
             if mivendor:
-                pgm = '../echo/bin/Debug/echo.exe'
+                pgm = '../apps/echo/bin/Debug/echo.exe'
             else:
                 pgm = 'i686-pc-mingw32-echo.exe' if win32 else 'echo'
                 pgm = os.path.join('c-stub', pgm)
@@ -142,7 +142,7 @@ def _check_for_config(mode, config):
             logging.error('Cannot start echo server: %s' % (e,))
             return False
 
-    	logging.debug('Waiting echo server to settle up...')
+    	logging.debug('Waiting echo server to set up...')
         time.sleep(1.5)
 
         logging.debug('Starting echo client [%s]' % (' '.join(c_command)))
@@ -153,7 +153,7 @@ def _check_for_config(mode, config):
             logging.error('Cannot start echo client: %s' % (e,))
             return False
 
-        logging.debug('Waiting echo client to settle up...')
+        logging.debug('Waiting echo client to set up...')
         time.sleep(1.5)
 
         logging.debug('Client <-> server communication...')
