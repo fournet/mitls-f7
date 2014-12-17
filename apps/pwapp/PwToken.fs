@@ -1,4 +1,6 @@
-﻿module PwToken
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module PwToken
 
 // ------------------------------------------------------------------------
 open Bytes

@@ -1,4 +1,6 @@
-﻿module MiHTTPWorker
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module MiHTTPWorker
 
 type lock = Lock of (unit ref)
 

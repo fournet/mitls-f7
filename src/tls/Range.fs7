@@ -1,4 +1,6 @@
-﻿module Range
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module Range
 
 (* This modules defines all range computations for the lengths of
    plaintext messages exchanged over TLS, in order to construct

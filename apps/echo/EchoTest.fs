@@ -1,4 +1,6 @@
-﻿module EchoTest
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module EchoTest
 
 open System
 open System.IO

@@ -1,4 +1,6 @@
-﻿module HttpCode
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module HttpCode
 
 type httpcode =
     | HTTP_100 | HTTP_101

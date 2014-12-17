@@ -1,4 +1,6 @@
-﻿module AEAD_GCM
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module AEAD_GCM
 
 (* Implements AES-GCM as a concrete instance of "advanced" LHAE; 
    we could similarly specify AES-CCM.

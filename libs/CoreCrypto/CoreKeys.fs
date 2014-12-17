@@ -1,4 +1,6 @@
-﻿module CoreKeys
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module CoreKeys
 open Bytes
 type modulus  = bytes
 type exponent = bytes

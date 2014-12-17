@@ -1,4 +1,6 @@
-﻿module MiHTTPChannel
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module MiHTTPChannel
 
 open Bytes
 open MiHTTPData

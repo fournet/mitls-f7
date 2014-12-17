@@ -1,4 +1,6 @@
-﻿module PwAppRun
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module PwAppRun
 
 open System
 open System.Threading

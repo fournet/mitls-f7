@@ -1,4 +1,6 @@
-﻿module CoreDH
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module CoreDH
 
 open Bytes
 open Error

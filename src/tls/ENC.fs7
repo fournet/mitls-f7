@@ -1,4 +1,6 @@
-﻿module ENC
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module ENC
 
 (* Bulk encryption for TLS record, agile & assumed conditionally CPA with "Encode" for plaintexts *) 
 (* This module is idealized *)

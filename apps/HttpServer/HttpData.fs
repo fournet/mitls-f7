@@ -1,4 +1,6 @@
-﻿module HttpData
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module HttpData
 
 open System
 open System.IO
