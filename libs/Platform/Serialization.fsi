@@ -1,4 +1,6 @@
-﻿module Serialization
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module Serialization
 
 val serialize<'T>   : 'T -> string
 val deserialize<'T> : string -> 'T

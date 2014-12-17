@@ -1,4 +1,6 @@
-﻿module Bytes
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module Bytes
 
 type nat = int
 type cbytes = byte[]

@@ -1,4 +1,6 @@
-﻿module TLStream
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module TLStream
 
 open Bytes
 open Tcp

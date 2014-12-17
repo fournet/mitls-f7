@@ -1,4 +1,6 @@
-﻿module HMAC
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module HMAC
 
 (* Core HMAC algorithms; trusted only on their tag lengths *)
 

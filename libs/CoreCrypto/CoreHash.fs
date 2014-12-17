@@ -1,4 +1,6 @@
-﻿module CoreHash
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module CoreHash
 open Bytes
 
 open CryptoProvider

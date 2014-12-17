@@ -1,4 +1,6 @@
-﻿module MiHTTPUtils
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module MiHTTPUtils
 
 let split_and_strip (c : char) (count : int) (s : string) : string list =
     s.Split([|c|], count, System.StringSplitOptions.None)

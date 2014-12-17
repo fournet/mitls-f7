@@ -1,4 +1,6 @@
-﻿module CoreACiphers
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module CoreACiphers
 open Bytes
 
 open Org.BouncyCastle.Math

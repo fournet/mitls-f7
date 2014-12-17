@@ -1,4 +1,6 @@
-﻿module Error
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module Error
 
 type ('a,'b) optResult =
     | Error of 'a
