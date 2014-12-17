@@ -1,9 +1,11 @@
--*- outline-mode -*-
+miTLS
+=====
 
-This is miTLS, a verified reference implementation of the TLS security
-protocol.
+This is a temporary public repository of miTLS,
+a verified reference implementation of the TLS security protocol.
 
-* 1. Compilation
+1. Compilation
+--------------
 
 To compile, usually running "make" from the top level directory is
 enough. (See below for prerequisites.)
@@ -36,7 +38,8 @@ The following make targets are available:
 The test suite is currently not released, and thus not
 available as a make target.
 
-* 2. Verification
+2. Verification
+---------------
 
 Refinement type checking of the code base is driven by the Makefile in
 ./lib; this file has a "tc7" target for each file to be type checked.
@@ -54,14 +57,15 @@ flags to control what is passed to F7 vs F#
 Both compilation flags are disabled when compiling the concrete code,
 and enabled during type checking.
 
-* 3. Prerequisites
+3. Prerequisites
+----------------
 
 In the following, the prerequisites for each supported platform are
 given. In general, you need a running F# installation, see
 http://fsharp.org/ on how to get the most recent version of F#
 for your platform.
 
-** 3.a. Microsoft Windows
+### 3.a. Microsoft Windows
 
 Either
 - Visual Studio 2013
@@ -71,7 +75,7 @@ or
 - .NET version 4.5 or above
 - Visual F# 3.1 or above
 
-** 3.b. Linux, Mac OS X and other Un*ces
+### 3.b. Linux, Mac OS X and other Un*ces
 
 - Mono framework, version 3.4.0 or above; this includes F# 3.1.
 

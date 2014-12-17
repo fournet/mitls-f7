@@ -1,4 +1,6 @@
-﻿module Date
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module Date
 
 type DateTime = DT of System.DateTime
 type TimeSpan = TS of System.TimeSpan

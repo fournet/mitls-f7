@@ -1,4 +1,6 @@
-﻿module RSAKey
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module RSAKey
 
 // This module defines RSA keys
 // but not their use for public-key encryption: see RSA

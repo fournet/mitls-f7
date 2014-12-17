@@ -54,6 +54,13 @@
     </Otherwise>
   </Choose>
   <Import Project="$(FSharpTargetsPath)" Condition="Exists('$(FSharpTargetsPath)')" />
+  <Target Name="AfterClean">
+    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
+      <Output ItemName="ToDel" TaskParameter="Include" />
+    </CreateItem>
+    <Delete Files="$(OutDir)\$(Name).XML" />
+    <Delete Files="@(ToDel)" />
+  </Target>
   <ItemGroup>
     <None Include="Error.fs7" />
     <Compile Include="Error.fsi" />
@@ -72,7 +79,7 @@
     <Compile Include="Tcp.fs" />
     <Compile Include="Serialization.fsi" />
     <Compile Include="Serialization.fs" />
-    <None Include="packages.config" />
+    <Content Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Core, Version=$(TargetFSharpCoreVersion), Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
@@ -80,18 +87,11 @@
     </Reference>
     <Reference Include="mscorlib" />
     <Reference Include="Newtonsoft.Json">
-      <HintPath>..\packages\Newtonsoft.Json.6.0.6\lib\net40\Newtonsoft.Json.dll</HintPath>
+      <HintPath>..\..\VS\packages\Newtonsoft.Json.6.0.6\lib\net40\Newtonsoft.Json.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
   </ItemGroup>
-  <Target Name="AfterClean">
-    <CreateItem Include="$(OutDir)\*.dll;$(OutDir)\*.exe;$(OutDir)\*.mdb;$(OutDir)\*.pdb">
-      <Output ItemName="ToDel" TaskParameter="Include" />
-    </CreateItem>
-    <Delete Files="$(OutDir)\$(Name).XML" />
-    <Delete Files="@(ToDel)" />
-  </Target>
 </Project>

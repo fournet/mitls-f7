@@ -1,4 +1,6 @@
-﻿module TLSConstants
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module TLSConstants
 
 (* Identifiers and sizes for the TLS crypto algorithms 
    This file also declares those that are assumed to be strong 

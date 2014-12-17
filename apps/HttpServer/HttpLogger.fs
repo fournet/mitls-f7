@@ -1,4 +1,6 @@
-﻿module HttpLogger
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module HttpLogger
 
 open System
 open System.Threading

@@ -1,4 +1,6 @@
-﻿module HttpWSGI
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module HttpWSGI
 
 open System
 open System.IO

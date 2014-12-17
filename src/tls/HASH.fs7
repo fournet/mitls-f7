@@ -1,4 +1,6 @@
-﻿module HASH
+﻿(* Copyright (C) 2012--2014 Microsoft Research and INRIA *)
+
+module HASH
 
 (* Core cryptographic hash algorithms; trusted only to have the right tag length *)
 
