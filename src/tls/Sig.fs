@@ -22,11 +22,13 @@ let sigalg_of_skeyparams sk =
     match sk with
     | SK_RSA (_,_) -> SA_RSA
     | SK_DSA (_,_) -> SA_DSA
+    | SK_ECDH _ -> SA_ECDSA
 
 let sigalg_of_pkeyparams pk =
     match pk with
     | PK_RSA (_,_) -> SA_RSA
     | PK_DSA (_,_) -> SA_DSA
+    | PK_ECDH _ -> SA_ECDSA
 
 #if ideal
 // We maintain two logs:

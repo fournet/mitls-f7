@@ -46,7 +46,7 @@ val honestDHPMS: bytes -> bytes -> elt -> elt -> dhpms -> bool
 val sampleDH: dhparams -> DHGroup.elt -> DHGroup.elt -> dhpms
 
 val coerceDH: dhparams -> DHGroup.elt -> DHGroup.elt -> DHGroup.elt -> dhpms
-
+val coerceECDH: ecdhparams  -> ECGroup.point -> ECGroup.point -> bytes -> dhpms
 
 (* Used when generating key material from the MS. 
    The result must still be split into the various keys.
@@ -58,4 +58,4 @@ val coerceDH: dhparams -> DHGroup.elt -> DHGroup.elt -> DHGroup.elt -> dhpms
 
 type pms = 
   | RSAPMS of RSAKey.pk * ProtocolVersion * rsapms
-  | DHPMS of bytes * bytes * elt * elt * dhpms
+  | DHPMS of CommonDH.parameters * CommonDH.element * CommonDH.element * dhpms

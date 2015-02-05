@@ -8,12 +8,15 @@ open Bytes
 open DHGroup
 
 open CoreKeys
+open CommonDH
 
-type secret
+val leak  : parameters -> element -> secret -> bytes
+val coerce: parameters -> element -> bytes -> secret
 
-val leak  : dhparams -> elt -> secret -> bytes
-val coerce: dhparams -> elt -> bytes -> secret
+val serverGenDH: string -> DHDB.dhdb -> nat * nat -> DHDB.dhdb option * parameters * element * secret
+val serverGenECDH: ECGroup.ec_curve -> DHDB.dhdb option * parameters * element * secret
 
-val serverGen: string -> DHDB.dhdb -> nat * nat -> DHDB.dhdb * dhparams * elt * secret
-val clientGenExp: dhparams -> elt -> (elt * PMS.dhpms)
-val serverExp: dhparams -> elt -> elt -> secret -> PMS.dhpms 
+val clientGenExp: parameters -> element -> (element * PMS.dhpms)
+val serverExp: parameters -> element -> element -> secret -> PMS.dhpms 
+
+val serialize: element -> bytes

@@ -51,7 +51,12 @@ let initial_status =
 let create_config sname cname = {
     minVer = TLS_1p0;
     maxVer = TLS_1p2;
-    ciphersuites = cipherSuites_of_nameList [ TLS_RSA_WITH_AES_128_CBC_SHA ];
+    ciphersuites = cipherSuites_of_nameList
+     [
+        TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384; TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256; TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+        TLS_DHE_RSA_WITH_AES_256_GCM_SHA384; TLS_DHE_RSA_WITH_AES_128_GCM_SHA256; TLS_DHE_DSS_WITH_AES_256_CBC_SHA;
+        TLS_RSA_WITH_AES_256_GCM_SHA384; TLS_RSA_WITH_AES_128_GCM_SHA256; TLS_RSA_WITH_AES_256_CBC_SHA;
+     ];
     compressions = [ NullCompression ];
 
     honourHelloReq = HRPFull;
@@ -69,7 +74,8 @@ let create_config sname cname = {
 
     TLSInfo.dhDBFileName = "dhparams-db.bin";
     dhDefaultGroupFileName = "defaultDH.pem";
-    dhPQMinLength = TLSInfo.defaultConfig.dhPQMinLength
+    dhPQMinLength = TLSInfo.defaultConfig.dhPQMinLength;
+    ecdhGroups = TLSInfo.defaultConfig.ecdhGroups;
 }
 
 let create_with_id (cid : channelid) (host : hostname) : channel =

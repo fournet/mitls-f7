@@ -64,12 +64,14 @@
     <Compile Include="CoreACiphers.fs" />
     <Compile Include="CoreHMac.fsi" />
     <Compile Include="CoreHMac.fs" />
-    <Compile Include="CoreSig.fsi" />
-    <Compile Include="CoreSig.fs" />
     <Compile Include="DHDB.fsi" />
     <Compile Include="DHDB.fs" />
+    <Compile Include="CoreECDH.fsi" />
+    <Compile Include="CoreECDH.fs" />
     <Compile Include="CoreDH.fsi" />
     <Compile Include="CoreDH.fs" />
+    <Compile Include="CoreSig.fsi" />
+    <Compile Include="CoreSig.fs" />
     <Compile Include="DER.fsi" />
     <Compile Include="DER.fs" />
   </ItemGroup>

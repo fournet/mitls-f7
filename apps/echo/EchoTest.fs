@@ -49,17 +49,32 @@ let parse_cmd () =
     let assembly = System.Reflection.Assembly.GetExecutingAssembly()
     let mypath   = Path.GetDirectoryName(assembly.Location)
     let myname   = Path.GetFileNameWithoutExtension(assembly.Location)
-
-    let defaultCS   = [ TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
-                        TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
-                        TLSConstants.TLS_RSA_WITH_AES_128_GCM_SHA256;
-                        TLSConstants.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
-                        TLSConstants.TLS_RSA_WITH_RC4_128_SHA]
+    let defaultCS = [
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+            TLSConstants.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_256_CBC_SHA256;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA256;
+            TLSConstants.TLS_DHE_RSA_WITH_AES_128_CBC_SHA;
+            TLSConstants.TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_AES_256_GCM_SHA384;
+            TLSConstants.TLS_RSA_WITH_AES_128_GCM_SHA256;
+            TLSConstants.TLS_RSA_WITH_AES_256_CBC_SHA256;
+            TLSConstants.TLS_RSA_WITH_AES_256_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_AES_128_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_3DES_EDE_CBC_SHA;
+            TLSConstants.TLS_RSA_WITH_RC4_128_SHA;
+        ]
     let defaultMinVer  = TLSConstants.SSL_3p0
     let defaultMaxVer  = TLSConstants.TLS_1p2
-    let defaultSN   = "mitls.example.org"
+    let defaultSN   = "localhost"
     let defaultCN   = None
-    let defaultPort = 6000
+    let defaultPort = 443
     let defaultDB   = "sessionDB"
     let defaultDH   = "DHDB"
     

@@ -12,49 +12,163 @@ open TLSInfo
 
 type clientExtension =
     | CE_renegotiation_info of cVerifyData
-//    | CE_server_name of list<Cert.hint>
+    | CE_server_name of list<serverName>
     | CE_extended_ms
     | CE_extended_padding
+    | CE_ec_point_format of list<ECGroup.point_format>
+    | CE_ec_curves of list<ECGroup.ec_all_curve>
 
 let sameClientExt a b =
     match a,b with
     | CE_renegotiation_info (_), CE_renegotiation_info (_) -> true
+    | CE_server_name _, CE_server_name _ -> true
     | CE_extended_ms, CE_extended_ms -> true
     | CE_extended_padding, CE_extended_padding -> true
+    | CE_ec_curves _, CE_ec_curves _ -> true
+    | CE_ec_point_format _, CE_ec_point_format _ -> true
     | _,_ -> false
 
 type serverExtension =
     | SE_renegotiation_info of cVerifyData * sVerifyData
-//    | SE_server_name of Cert.hint
+    | SE_server_name
     | SE_extended_ms
     | SE_extended_padding
+    | SE_ec_point_format of list<ECGroup.point_format>
 
 let sameServerExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), SE_renegotiation_info (_,_) -> true
+    | SE_server_name, SE_server_name -> true
     | SE_extended_ms, SE_extended_ms -> true
     | SE_extended_padding, SE_extended_padding -> true
+    | SE_ec_point_format _, SE_ec_point_format _ -> true
     | _,_ -> false
 
 let sameServerClientExt a b =
     match a,b with
     | SE_renegotiation_info (_,_), CE_renegotiation_info (_) -> true
+    | SE_server_name, CE_server_name _ -> true
     | SE_extended_ms, CE_extended_ms -> true
     | SE_extended_padding, CE_extended_padding -> true
+    | SE_ec_point_format _, CE_ec_point_format _ -> true
     | _,_ -> false
 
 let clientExtensionHeaderBytes ext =
     match ext with
     | CE_renegotiation_info(_) -> abyte2 (0xFFuy, 0x01uy)
-//    | CE_server_name (_)     -> abyte2 (0x00uy, 0x00uy)
+    | CE_server_name (_)       -> abyte2 (0x00uy, 0x00uy)
     | CE_extended_ms           -> abyte2 (0x00uy, 0x17uy)
     | CE_extended_padding      -> abyte2 (0xBBuy, 0x8Fuy)
+    | CE_ec_point_format _     -> abyte2 (0x00uy, 0x0Buy)
+    | CE_ec_curves _           -> abyte2 (0x00uy, 0x0Auy)
+
+type 'a CanFail =
+| ExFail of alertDescription * string
+| ExOK of 'a list
+
+let compile_sni_list l =
+    let rec aux = function
+    | [] -> empty_bytes
+    | SNI_DNS(x) :: r -> (abyte 0uy) @| bytes_of_int 2 (length x) @| x @| aux r
+    | SNI_UNKNOWN(t, x) :: r -> (bytes_of_int 1 t) @| bytes_of_int 2 (length x) @| x @| aux r
+    in aux l
+
+let parse_sni_list b : Result<serverName list> =
+    let rec aux b =
+        if equalBytes b empty_bytes then ExOK([])
+        else
+            let (ty,v) = split b 1 in
+            (match vlsplit 2 v with
+            | Error(x,y) -> ExFail(x,y)
+            | Correct(cur, next) -> 
+                (match aux next with
+                | ExFail(x,y) -> ExFail(x,y)
+                | ExOK(l) ->
+                    let cur =
+                        (match cbyte ty with
+                        | 0uy -> SNI_DNS(cur)
+                        | v -> SNI_UNKNOWN(int_of_bytes ty, cur))
+                    in let snidup x =
+                        (match (x,cur) with
+                        | SNI_DNS _, SNI_DNS _ -> true 
+                        | SNI_UNKNOWN(a,_), SNI_UNKNOWN(b, _) when a=b -> true
+                        | _ -> false)
+                    in if List.exists snidup l then ExFail(AD_unrecognized_name, perror __SOURCE_FILE__ __LINE__ "Duplicate SNI type")
+                    else ExOK(cur :: l)))
+    in (match aux b with
+    | ExFail(x,y) -> Error(x,y)
+    | ExOK([]) -> Error(AD_unrecognized_name, perror __SOURCE_FILE__ __LINE__ "Empty SNI extension")
+    | ExOK(l) -> correct (l))
+
+let compile_curve_list l =
+    let rec aux =
+        function
+        | [] -> empty_bytes
+        | ECGroup.EC_CORE c :: r ->
+            let cid = ECGroup.curve_id (ECGroup.getParams c) in
+            cid @| aux r
+        | ECGroup.EC_EXPLICIT_PRIME :: r -> abyte2 (255uy, 01uy) @| aux r
+        | ECGroup.EC_EXPLICIT_BINARY :: r -> abyte2 (255uy, 02uy) @| aux r
+        | ECGroup.EC_UNKNOWN(x) :: r -> bytes_of_int 2 x @| aux r
+    in vlbytes 2 (aux l)
+
+let parse_curve_list b : Result<list<ECGroup.ec_all_curve>> =   
+    let rec aux b =
+        if equalBytes b empty_bytes then ExOK([])
+        elif (length b) % 2 = 1 then ExFail(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Bad encoding of curve list")
+        else let (u,v) = split b 2 in
+            (match aux v with
+            | ExFail(x,y) -> ExFail(x,y)
+            | ExOK(l) ->
+                let cur =
+                    (match cbyte2 u with
+                    | (0uy, 23uy) -> ECGroup.EC_CORE ECGroup.ECC_P256
+                    | (0uy, 24uy) -> ECGroup.EC_CORE ECGroup.ECC_P384
+                    | (0uy, 25uy) -> ECGroup.EC_CORE ECGroup.ECC_P521
+                    | (255uy, 1uy) -> ECGroup.EC_EXPLICIT_PRIME
+                    | (255uy, 2uy) -> ECGroup.EC_EXPLICIT_BINARY
+                    | _ -> ECGroup.EC_UNKNOWN(int_of_bytes u))
+                in
+                    if List.exists ((=)cur) l then ExFail(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Duplicate curve")
+                    else ExOK(cur :: l))
+    in (match aux b with
+    | ExFail(x,y) -> Error(x,y)
+    | ExOK([]) -> Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Empty supported curve list")
+    | ExOK(l) -> correct (l))
+
+let parse_ecpf_list b : Result<list<ECGroup.point_format>> =
+    let rec aux b =
+        if equalBytes b empty_bytes then ExOK([])
+        else let (u,v) = split b 1 in
+            (match aux v with
+            | ExFail(x,y) -> ExFail(x,y)
+            | ExOK(l) ->
+                let cur = match cbyte u with
+                | 0uy -> ECGroup.ECP_UNCOMPRESSED
+                | _ -> ECGroup.ECP_UNKNOWN(int_of_bytes u)
+                in ExOK(cur :: l))
+    in (match aux b with
+    | ExFail(x,y) -> Error(x,y)
+    | ExOK(l) when not (List.exists ((=)ECGroup.ECP_UNCOMPRESSED) l) ->
+        Error(AD_decode_error, perror __SOURCE_FILE__ __LINE__ "Uncompressed point format not supported")
+    | ExOK(l) -> correct (l))
+
+let compile_ecpf_list l =
+    let rec aux =
+        function
+        | [] -> empty_bytes
+        | ECGroup.ECP_UNCOMPRESSED :: r -> (abyte 0uy) @| aux r
+        | ECGroup.ECP_UNKNOWN(t) :: r -> (bytes_of_int 1 t) @| aux r 
+    in vlbytes 1 (aux l)
 
 let clientExtensionPayloadBytes ext =
     match ext with
     | CE_renegotiation_info(cvd) -> vlbytes 1 cvd
+    | CE_server_name(l) -> compile_sni_list l
     | CE_extended_ms -> empty_bytes
     | CE_extended_padding -> empty_bytes
+    | CE_ec_curves(l) -> compile_curve_list l
+    | CE_ec_point_format(l) -> compile_ecpf_list l
 
 let clientExtensionBytes ext =
     let head = clientExtensionHeaderBytes ext in
@@ -72,6 +186,13 @@ let clientExtensionsBytes extL =
 
 let parseClientExtension head payload =
     match cbyte2 head with
+    | (0uy, 0uy) -> // Server name indication
+        (match vlparse 2 payload with
+        | Error (x,y) -> Some(Error(x,y))
+        | Correct(sni) ->
+            (match parse_sni_list sni with
+            | Error (x,y) -> Some(Error(x,y))
+            | Correct(l) -> Some(correct (CE_server_name(l)))))
     | (0xFFuy, 0x01uy) -> // renegotiation info
         (match vlparse 1 payload with
         | Error (x,y) -> Some(Error(x,y))
@@ -79,6 +200,20 @@ let parseClientExtension head payload =
             let res = CE_renegotiation_info (cvd) in
             let res = correct res in
             Some(res))
+    | (0x00uy, 0x0Auy) -> // Supported EC curves
+        (match vlparse 2 payload with
+        | Error (x,y) -> Some(Error(x,y))
+        | Correct(ecl) ->
+            (match parse_curve_list ecl with
+            | Error (x,y) -> Some(Error(x,y))
+            | Correct(l) -> Some(correct (CE_ec_curves(l)))))
+    | (0x00uy, 0x0Buy) -> // Supported EC point formats
+        (match vlparse 1 payload with
+        | Error (x,y) -> Some(Error(x,y))
+        | Correct(ecpf) ->
+            (match parse_ecpf_list ecpf with
+            | Error (x,y) -> Some(Error(x,y))
+            | Correct(l) -> Some(correct (CE_ec_point_format(l)))))
 #if TLSExt_sessionHash
     | (0x00uy, 0x17uy) -> // extended_ms
         if equalBytes payload empty_bytes then
@@ -153,6 +288,11 @@ let prepareClientExtensions (cfg:config) (conn:ConnectionInfo) renegoCVD =
 #if TLSExt_extendedPadding
     let res = CE_extended_padding :: res in
 #endif
+    let res = 
+        let curves = List.map (fun x -> ECGroup.EC_CORE x) cfg.ecdhGroups in
+        if curves <> [] && List.exists (fun x -> isECDHECipherSuite x) cfg.ciphersuites then
+            CE_ec_point_format([ECGroup.ECP_UNCOMPRESSED]) :: CE_ec_curves(curves) :: res
+        else res in
     res
 
 let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negotiatedExtensions>=
@@ -162,6 +302,14 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
         if List.exists (sameServerClientExt sExt) cExtL then
             match sExt with
             | SE_renegotiation_info (cvd,svd) -> correct ({l with ne_renegotiation_info=Some(cvd,svd)})
+            | SE_server_name ->
+                if List.exists (fun x->match x with CE_server_name _ -> true | _ -> false) cExtL then correct(l)
+                else Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server sent an SNI acknowledgement without an SNI provided")
+            | SE_ec_point_format(spf) ->
+                if resuming then
+                    correct l
+                else
+                    correct {l with ne_supported_point_formats = Some spf}
             | SE_extended_ms ->
                 if resuming then
                     correct(l)
@@ -179,7 +327,7 @@ let serverToNegotiatedExtension cExtL (resuming:bool) cs res sExt : Result<negot
             Error(AD_handshake_failure,perror __SOURCE_FILE__ __LINE__ "Server provided an extension not given by the client")
 
 let negotiateClientExtensions (cExtL:list<clientExtension>) (sExtL:list<serverExtension>) (resuming:bool) cs =
-    let nes = {ne_extended_ms=false;ne_extended_padding=false;ne_renegotiation_info = None} in
+    let nes = ne_default in
     match Collections.List.fold (serverToNegotiatedExtension cExtL resuming cs) (correct nes) sExtL with
     | Error(x,y) -> Error(x,y)
     | Correct(l) ->
@@ -190,15 +338,18 @@ let negotiateClientExtensions (cExtL:list<clientExtension>) (sExtL:list<serverEx
 let serverExtensionHeaderBytes ext =
     match ext with
     | SE_renegotiation_info (_,_) -> abyte2 (0xFFuy, 0x01uy)
- //   | SE_server_name (_)        -> abyte2 (0x00uy, 0x00uy)
+    | SE_server_name (_)          -> abyte2 (0x00uy, 0x00uy)
     | SE_extended_ms              -> abyte2 (0x00uy, 0x17uy)
     | SE_extended_padding         -> abyte2 (0xBBuy, 0x8Fuy)
+    | SE_ec_point_format _        -> abyte2 (0x00uy, 0x0Buy)
 
 let serverExtensionPayloadBytes ext =
     match ext with
     | SE_renegotiation_info (cvd,svd) ->
         let p = cvd @| svd in
         vlbytes 1 p
+    | SE_ec_point_format(l) -> compile_ecpf_list l
+    | SE_server_name -> empty_bytes
     | SE_extended_ms -> empty_bytes
     | SE_extended_padding -> empty_bytes
 
@@ -236,7 +387,14 @@ let parseServerExtension head payload =
             correct(SE_extended_padding)
         else
             Error(AD_illegal_parameter, perror __SOURCE_FILE__ __LINE__ "Invalid data for extended padding extension")
-    | (_,_) ->
+    | (0uy, 0x0Buy) -> // Supported EC point format
+        (match vlparse 1 payload with
+        | Error (x,y) -> Error(x,y)
+        | Correct(ecpf) ->
+            (match parse_ecpf_list ecpf with
+            | Error (x,y) -> Error(x,y)
+            | Correct(l) -> correct (SE_ec_point_format(l))))
+        | (_,_) ->
         // A server can never send an extension the client doesn't support
         Error(AD_unsupported_extension, perror __SOURCE_FILE__ __LINE__ "Server provided an unsupported extension")
 
@@ -278,7 +436,14 @@ let parseServerExtensions data =
 let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:sVerifyData)) (resuming:bool) cExt : option<serverExtension>=
     match cExt with
     | CE_renegotiation_info (_) -> Some (SE_renegotiation_info (renegoCVD,renegoSVD))
-
+    | CE_server_name l ->
+        (match List.tryFind (fun x->match x with SNI_DNS _ -> true | _ -> false) l with
+        | Some _ -> Some(SE_server_name)
+        | _ -> None)
+    | CE_ec_point_format(l) ->
+        if resuming then None
+        else Some(SE_ec_point_format [ECGroup.ECP_UNCOMPRESSED])
+    | CE_ec_curves(l) -> None
     | CE_extended_ms -> Some(SE_extended_ms)
     | CE_extended_padding ->
         if resuming then
@@ -292,6 +457,23 @@ let ClientToServerExtension (cfg:config) cs ((renegoCVD:cVerifyData),(renegoSVD:
 let clientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyData)) (resuming:bool)  neg cExt =
     match cExt with
     | CE_renegotiation_info (_) -> {neg with ne_renegotiation_info=Some(cvd,svd)}
+    | CE_ec_curves l ->
+        if resuming then neg
+        else
+            let rec okcurves = function
+            | ECGroup.EC_CORE(x) :: r ->
+                let rl = okcurves r in
+                if List.exists ((=)x) cfg.ecdhGroups then x::rl else rl
+            | x :: r -> okcurves r
+            | [] -> [] in
+            {neg with ne_supported_curves = Some (okcurves l)}
+    | CE_ec_point_format l ->
+        if resuming then neg
+        else
+            let nl = List.filter (fun x -> x = ECGroup.ECP_UNCOMPRESSED) l in
+            {neg with ne_supported_point_formats = Some nl}
+    | CE_server_name l ->
+        {neg with ne_server_names = Some l}
     | CE_extended_ms ->
         if resuming then
             neg
@@ -308,7 +490,7 @@ let clientToNegotiatedExtension (cfg:config) cs ((cvd:cVerifyData),(svd:sVerifyD
 
 let negotiateServerExtensions cExtL cfg cs (cvd,svd) resuming  : serverExtension list  * negotiatedExtensions =
     let server = List.choose (ClientToServerExtension cfg cs (cvd,svd) resuming) cExtL in
-    let negi = {ne_extended_padding=false;ne_extended_ms=false;ne_renegotiation_info=None} in
+    let negi = ne_default in
     let nego = Collections.List.fold (clientToNegotiatedExtension cfg cs (cvd,svd) resuming) negi cExtL in
     (server,nego)
 

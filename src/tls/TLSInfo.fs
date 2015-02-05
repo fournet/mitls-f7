@@ -30,9 +30,30 @@ type sVerifyData = bytes (* ServerFinished payload *)
 
 type sessionHash = bytes
 
+type serverName =
+| SNI_DNS of bytes
+| SNI_UNKNOWN of int * bytes 
+
 // Defined here to not depend on TLSExtension
-type negotiatedExtensions = {ne_extended_ms: bool; ne_extended_padding:bool;
-                             ne_renegotiation_info: option<(cVerifyData * sVerifyData)>}
+
+type negotiatedExtensions = {
+    ne_extended_ms: bool;
+    ne_extended_padding:bool;
+    ne_renegotiation_info: (cVerifyData * sVerifyData) option;
+    ne_supported_curves: ECGroup.ec_curve list option;
+    ne_supported_point_formats: ECGroup.point_format list option;
+    ne_server_names: serverName list option;
+}
+
+let ne_default =
+{
+    ne_extended_ms = false;
+    ne_extended_padding = false;
+    ne_renegotiation_info = None;
+    ne_supported_curves = None;
+    ne_supported_point_formats = None;
+    ne_server_names = None;
+}
 
 let noCsr:csrands = Nonce.random 64 //TODO should be Nonce.noCsr but this does not tc.
 
@@ -243,7 +264,7 @@ let noId: id = {
   pv=SSL_3p0; 
   aeAlg= MACOnly(MA_SSLKHASH(NULL)); 
   csrConn = noCsr;
-  ext = {ne_extended_padding = false; ne_extended_ms = false; ne_renegotiation_info = None};
+  ext = ne_default;
   writer=Client }
 
 let mk_id e = 
@@ -328,7 +349,10 @@ type config = {
     (* DH groups database *)
     dhDBFileName: string;
     dhDefaultGroupFileName: string;
-    dhPQMinLength: nat * nat
+    dhPQMinLength: nat * nat;
+
+    (* ECDH settings *)
+    ecdhGroups: ECGroup.ec_curve list;
     }
 
 let defaultConfig ={
@@ -360,7 +384,9 @@ let defaultConfig ={
 
     dhDBFileName = DHDB.defaultFileName;
     dhDefaultGroupFileName = "default-dh.pem";
-    dhPQMinLength = CoreDH.defaultPQMinLength
+    dhPQMinLength = CoreDH.defaultPQMinLength;
+
+    ecdhGroups = [ECGroup.ECC_P256; ECGroup.ECC_P384; ECGroup.ECC_P521];
     }
 
 let max_TLSPlaintext_fragment_length = 16384 (*@ 2^14 *)

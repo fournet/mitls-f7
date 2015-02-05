@@ -68,6 +68,7 @@ let alertBytes ad =
     | AD_user_cancelled_warning ->             abyte2 (1uy,  90uy)
     | AD_user_cancelled_fatal ->               abyte2 (2uy,  90uy)
     | AD_no_renegotiation ->                   abyte2 (1uy, 100uy)
+    | AD_unrecognized_name ->                  abyte2 (2uy, 112uy)
     | AD_unsupported_extension ->              abyte2 (2uy, 110uy)
 
 let parseAlert b =

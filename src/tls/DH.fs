@@ -6,9 +6,9 @@ module DH
 
 open Bytes
 open DHGroup
+open ECGroup
 open CoreKeys
-
-type secret = Key of bytes 
+open CommonDH
 
 #if ideal
 // Local predicate definitions
@@ -40,69 +40,97 @@ let rec assoc (dhp:dhparams) (gx:elt) (gy:elt) entries: option<PMS.dhpms> =
     | _::entries              -> assoc dhp gx gy entries
 #endif
 
-let leak   (dhp:dhparams) (gx:elt) (Key(b)) = b
-let coerce (dhp:dhparams) (gx:elt) b = Key(b)
+let leak   (dhp:parameters) (gx:element) (Key(b)) = b
+let coerce (dhp:parameters) (gx:element) b = Key(b)
 
-let genKey dhp: elt * secret =
-    let (x,e) = CoreDH.gen_key dhp in
-    #if ideal
-    #if verify
-    Pi.assume(Elt(dhp.dhp,dhp.dhg,e));
-    Pi.assume(HonestExponential(dhp.dhp,dhp.dhg,e));
-    #else
-    honest_log := (dhp,e)::!honest_log;
-    #endif
-    #endif
-    (e, Key (x))
+let genKey (dhp : parameters) : element * secret =
+    match dhp with
+    | DHP_P(dhp) -> 
+        let (x,e) = CoreDH.gen_key dhp in
+        #if ideal
+        #if verify
+        Pi.assume(Elt(dhp.dhp,dhp.dhg,e));
+        Pi.assume(HonestExponential(dhp.dhp,dhp.dhg,e));
+        #else
+        honest_log := (dhp,e)::!honest_log;
+        #endif
+        #endif
+        ({dhe_nil with dhe_p = Some e}, Key (x))
+    | DHP_EC(ecdhp) ->
+        let (x,e) = CoreECDH.gen_key ecdhp in
+        ({dhe_nil with dhe_ec = Some e}, Key(x))
 
-let serverGen filename dhdb minSize =
+let serverGenDH filename dhdb minSize =
     let (dhdb,dhp) = defaultDHparams filename dhdb minSize in
-    let (e,s) = genKey dhp in 
-    (dhdb,dhp,e,s)
+    let (e,s) = genKey (DHP_P(dhp)) in 
+    (Some dhdb, DHP_P dhp, e, s)
 
-let clientGenExp dhp gs =
+let serverGenECDH curve =
+    let dhp = DHP_EC(getParams curve) in
+    let (e,s) = genKey dhp in
+    ((None : DHDB.dhdb option), dhp, e, s)
+
+let clientGenExp (dhp : parameters) (gs : element) =
     let (gc,c) = genKey dhp in
     let (Key ck) = c in
-    let p = dhp.dhp in
-    let pms = CoreDH.agreement p ck gs in
-    //#begin-ideal
-    #if ideal
-    if safeDH dhp gs gc then 
-      match assoc dhp gs gc !log with
-      | Some(pms) -> (gc,pms)
-      | None -> 
-                 let pms=PMS.sampleDH dhp gs gc in
-                 log := (dhp,gs,gc,pms)::!log;
-                 (gc,pms)
-    else 
-      (Pi.assume(DHGroup.Elt(dhp.dhp,dhp.dhg,pms));
-      let dpms = PMS.coerceDH dhp gs gc pms in
-      (gc,dpms))
-    //#end-ideal 
-    #else
-    let dpms = PMS.coerceDH dhp gs gc pms in
-    (gc,dpms)
-    #endif
+    match dhp with
+    | DHP_P(dhp) -> 
+        let p = dhp.dhp in
+        let pms = CoreDH.agreement p ck (get_p gs) in
+        //#begin-ideal
+        #if ideal
+        if safeDH dhp gs gc then 
+          match assoc dhp gs gc !log with
+          | Some(pms) -> (gc,pms)
+          | None -> 
+                     let pms=PMS.sampleDH dhp gs gc in
+                     log := (dhp,gs,gc,pms)::!log;
+                     (gc,pms)
+        else 
+          (Pi.assume(DHGroup.Elt(dhp.dhp,dhp.dhg,pms));
+          let dpms = PMS.coerceDH dhp gs gc pms in
+          (gc,dpms))
+        //#end-ideal 
+        #else
+        let dpms = PMS.coerceDH dhp (get_p gs) (get_p gc) pms in
+        (gc,dpms)
+        #endif
+    | DHP_EC(ecp) ->
+        let pms = CoreECDH.agreement ecp ck (get_ec gs) in
+        let dpms = PMS.coerceECDH ecp (get_ec gs) (get_ec gc) pms in
+        (gc, dpms)
 
-let serverExp dhp gs gc sk =
+let serverExp (dhp : parameters) (gs : element) (gc : element) (sk : secret) =
     let (Key s) = sk in
-    let p = dhp.dhp in
-    let pms = CoreDH.agreement p s gc in
-    //#begin-ideal
-    #if ideal
-    if safeDH dhp gs gc then
-      match assoc dhp gs gc !log with
-      | Some(pms) -> pms
-      | None ->
-                 let pms=PMS.sampleDH dhp gs gc in
-                 log := (dhp,gs,gc,pms)::!log;
-                 pms
-    else
-      (Pi.assume(DHGroup.Elt(dhp.dhp,dhp.dhg,pms));
-      let dpms = PMS.coerceDH dhp gs gc pms in
-      dpms)
-    //#end-ideal
-    #else
-    let dpms = PMS.coerceDH dhp gs gc pms in
-    dpms
-    #endif
+    match dhp with
+    | DHP_P(dhp) -> 
+        let p = dhp.dhp in
+        let pms = CoreDH.agreement p s (get_p gc) in
+        //#begin-ideal
+        #if ideal
+        if safeDH dhp gs gc then
+          match assoc dhp gs gc !log with
+          | Some(pms) -> pms
+          | None ->
+                     let pms=PMS.sampleDH dhp gs gc in
+                     log := (dhp,gs,gc,pms)::!log;
+                     pms
+        else
+          (Pi.assume(DHGroup.Elt(dhp.dhp,dhp.dhg,pms));
+          let dpms = PMS.coerceDH dhp gs gc pms in
+          dpms)
+        //#end-ideal
+        #else
+        let dpms = PMS.coerceDH dhp (get_p gs) (get_p gc) pms in
+        dpms
+        #endif
+    | DHP_EC(ecp) ->
+        let pms = CoreECDH.agreement ecp s (get_ec gc) in
+        let dpms = PMS.coerceECDH ecp (get_ec gs) (get_ec gc) pms in
+        dpms
+
+let serialize (e:element) : bytes =
+    match e with
+    | {dhe_p = Some x; dhe_ec = None; } -> TLSConstants.vlbytes 2 x
+    | {dhe_p = None; dhe_ec = Some p; } -> TLSConstants.vlbytes 1 (CoreECDH.serialize p)
+    | _ -> failwith "(impossible)"

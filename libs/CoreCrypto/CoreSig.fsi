@@ -13,15 +13,18 @@ type sighash =
 type sigalg =
 | CORE_SA_RSA
 | CORE_SA_DSA
+| CORE_SA_ECDSA
 
 (* ------------------------------------------------------------------------ *)
 type sigskey =
 | SK_RSA of CoreKeys.rsaskey
 | SK_DSA of CoreKeys.dsaskey
+| SK_ECDH of CoreKeys.ecdhskey
 
 type sigpkey =
 | PK_RSA of CoreKeys.rsapkey
 | PK_DSA of CoreKeys.dsapkey
+| PK_ECDH of CoreKeys.ecdhpkey
 
 val sigalg_of_skey : sigskey -> sigalg
 val sigalg_of_pkey : sigpkey -> sigalg
